@@ -53,7 +53,7 @@ export function TimelineEditorPage() {
         console.log("📤 [TIMELINE-PAGE] Submitting timeline to API:", {
           totalClips: clips.length,
           transitions: transitionPlan,
-          clipDetails: clips.map(c => ({
+          clipDetails: clips.map((c: any) => ({
             id: c.id,
             label: c.label,
             duration: c.duration,
@@ -69,14 +69,14 @@ export function TimelineEditorPage() {
         formData.append("quickEditMode", "true");  // Enable multi-clip processing
         
         // Build media and trim information for server
-        const mediaItems = clips.map((clip, index) => ({
+        const mediaItems = clips.map((clip: any, index: number) => ({
           id: clip.id,
           index: index,
           label: clip.label,
         }));
         
         const trimRanges: Record<string, { start: number; end: number }> = {};
-        clips.forEach((clip) => {
+        clips.forEach((clip: any) => {
           trimRanges[clip.id] = {
             start: clip.trimStart,
             end: clip.trimEnd,
@@ -98,11 +98,14 @@ export function TimelineEditorPage() {
         formData.append("editorSelections", JSON.stringify(editorSelections));
 
         console.log("📋 [TIMELINE-PAGE] EditorSelections:", editorSelections);
-        console.log("📋 [TIMELINE-PAGE] FormData entries:", Array.from(formData.entries()).map(([key, value]) => ({
-          key,
-          type: value instanceof File ? `File: ${value.name}` : typeof value,
-          size: value instanceof File ? `${(value.size / 1024 / 1024).toFixed(2)}MB` : String(value).substring(0, 50),
-        })));
+        console.log("📋 [TIMELINE-PAGE] FormData entries:", Array.from(formData.entries()).map((entry: any) => {
+          const [key, value] = entry;
+          return {
+            key,
+            type: value instanceof File ? `File: ${value.name}` : typeof value,
+            size: value instanceof File ? `${(value.size / 1024 / 1024).toFixed(2)}MB` : String(value).substring(0, 50),
+          };
+        }));
 
         setLoadingMessage("Processing video generation...");
 

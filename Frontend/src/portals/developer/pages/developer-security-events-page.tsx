@@ -161,9 +161,10 @@ export function DeveloperSecurityEventsPage() {
           byAction: {},
         };
 
-        (data || []).forEach(event => {
+        (data || []).forEach((event: any) => {
           summaryData.bySeverity[event.severity as SecurityEventSeverity]++;
-          summaryData.byCategory[event.category] = (summaryData.byCategory[event.category] || 0) + 1;
+          const category = event.category as SecurityEventCategory;
+          summaryData.byCategory[category] = (summaryData.byCategory[category] || 0) + 1;
           summaryData.byAction[event.action] = (summaryData.byAction[event.action] || 0) + 1;
         });
 
@@ -241,7 +242,7 @@ export function DeveloperSecurityEventsPage() {
             ...e,
             status: 'resolved',
             resolved_at: new Date().toISOString(),
-            resolved_by: profile?.id,
+            resolved_by: profile?.id || null,
             notes
           }
           : e
@@ -252,7 +253,7 @@ export function DeveloperSecurityEventsPage() {
           ...selectedEvent,
           status: 'resolved',
           resolved_at: new Date().toISOString(),
-          resolved_by: profile?.id,
+          resolved_by: profile?.id || null,
           notes
         });
       }

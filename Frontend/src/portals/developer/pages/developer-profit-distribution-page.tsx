@@ -13,7 +13,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { ArrowLeft, PieChart3, RefreshCcw, Save, TrendingUp, ShieldCheck } from "lucide-react";
+import { ArrowLeft, RefreshCcw, Save, TrendingUp, ShieldCheck } from "lucide-react";
 import {
   fetchProfitDistribution,
   fetchProfitDistributionSettings,
@@ -66,7 +66,7 @@ export function DeveloperProfitDistribution() {
     }
   };
 
-  const loadDistribution = async (selectedMonth?: number, selectedYear?: number) => {
+  const loadDistribution = async (selectedMonth?: number | null, selectedYear?: number | null) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -109,7 +109,7 @@ export function DeveloperProfitDistribution() {
 
   const monthOptions = useMemo(() => {
     if (!distribution?.monthly) return [];
-    return Array.from(new Set(distribution.monthly.map((item: any) => item.label))).map((label: string) => ({
+    return Array.from(new Set(distribution.monthly.map((item: any) => item.label))).map((label: any) => ({
       label,
       value: Number(label.split("-")[1]),
       year: Number(label.split("-")[0]),

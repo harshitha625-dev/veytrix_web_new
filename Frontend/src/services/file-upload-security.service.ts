@@ -251,6 +251,7 @@ export async function fetchRejectionBreakdown(
 
     events.forEach((event: Partial<FileUploadSecurityEvent>) => {
       if (
+        event.action &&
         event.action !== 'UPLOAD_SUCCESS' &&
         event.action !== 'UPLOAD_REJECTED'
       ) {
@@ -362,16 +363,17 @@ export async function fetchUploadTrends(days: number = 7): Promise<{
       trendMap.set(dateStr, { successful: 0, failed: 0, rejected: 0 });
     }
 
-    // Count events by date
     events.forEach((event: Partial<FileUploadSecurityEvent>) => {
-      const dateStr = event.created_at.split('T')[0];
-      const entry = trendMap.get(dateStr) || { successful: 0, failed: 0, rejected: 0 };
+      if (event.created_at) {
+        const dateStr = event.created_at.split('T')[0];
+        const entry = trendMap.get(dateStr) || { successful: 0, failed: 0, rejected: 0 };
 
-      if (event?.action === 'UPLOAD_SUCCESS') entry.successful++;
-      else if (event?.action === 'UPLOAD_REJECTED') entry.rejected++;
-      else entry.failed++;
+        if (event?.action === 'UPLOAD_SUCCESS') entry.successful++;
+        else if (event?.action === 'UPLOAD_REJECTED') entry.rejected++;
+        else entry.failed++;
 
-      trendMap.set(dateStr, entry);
+        trendMap.set(dateStr, entry);
+      }
     });
 
     const trends = Array.from(trendMap.entries())

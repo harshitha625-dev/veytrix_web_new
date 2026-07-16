@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../../../app/context/auth-context";
 import { buildUsageContext, logUsageEvent } from "../../../services/usage.service";
+// @ts-ignore
 import { generateVideo } from "../../../api/generatevideo";
 
 export function DeveloperWorkflowLabPage() {

@@ -1760,230 +1760,186 @@ const getVideoMetadata = (inputPath) => {
   });
 };
 
-const applyEffectsToVideo = async (inputPath, effects, durationSeconds = 10) => {
-  const selectedEffect = String(effects?.selectedEffect || "none");
-  const settings = effects?.settings || {};
+const mapProEffectToFfmpegFilter = (effectId, params, startTime, endTime, durationSeconds, fps, width, height) => {
+  const enableStr = `:enable='between(t,${startTime},${endTime})'`;
+  const filters = [];
 
-  if (!inputPath || selectedEffect === "none") {
-    console.log("ℹ️ [API-MEDIA] No deterministic effect applied. selectedEffect=", selectedEffect);
+  // Normalize effectId
+  let id = effectId.startsWith("pro-") ? effectId.substring(4) : effectId;
+
+  // Let's check parameters
+  const intensity = Number(params.intensity ?? params.blurAmount ?? params.glitchIntensity ?? params.shakeStrength ?? params.flashIntensity ?? params.rgbSplitAmount ?? params.smoothZoomAmount ?? params.filmGrainOpacity ?? 1.0);
+
+  // 1. Camera / Zoom / Shake
+  if (id.includes("zoom") || id.includes("scale") || id.includes("push") || id.includes("pull") || id.includes("dolly")) {
+    const dur = Number(durationSeconds) || 10;
+    const zoomAmt = Math.max(0.01, Math.min(2.0, intensity * 0.35));
+    const zoomScale = (0.12 * (zoomAmt / 0.35)).toFixed(4);
+    const startFrame = Math.round(startTime * fps);
+    const endFrame = Math.round(endTime * fps);
+    filters.push(`zoompan=z='if(between(on\\,${startFrame}\\,${endFrame})\\,1+${zoomScale}*sin(PI*on/(${fps}*${dur}))\\,1)':x='iw/2-(iw/zoom)/2':y='ih/2-(ih/zoom)/2':d=1:s=${width}x${height}:fps=${fps}`);
+  }
+  else if (id.includes("shake") || id.includes("bounce") || id.includes("wobble") || id.includes("jello") || id.includes("float") || id.includes("swing")) {
+    const strength = Math.max(0.1, Math.min(10, intensity));
+    filters.push(`crop=iw-20:ih-20:if(between(t\\,${startTime}\\,${endTime})\\,10+${strength}*1.5*sin(2*PI*t*8)\\,10):if(between(t\\,${startTime}\\,${endTime})\\,10+${strength}*1.5*cos(2*PI*t*6.5)\\,10)`);
+  }
+  // 2. Blur / Glow
+  else if (id.includes("blur") || id.includes("glow") || id.includes("bloom") || id.includes("light") || id.includes("aurora") || id.includes("spotlight") || id.includes("flare") || id.includes("reflection") || id.includes("halo")) {
+    const blur = Math.max(1, Math.min(30, intensity * 8));
+    filters.push(`gblur=sigma=${blur}${enableStr}`);
+    if (id.includes("glow") || id.includes("bloom") || id.includes("light") || id.includes("neon")) {
+      filters.push(`eq=brightness=0.08:contrast=1.1:saturation=1.2${enableStr}`);
+    }
+  }
+  // 3. Glitch / Noise / CRT / Static
+  else if (id.includes("glitch") || id.includes("noise") || id.includes("static") || id.includes("tear") || id.includes("corruption") || id.includes("loss")) {
+    const noiseLevel = Math.round(8 + intensity * 15);
+    filters.push(`noise=alls=${noiseLevel}:allf=t+u${enableStr}`);
+    if (id.includes("tv") || id.includes("crt") || id.includes("display") || id.includes("bad")) {
+      filters.push(`drawgrid=width=iw:height=4:thickness=1:color=black@0.12${enableStr}`);
+    }
+  }
+  // 4. RGB Split
+  else if (id.includes("rgb") || id.includes("chromatic") || id.includes("aberration")) {
+    const amount = Math.round(Math.max(1, Math.min(50, intensity * 10)));
+    filters.push(`rgbashift=rh=${amount}:bh=-${amount}${enableStr}`);
+    filters.push(`eq=contrast=1.15:saturation=1.2${enableStr}`);
+  }
+  // 5. Film / Retro / Vintage
+  else if (id.includes("film") || id.includes("retro") || id.includes("camera") || id.includes("vintage") || id.includes("polaroid") || id.includes("kodak") || id.includes("fuji") || id.includes("super8") || id.includes("16mm") || id.includes("camcorder") || id.includes("cinema") || id.includes("roll")) {
+    filters.push(`eq=saturation=0.75:contrast=0.95:brightness=0.02${enableStr}`);
+    filters.push(`curves=r='0/0.08 0.60/0.52 1/0.92':g='0/0.06 0.70/0.56 1/0.86':b='0/0.05 0.80/0.52 1/0.76'${enableStr}`);
+    filters.push(`noise=alls=10:allf=t+u${enableStr}`);
+  }
+  // 6. Color balance / Black & White / Sepia / Monochromatic / Moody
+  else if (id.includes("white") || id.includes("bw") || id.includes("mono") || id.includes("noir")) {
+    filters.push(`hue=s=0${enableStr}`);
+  }
+  else if (id.includes("sepia")) {
+    filters.push(`colorchannelmixer=.393:.769:.189:.349:.686:.168:.272:.534:.131${enableStr}`);
+  }
+  else if (id.includes("moody") || id.includes("shadow") || id.includes("dark")) {
+    filters.push(`eq=contrast=1.2:brightness=-0.05:saturation=0.8${enableStr}`);
+  }
+  else if (id.includes("warm") || id.includes("sunset") || id.includes("golden")) {
+    filters.push(`colorbalance=rs=0.10:gs=0.04:bs=-0.08${enableStr}`);
+    filters.push(`eq=saturation=1.2:brightness=0.02${enableStr}`);
+  }
+  else if (id.includes("cool") || id.includes("blue") || id.includes("moonlight") || id.includes("ice")) {
+    filters.push(`colorbalance=rs=-0.08:gs=-0.03:bs=0.12${enableStr}`);
+    filters.push(`eq=saturation=1.1${enableStr}`);
+  }
+  // 7. Distortion / Warp / Wave / Liquid
+  else if (id.includes("distortion") || id.includes("ripple") || id.includes("wave") || id.includes("fisheye") || id.includes("bulge") || id.includes("pinch") || id.includes("twirl") || id.includes("swirl") || id.includes("glass") || id.includes("liquid") || id.includes("portal") || id.includes("spiral")) {
+    const kVal = (0.2 * intensity).toFixed(3);
+    filters.push(`lenscorrection=k1=${kVal}:k2=${(0.1 * intensity).toFixed(3)}`);
+  }
+  // 8. Flash
+  else if (id.includes("flash") || id.includes("burn")) {
+    const flashInt = Math.max(0.01, Math.min(2.0, intensity));
+    const br = (0.20 * flashInt).toFixed(3);
+    const co = (1 + 0.20 * flashInt).toFixed(3);
+    filters.push(`eq=brightness=${br}:contrast=${co}${enableStr}`);
+  }
+  // 9. Classic fallbacks
+  else {
+    if (id === "vintage") {
+      filters.push(`eq=saturation=0.72:contrast=0.93:brightness=0.03${enableStr}`);
+      filters.push(`curves=r='0/0.08 0.60/0.52 1/0.92':g='0/0.06 0.70/0.56 1/0.86':b='0/0.05 0.80/0.52 1/0.76'${enableStr}`);
+      filters.push(`noise=alls=14:allf=t+u${enableStr}`);
+    } else if (id === "color-correction") {
+      const rawBrightness = Number(params.brightness);
+      const rawContrast = Number(params.contrast);
+      const rawSaturation = Number(params.saturation);
+      const eqBrightness = Math.max(-1, Math.min(1, (Number.isFinite(rawBrightness) ? rawBrightness : 1) - 1));
+      const eqContrast = Math.max(0.1, Math.min(3, Number.isFinite(rawContrast) ? rawContrast : 1));
+      const eqSaturation = Math.max(0, Math.min(3, Number.isFinite(rawSaturation) ? rawSaturation : 1));
+      filters.push(`eq=brightness=${eqBrightness.toFixed(3)}:contrast=${eqContrast.toFixed(3)}:saturation=${eqSaturation.toFixed(3)}${enableStr}`);
+    } else if (id === "hdr" || id === "hdr-pop") {
+      filters.push(`eq=contrast=1.6:brightness=0.10:saturation=1.4${enableStr}`);
+      filters.push(`unsharp=5:5:1.1:5:5:0.0${enableStr}`);
+    } else if (id === "sepia") {
+      filters.push(`colorchannelmixer=.393:.769:.189:.349:.686:.168:.272:.534:.131${enableStr}`);
+    } else if (id === "black-white") {
+      filters.push(`hue=s=0${enableStr}`);
+    } else if (id === "vivid") {
+      filters.push(`eq=saturation=2.5:contrast=1.3:brightness=0.07${enableStr}`);
+    }
+  }
+
+  return filters;
+};
+
+const applyEffectsToVideo = async (inputPath, effectsInput, durationSeconds = 10) => {
+  if (!inputPath) return inputPath;
+
+  let effectsList = [];
+  if (Array.isArray(effectsInput)) {
+    effectsList = effectsInput.filter(e => e.enabled);
+  } else if (effectsInput && effectsInput.selectedEffect && Math.abs(effectsInput.selectedEffect !== "none")) {
+    effectsList = [{
+      id: effectsInput.selectedEffect,
+      params: effectsInput.settings || {},
+      startTime: 0,
+      endTime: durationSeconds
+    }];
+  }
+
+  if (!effectsList.length) {
+    console.log("ℹ️ [API-MEDIA] No deterministic effects applied.");
     return inputPath;
   }
 
   const metadata = await getVideoMetadata(inputPath);
-
+  const fps = metadata.fps || 30;
+  const width = metadata.width || 1280;
+  const height = metadata.height || 720;
   const outputPath = makeTempFilePath("effect.mp4");
+
   const videoFilters = [];
   let audioFilter = "";
 
-  const safeDurationForFade = Number.isFinite(Number(durationSeconds)) && Number(durationSeconds) > 0 ? Number(durationSeconds) : 10;
-  if (selectedEffect === "fade-in" || selectedEffect === "transition") {
-    const fadeDuration = Math.min(4, Math.max(2, safeDurationForFade * 0.4));
-    const fadeOutStart = Math.max(0, safeDurationForFade - fadeDuration);
-    videoFilters.push(`fade=t=in:st=0:d=${fadeDuration}`);
-    videoFilters.push(`fade=t=out:st=${fadeOutStart}:d=${fadeDuration}`);
+  // 1. Process non-speed (visual rendering) effects in order
+  for (const eff of effectsList) {
+    let id = eff.id;
+    let normId = id.startsWith("pro-") ? id.substring(4) : id;
+    if (normId === "slow-motion" || normId === "velocity" || normId === "speed-ramp") {
+      continue;
+    }
+
+    const startTime = eff.startTime ?? 0;
+    const endTime = eff.endTime ?? durationSeconds;
+    const effectFilters = mapProEffectToFfmpegFilter(id, eff.params || {}, startTime, endTime, durationSeconds, fps, width, height);
+    if (effectFilters.length > 0) {
+      videoFilters.push(...effectFilters);
+    }
   }
 
-  if (selectedEffect === "blur") {
-    const blur = Math.max(0, Math.min(30, Number(settings.blurAmount ?? 10)));
-    videoFilters.push(`boxblur=${blur}:1`);
+  // 2. Process speed-altering effects combined
+  let speedFactor = 1.0;
+  for (const eff of effectsList) {
+    let id = eff.id;
+    let normId = id.startsWith("pro-") ? id.substring(4) : id;
+    if (normId === "slow-motion") {
+      speedFactor *= Math.max(0.1, Math.min(1.0, Number(eff.params?.slowMotionSpeed ?? 0.25)));
+    } else if (normId === "velocity" || normId === "speed-ramp") {
+      speedFactor *= Math.max(0.1, Math.min(5.0, Number(eff.params?.velocitySpeed ?? eff.params?.intensity ?? 1.5)));
+    }
   }
 
-  if (selectedEffect === "color-correction") {
-    const rawBrightness = Number(settings.brightness);
-    const rawContrast = Number(settings.contrast);
-    const rawSaturation = Number(settings.saturation);
-
-    const eqBrightness = Math.max(-1, Math.min(1, (Number.isFinite(rawBrightness) ? rawBrightness : 1) - 1));
-    const eqContrast = Math.max(0.1, Math.min(3, Number.isFinite(rawContrast) ? rawContrast : 1));
-    const eqSaturation = Math.max(0, Math.min(3, Number.isFinite(rawSaturation) ? rawSaturation : 1));
-
-    videoFilters.push(`eq=brightness=${eqBrightness.toFixed(3)}:contrast=${eqContrast.toFixed(3)}:saturation=${eqSaturation.toFixed(3)}`);
-  }
-
-  if (selectedEffect === "vintage") {
-    // Old-film look: lowered saturation + warm tone curve + temporal grain.
-    videoFilters.push("eq=saturation=0.72:contrast=0.93:brightness=0.03");
-    videoFilters.push("curves=r='0/0.08 0.60/0.52 1/0.92':g='0/0.06 0.70/0.56 1/0.86':b='0/0.05 0.80/0.52 1/0.76'");
-    videoFilters.push("noise=alls=14:allf=t+u");
-  }
-
-  if (selectedEffect === "black-white") {
-    videoFilters.push("hue=s=0");
-  }
-
-  if (selectedEffect === "cinematic") {
-    videoFilters.push("eq=contrast=1.4:brightness=0.08:saturation=1.2");
-    videoFilters.push("colorbalance=rs=0.08:gs=0.02:bs=-0.08");
-  }
-
-  if (selectedEffect === "warm") {
-    videoFilters.push("colorbalance=rs=0.12:gs=0.05:bs=-0.10");
-    videoFilters.push("eq=saturation=1.1:brightness=0.03");
-  }
-
-  if (selectedEffect === "cool") {
-    videoFilters.push("colorbalance=rs=-0.10:gs=-0.05:bs=0.14");
-    videoFilters.push("eq=saturation=1.05");
-  }
-
-  if (selectedEffect === "sepia") {
-    videoFilters.push("colorchannelmixer=.393:.769:.189:.349:.686:.168:.272:.534:.131");
-  }
-
-  if (selectedEffect === "hdr") {
-    videoFilters.push("eq=contrast=1.6:brightness=0.10:saturation=1.4");
-    videoFilters.push("unsharp=5:5:1.1:5:5:0.0");
-  }
-
-  if (selectedEffect === "vivid") {
-    videoFilters.push("eq=saturation=2.5:contrast=1.3:brightness=0.07");
-  }
-
-  if (selectedEffect === "soft-glow") {
-    videoFilters.push("gblur=sigma=1.2,eq=brightness=0.08:contrast=1.05");
-  }
-
-  if (selectedEffect === "retro-film") {
-    videoFilters.push("eq=saturation=0.92:contrast=1.06:brightness=0.02");
-    videoFilters.push("colorbalance=rs=-0.03:gs=0.05:bs=-0.08");
-    videoFilters.push("noise=alls=10:allf=t+u");
-    videoFilters.push("drawgrid=width=iw:height=4:thickness=1:color=black@0.08");
-  }
-
-  if (selectedEffect === "slow-motion") {
-    const speed = Math.max(0.1, Math.min(1, Number(settings.slowMotionSpeed ?? 0.25)));
-    const stretch = 1 / speed;
+  if (speedFactor !== 1.0) {
+    const stretch = 1 / speedFactor;
     videoFilters.push(`setpts=${stretch.toFixed(3)}*PTS`);
-    audioFilter = buildAtempoChain(speed);
-  }
-
-  if (selectedEffect === "glitch") {
-    const intensity = Math.max(0, Math.min(3, Number(settings.glitchIntensity ?? 1)));
-    const noiseLevel = Math.round(10 + intensity * 20);
-    videoFilters.push(`noise=alls=${noiseLevel}:allf=t+u`);
-  }
-
-  if (selectedEffect === "zoom") {
-    videoFilters.push("scale=iw*1.2:ih*1.2,crop=iw/1.2:ih/1.2");
-  }
-
-  if (selectedEffect === "green-screen") {
-    // Use strong green suppression so the effect is visible even when true chroma scenes are absent.
-    videoFilters.push("lutrgb=g='val*0.15'");
-  }
-
-  if (selectedEffect === "motion-tracking") {
-    // Approximate motion highlight effect with frame-difference style rendering.
-    videoFilters.push("tblend=all_mode=difference,eq=contrast=2.0:brightness=0.05:saturation=0");
-  }
-
-  // --- NEW EFFECTS ---
-  if (selectedEffect === "shake") {
-    const strength = Math.max(0, Math.min(10, Number(settings.shakeStrength ?? 1.5)));
-    videoFilters.push(`crop=iw-20:ih-20:10+${strength}*1.5*sin(2*PI*t*8):10+${strength}*1.5*cos(2*PI*t*6.5)`);
-  }
-
-  if (selectedEffect === "velocity") {
-    const speed = Math.max(0.1, Math.min(5, Number(settings.velocitySpeed ?? 1.5)));
-    const stretch = 1 / speed;
-    videoFilters.push(`setpts=${stretch.toFixed(3)}*PTS`);
-    audioFilter = buildAtempoChain(speed);
-  }
-
-  if (selectedEffect === "motion-blur") {
-    // Use Gaussian spatial blur — reliable, visible in output, no temporal artifacts
-    const blurAmount = Math.max(1, Math.min(30, Number(settings.motionBlurAmount ?? 10)));
-    videoFilters.push(`gblur=sigma=${blurAmount}`);
-  }
-
-  if (selectedEffect === "flash-effect") {
-    const intensity = Math.max(0.01, Math.min(2.0, Number(settings.flashIntensity ?? 0.75)));
-    const br = (0.20 * intensity).toFixed(3);
-    const co = (1 + 0.20 * intensity).toFixed(3);
-    videoFilters.push(`eq=brightness=${br}:contrast=${co}`);
-  }
-
-  if (selectedEffect === "rgb-split") {
-    const amount = Math.max(0, Math.min(50, Number(settings.rgbSplitAmount ?? 12)));
-    const cbh = Math.round(amount / 3);
-    const crh = Math.round(-amount / 3);
-    videoFilters.push(`chromashift=cbh=${cbh}:cbv=0:crh=${crh}:crv=0,eq=contrast=1.2:saturation=1.3`);
-  }
-
-  if (selectedEffect === "smooth-zoom") {
-    const dur = Number(durationSeconds ?? 10) || 10;
-    const amount = Math.max(0.01, Math.min(2.0, Number(settings.smoothZoomAmount ?? 0.35)));
-    const zoomScale = (0.12 * (amount / 0.35)).toFixed(4);
-    videoFilters.push(`zoompan=z='1+${zoomScale}*sin(PI*on/(${metadata.fps}*${dur}))':x='iw/2-(iw/zoom)/2':y='ih/2-(ih/zoom)/2':d=1:s=${metadata.width}x${metadata.height}:fps=${metadata.fps}`);
-  }
-
-  if (selectedEffect === "film-grain") {
-    const opacity = Math.max(0.01, Math.min(1.0, Number(settings.filmGrainOpacity ?? 0.4)));
-    const noiseLevel = Math.round(8 + opacity * 20);
-    videoFilters.push(`noise=alls=${noiseLevel}:allf=t+u,eq=contrast=1.05:saturation=1.1`);
-  }
-
-  // --- NEW FILTERS ---
-  if (selectedEffect === "moody") {
-    videoFilters.push("eq=contrast=1.3:brightness=-0.05:saturation=0.75");
-  }
-
-  if (selectedEffect === "warm-tone") {
-    videoFilters.push("colorbalance=rs=0.10:gs=0.04:bs=-0.08,hue=h=-8,eq=saturation=1.25:brightness=0.03");
-  }
-
-  if (selectedEffect === "cool-tone") {
-    videoFilters.push("colorbalance=rs=-0.08:gs=-0.03:bs=0.12,hue=h=14,eq=saturation=1.1:brightness=-0.01");
-  }
-
-  if (selectedEffect === "teal-orange") {
-    videoFilters.push("colorbalance=rs=0.15:gs=0.0:bs=-0.15:rm=0.12:gm=-0.02:bm=-0.12,hue=h=-7,eq=contrast=1.3:saturation=1.25:brightness=0.01");
-  }
-
-  if (selectedEffect === "dreamy-glow") {
-    videoFilters.push("gblur=sigma=1.0,eq=contrast=0.95:saturation=1.15:brightness=0.03");
-  }
-
-  if (selectedEffect === "film-look") {
-    videoFilters.push("eq=contrast=1.2:brightness=0.03:saturation=1.15,curves=preset=vintage");
-  }
-
-  if (selectedEffect === "vhs") {
-    videoFilters.push("chromashift=cbh=2:cbv=1:crh=-2:crv=-1,noise=alls=8:allf=t+u,eq=contrast=1.15:saturation=1.2,hue=h=2");
-  }
-
-  if (selectedEffect === "soft-skin") {
-    videoFilters.push("smartblur=lr=1.5:ls=-0.5,eq=brightness=0.03:saturation=1.15:contrast=0.95");
-  }
-
-  if (selectedEffect === "neon-glow") {
-    videoFilters.push("eq=saturation=1.4:brightness=0.03:contrast=1.2,hue=h=10");
-  }
-
-  if (selectedEffect === "hdr-pop") {
-    videoFilters.push("eq=contrast=1.55:brightness=0.08:saturation=1.45,unsharp=5:5:1.2:5:5:0.0");
-  }
-
-  if (selectedEffect === "old-tv") {
-    // Old TV: scanlines + noise + color shift + vignette
-    videoFilters.push("noise=alls=14:allf=t+u");
-    videoFilters.push("eq=contrast=1.12:saturation=0.85:brightness=0.02");
-    videoFilters.push("chromashift=cbh=3:cbv=2:crh=-3:crv=-2");
-    videoFilters.push("vignette=angle=0.6:mode=forward");
-    videoFilters.push("hue=h=4");
-    videoFilters.push("drawgrid=width=iw:height=4:thickness=1:color=black@0.15");
+    audioFilter = buildAtempoChain(speedFactor);
   }
 
   if (!videoFilters.length && !audioFilter) {
-    console.log("ℹ️ [API-MEDIA] Effect skipped - no filters produced", {
-      selectedEffect,
-      hasAudioFilter: Boolean(audioFilter),
-    });
+    console.log("ℹ️ [API-MEDIA] Effects skipped - no filters produced");
     return inputPath;
   }
 
-  console.log("🎚️ [API-MEDIA] Effect filter chain", {
-    selectedEffect,
+  console.log("🎚️ [API-MEDIA] Combined effects filter chain", {
+    effectsCount: effectsList.length,
     videoFilters,
     audioFilter: audioFilter || "none",
   });
@@ -2012,12 +1968,15 @@ const applyEffectsToVideo = async (inputPath, effects, durationSeconds = 10) => 
       .outputOptions(outputOptions)
       .output(outputPath)
       .on("end", () => {
-        console.log("✅ [API-MEDIA] Effect rendering complete:", selectedEffect);
+        console.log("✅ [API-MEDIA] Effects rendering complete");
         resolve();
       })
       .on("error", (err, stdout, stderr) => {
-        console.error("❌ [API-MEDIA] Effect rendering failed:", err);
+        console.error("❌ [API-MEDIA] Effects rendering failed:", err);
         console.error("📢 [FFmpeg STDERR]:", stderr);
+        try {
+          fs.writeFileSync("ffmpeg_error.log", `ERROR: ${err.message}\n\nSTDERR:\n${stderr}\n\nSTDOUT:\n${stdout}`);
+        } catch (e) {}
         reject(err);
       })
       .run();
@@ -4075,18 +4034,22 @@ app.post(
 
           let finalSegmentPath = segmentPath;
 
-          if (clipEffect && clipEffect !== "none") {
+          const clipStacked = mediaMeta?.stackedEffects || [];
+          const activeStacked = clipStacked.filter((e) => e.enabled);
+
+          if (activeStacked.length > 0 || (clipEffect && clipEffect !== "none")) {
             let clipDuration = trimDuration || Number(mediaMeta?.duration);
             if (!Number.isFinite(clipDuration) || clipDuration <= 0) {
               clipDuration = media.mimetype?.startsWith("image/") ? 3 : await getVideoDuration(segmentPath);
             }
             console.log(`🎬 [API-MEDIA] Applying per-clip effect to segment ${i}:`, {
+              stackedCount: activeStacked.length,
               effect: clipEffect,
               duration: clipDuration,
             });
             const effectedSegmentPath = await applyEffectsToVideo(
               segmentPath,
-              { selectedEffect: clipEffect, settings: clipEffectSettings },
+              activeStacked.length > 0 ? activeStacked : { selectedEffect: clipEffect, settings: clipEffectSettings },
               clipDuration
             );
             if (effectedSegmentPath !== segmentPath) {

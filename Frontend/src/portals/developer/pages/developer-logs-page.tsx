@@ -18,7 +18,7 @@ export function DeveloperLogsPage() {
       .select("created_at,portal,usage_type,feature_key,status,actor_role")
       .order("created_at", { ascending: false })
       .limit(12)
-      .then(({ data }) => {
+      .then(({ data }: any) => {
         if (mounted) {
           setRows(data || []);
         }

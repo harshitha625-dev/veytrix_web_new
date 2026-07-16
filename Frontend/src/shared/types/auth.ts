@@ -18,8 +18,12 @@ export interface AppProfile {
   phone?: string;
   country?: string;
   language?: string;
+  portalAccess: string[];
+  developerCredits?: number;
+  testingModeEnabled?: boolean;
   credits?: {
     userCredits: number;
+    developerCredits?: number;
   };
 }
 

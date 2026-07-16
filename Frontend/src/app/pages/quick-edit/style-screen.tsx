@@ -111,6 +111,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
+import { getAllProEffects, getEffectModule } from "../../../../effects/effects";
 
 const Youtube = ({ className, size = 24, ...props }: React.SVGProps<SVGSVGElement> & { size?: number | string }) => (
     <svg
@@ -411,6 +412,7 @@ const FilmoraLeftPanel = memo(({
     captionStylePreset, setCaptionStylePreset,
     isCaptionPlacementMode, setIsCaptionPlacementMode,
     handleAutoCaption, isAutoCapturing, autoCaptionStatus,
+    proParams, setProParams,
     /* smart features + tools grid */
     aiOptions, toggleOption, copyActiveClip, setExpandedSections,
     /* aspect ratio */
@@ -686,6 +688,7 @@ const FilmoraLeftPanel = memo(({
                                 isCaptionPlacementMode={isCaptionPlacementMode} setIsCaptionPlacementMode={setIsCaptionPlacementMode}
                                 handleAutoCaption={handleAutoCaption}
                                 isAutoCapturing={isAutoCapturing} autoCaptionStatus={autoCaptionStatus}
+                                proParams={proParams} setProParams={setProParams}
                             />
                         </div>
                     </div>
@@ -754,6 +757,7 @@ const FilmoraLeftPanel = memo(({
                                         isCaptionPlacementMode={isCaptionPlacementMode} setIsCaptionPlacementMode={setIsCaptionPlacementMode}
                                         handleAutoCaption={handleAutoCaption}
                                         isAutoCapturing={isAutoCapturing} autoCaptionStatus={autoCaptionStatus}
+                                        proParams={proParams} setProParams={setProParams}
                                     />
                                 </div>
                             </div>
@@ -943,10 +947,13 @@ const ToolInspector = memo(({
     setIsCaptionPlacementMode,
     handleAutoCaption,
     isAutoCapturing,
-    autoCaptionStatus
+    autoCaptionStatus,
+    proParams,
+    setProParams,
 }: any) => {
     const [captionTab, setCaptionTab] = useState<'list' | 'style'>('list');
     const [newCaptionText, setNewCaptionText] = useState('');
+    const [localCategory, setLocalCategory] = useState('all');
     const [newCaptionStart, setNewCaptionStart] = useState(0);
     const [newCaptionEnd, setNewCaptionEnd] = useState(3);
 
@@ -1001,50 +1008,124 @@ const ToolInspector = memo(({
             );
         case 'effects':
             return (
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between border-b border-white/5 pb-1.5">
+                <div className="space-y-3 flex flex-col min-h-0">
+                    <div className="flex items-center justify-between border-b border-white/5 pb-1.5 shrink-0">
                         <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">Effects</span>
                         <span className="text-[8px] text-slate-500 font-bold uppercase">Visual FX</span>
                     </div>
-                    <div className="grid grid-cols-3 gap-[16px] max-h-[350px] overflow-y-auto pr-2 pb-4 [&::-webkit-scrollbar]:w-[5px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gradient-to-b [&::-webkit-scrollbar-thumb]:from-[#7C3AED] [&::-webkit-scrollbar-thumb]:to-[#A855F7] [&::-webkit-scrollbar-thumb]:rounded-full">
-                        {[
-                            { id: 'none', label: 'No Effect', icon: Ban },
-                            { id: 'fade-in', label: 'Fade In', icon: Sunrise },
-                            { id: 'velocity', label: 'Velocity Edit', icon: Zap },
-                            { id: 'motion-blur', label: 'Motion Blur', icon: Wind },
-                            { id: 'shake', label: 'Shake', icon: Vibrate },
-                            { id: 'flash-effect', label: 'Flash Transition', icon: Flashlight },
-                            { id: 'rgb-split', label: 'RGB Split', icon: Palette },
-                            { id: 'film-grain', label: 'Film Grain', icon: Film },
-                            { id: 'soft-glow', label: 'Soft Glow', icon: Sparkles },
-                            { id: 'old-tv', label: 'Old TV', icon: Tv },
-                            { id: 'slow-motion', label: 'Slow Motion', icon: Clock3 },
-                            { id: 'smooth-zoom', label: 'Smooth Zoom', icon: ZoomIn },
-                            { id: 'glitch', label: 'Glitch', icon: ScanLine },
-                            { id: 'motion-tracking', label: 'Motion Tracking', icon: Crosshair },
-                        ].map((eff) => (
+
+                    {/* Category Selector Chips */}
+                    <div className="flex gap-1.5 overflow-x-auto pb-2 shrink-0 scrollbar-none">
+                        {['all', 'camera', 'blur', 'glitch', 'cinematic', 'distortion', 'motion', 'light', 'retro'].map((cat) => (
                             <button
-                                key={eff.id}
-                                onClick={() => setSelectedEffect(eff.id as any)}
+                                key={cat}
+                                onClick={() => setLocalCategory(cat)}
                                 type="button"
-                                className={`flex flex-col items-center justify-center w-full h-[95px] rounded-[20px] backdrop-blur-[20px] transition-all duration-300 group ${selectedEffect === eff.id
+                                className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider transition-all border shrink-0 ${
+                                    localCategory === cat
+                                        ? 'bg-purple-500/20 border-purple-500/60 text-purple-200'
+                                        : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200'
+                                }`}
+                            >
+                                {cat}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-[12px] max-h-[300px] overflow-y-auto pr-2 pb-4 scrollbar-thin">
+                        {localCategory === 'all' && (
+                            <button
+                                onClick={() => setSelectedEffect('none')}
+                                type="button"
+                                className={`flex flex-col items-center justify-center w-full h-[95px] rounded-[20px] backdrop-blur-[20px] transition-all duration-300 group ${selectedEffect === 'none'
                                     ? 'bg-gradient-to-b from-[rgba(168,85,247,0.18)] to-[rgba(124,58,237,0.08)] border border-[#A855F7] shadow-[0_0_25px_rgba(168,85,247,0.35)] scale-[1.03]'
                                     : 'bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] shadow-[0_10px_30px_rgba(0,0,0,0.25)] hover:-translate-y-[4px] hover:scale-[1.04] hover:border-[#A855F7] hover:shadow-[0_0_15px_rgba(168,85,247,0.2)] cursor-pointer'
                                     }`}
                             >
-                                <eff.icon
-                                    size={28}
-                                    strokeWidth={2.2}
-                                    className={`transition-colors duration-300 ${selectedEffect === eff.id ? 'text-[#FFD84D]' : 'text-[#B794F4] group-hover:drop-shadow-[0_0_8px_rgba(183,148,244,0.8)]'
-                                        }`}
-                                />
-                                <span className={`mt-[12px] text-[8px] sm:text-[9px] font-bold uppercase tracking-widest text-center leading-tight px-2 line-clamp-2 ${selectedEffect === eff.id ? 'text-white' : 'text-white/90'
-                                    }`}>
-                                    {eff.label}
-                                </span>
+                                <Ban size={28} className="text-[#B794F4]" />
+                                <span className="mt-[12px] text-[8px] sm:text-[9px] font-bold uppercase tracking-widest text-center leading-tight px-2 text-white/90">No Effect</span>
                             </button>
-                        ))}
+                        )}
+
+                        {(() => {
+                            const proEffects = getAllProEffects();
+                            const filteredProEffects = localCategory === 'all'
+                                ? proEffects
+                                : proEffects.filter(eff => eff.category === localCategory);
+                            return filteredProEffects.map((eff) => {
+                                const isActive = selectedEffect === eff.id;
+                                const Icon = eff.icon || Sparkles;
+                                return (
+                                    <button
+                                        key={eff.id}
+                                        onClick={() => {
+                                            setSelectedEffect(eff.id);
+                                            setProParams(eff.defaultParameters || {});
+                                        }}
+                                        type="button"
+                                        className={`relative flex flex-col items-center justify-center w-full h-[95px] rounded-[20px] backdrop-blur-[20px] transition-all duration-300 group overflow-hidden ${isActive
+                                            ? 'bg-gradient-to-b from-[rgba(168,85,247,0.18)] to-[rgba(124,58,237,0.08)] border border-[#A855F7] shadow-[0_0_25px_rgba(168,85,247,0.35)] scale-[1.03]'
+                                            : 'bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] shadow-[0_10px_30px_rgba(0,0,0,0.25)] hover:-translate-y-[4px] hover:scale-[1.04] hover:border-[#A855F7] hover:shadow-[0_0_15px_rgba(168,85,247,0.2)] cursor-pointer'
+                                            }`}
+                                    >
+                                        {eff.thumbnail && (
+                                            <div className="absolute inset-0 w-full h-full pointer-events-none">
+                                                <img src={eff.thumbnail} className="w-full h-full object-cover opacity-20 group-hover:opacity-35 transition-opacity duration-300" alt="" />
+                                                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/85" />
+                                            </div>
+                                        )}
+                                        <Icon
+                                            size={28}
+                                            strokeWidth={2.2}
+                                            className={`relative z-10 transition-colors duration-300 ${isActive ? 'text-[#FFD84D]' : 'text-[#B794F4] group-hover:drop-shadow-[0_0_8px_rgba(183,148,244,0.8)]'
+                                                }`}
+                                        />
+                                        <span className={`relative z-10 mt-[12px] text-[8px] sm:text-[9px] font-bold uppercase tracking-widest text-center leading-tight px-2 line-clamp-2 ${isActive ? 'text-white' : 'text-white/90'
+                                            }`}>
+                                            {eff.name}
+                                        </span>
+                                    </button>
+                                );
+                            });
+                        })()}
                     </div>
+
+                    {selectedEffect && selectedEffect.startsWith('pro-') && (() => {
+                        const effectModule = getEffectModule(selectedEffect);
+                        if (!effectModule) return null;
+                        return (
+                            <div className="mt-2 p-2.5 rounded-lg bg-white/5 border border-white/10 space-y-2.5">
+                                {effectModule.adjustableParameters.map((param: any) => {
+                                    const paramValue = proParams[param.key] ?? effectModule.defaultParameters[param.key];
+                                    return (
+                                        <div key={param.key}>
+                                            <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-widest text-slate-300 mb-0.5">
+                                                <span>{param.name}</span>
+                                                <span>{typeof paramValue === 'number' ? paramValue.toFixed(param.step && param.step < 1 ? 2 : 0) : String(paramValue)}</span>
+                                            </div>
+                                            {param.type === 'number' && (
+                                                <input
+                                                    type="range"
+                                                    min={param.min ?? 0}
+                                                    max={param.max ?? 100}
+                                                    step={param.step ?? 1}
+                                                    value={paramValue}
+                                                    onChange={(e) => {
+                                                        const val = Number(e.target.value);
+                                                        setProParams((prev: any) => ({
+                                                            ...prev,
+                                                            [param.key]: val
+                                                        }));
+                                                    }}
+                                                    className="w-full accent-purple-400"
+                                                />
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })()}
 
                     {selectedEffect === 'blur' && (
                         <div className="mt-2 p-2.5 rounded-lg bg-white/5 border border-white/10 space-y-1.5">
@@ -2497,7 +2578,9 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const [transitionProgress, setTransitionProgress] = useState(0);
     const [selectedFilter, setSelectedFilter] = useState<FilterType>('none');
     const [blurAmount, setBlurAmount] = useState(10);
-    const [selectedEffect, setSelectedEffect] = useState<'none' | 'fade-in' | 'blur' | 'zoom' | 'color-correction' | 'vintage' | 'black-white' | 'cinematic' | 'warm' | 'cool' | 'sepia' | 'hdr' | 'vivid' | 'soft-glow' | 'retro-film' | 'green-screen' | 'slow-motion' | 'glitch' | 'slide-left' | 'slide-right' | 'motion-tracking' | 'velocity' | 'motion-blur' | 'shake' | 'flash-effect' | 'rgb-split' | 'smooth-zoom' | 'film-grain' | 'old-tv'>('none');
+    const [selectedEffect, setSelectedEffect] = useState<string>('none');
+    const [proParams, setProParams] = useState<Record<string, any>>({});
+    const [effectsCategory, setEffectsCategory] = useState<string>('all');
     const [previewOpacity, setPreviewOpacity] = useState(1);
     const [previewZoom, setPreviewZoom] = useState(1);
     const [brightness, setBrightness] = useState(1);
@@ -2870,6 +2953,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         setRgbSplitAmount(settings.rgbSplitAmount ?? 12);
         setSmoothZoomAmount(settings.smoothZoomAmount ?? 0.35);
         setFilmGrainOpacity(settings.filmGrainOpacity ?? 0.4);
+        setProParams(settings.proParams ?? {});
 
         // Clear pending seek offset if active clip is an image and we are paused
         const activeItem = mediaItems.find(i => i.id === activePreviewId);
@@ -2926,7 +3010,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 current.flashIntensity === flashIntensity &&
                 current.rgbSplitAmount === rgbSplitAmount &&
                 current.smoothZoomAmount === smoothZoomAmount &&
-                current.filmGrainOpacity === filmGrainOpacity
+                current.filmGrainOpacity === filmGrainOpacity &&
+                JSON.stringify(current.proParams) === JSON.stringify(proParams)
             ) {
                 return prev;
             }
@@ -2968,6 +3053,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                     rgbSplitAmount,
                     smoothZoomAmount,
                     filmGrainOpacity,
+                    proParams,
                 }
             };
         });
@@ -3007,6 +3093,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         rgbSplitAmount,
         smoothZoomAmount,
         filmGrainOpacity,
+        proParams,
     ]);
 
 
@@ -3387,11 +3474,14 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const overlayTextStylePresetCss = getOverlayTextStylePresetCss(overlayTextStylePreset);
 
     useEffect(() => {
-        const activeCanvasMode = CANVAS_PREVIEW_EFFECTS.includes(selectedEffect)
+        const isProEffect = selectedEffect && selectedEffect.startsWith('pro-');
+        const activeCanvasMode = isProEffect
             ? selectedEffect
-            : CANVAS_PREVIEW_FILTERS.includes(selectedFilter)
-                ? selectedFilter
-                : null;
+            : CANVAS_PREVIEW_EFFECTS.includes(selectedEffect)
+                ? selectedEffect
+                : CANVAS_PREVIEW_FILTERS.includes(selectedFilter)
+                    ? selectedFilter
+                    : null;
 
         if (!activeCanvasMode) {
             if (greenScreenAnimationRef.current !== null) {
@@ -3416,16 +3506,32 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                     canvas.height = video.videoHeight;
                 }
 
-                ctx.save();
-                if (activeCanvasMode === 'shake') {
-                    const strength = typeof shakeStrength !== 'undefined' ? shakeStrength : 1.5;
-                    const t = performance.now() / 1000;
-                    const x = Math.sin(t * 22) * strength * 4.5;
-                    const y = Math.cos(t * 17) * strength * 3.5;
-                    ctx.translate(x, y);
+                if (activeCanvasMode.startsWith('pro-')) {
+                    const module = getEffectModule(activeCanvasMode);
+                    if (module && typeof module.previewRenderer === 'function') {
+                        const params = {
+                            ...module.defaultParameters,
+                            ...proParams,
+                        };
+                        const time = video.currentTime;
+                        module.previewRenderer(ctx, video, params, time, canvas);
+                    } else {
+                        ctx.save();
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        ctx.restore();
+                    }
+                } else {
+                    ctx.save();
+                    if (activeCanvasMode === 'shake') {
+                        const strength = typeof shakeStrength !== 'undefined' ? shakeStrength : 1.5;
+                        const t = performance.now() / 1000;
+                        const x = Math.sin(t * 22) * strength * 4.5;
+                        const y = Math.cos(t * 17) * strength * 3.5;
+                        ctx.translate(x, y);
+                    }
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    ctx.restore();
                 }
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                ctx.restore();
 
                 if (activeCanvasMode === 'green-screen') {
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -3670,6 +3776,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         shakeStrength,
         rgbSplitAmount,
         filmGrainOpacity,
+        proParams,
     ]);
 
     // Keep timeline thumbnail videos in sync with the main preview transport state.
@@ -4245,6 +4352,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             smoothZoomAmount,
             filmGrainOpacity,
             animatedText: overlayText.trim().length > 0 ? overlayText : animatedText,
+            ...proParams,
         };
 
         const mediaForProcessing = mediaItems
@@ -4272,6 +4380,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                         rgbSplitAmount: settings.rgbSplitAmount ?? 12,
                         smoothZoomAmount: settings.smoothZoomAmount ?? 0.35,
                         filmGrainOpacity: settings.filmGrainOpacity ?? 0.4,
+                        ...(settings.proParams ?? {}),
                     },
                     textOverlay: {
                         enabled: (settings.overlayText || '').trim().length > 0,
@@ -4779,6 +4888,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                         isCaptionPlacementMode={isCaptionPlacementMode} setIsCaptionPlacementMode={setIsCaptionPlacementMode}
                                                         handleAutoCaption={handleAutoCaption}
                                                         isAutoCapturing={isAutoCapturing} autoCaptionStatus={autoCaptionStatus}
+                                                        proParams={proParams} setProParams={setProParams}
                                                     />
                                                 </div>
                                             </div>
@@ -4854,44 +4964,79 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
                                         {/* ── EFFECTS panel ── */}
                                         {leftTab === 'effects' && (
-                                            <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
-                                                <div className="grid grid-cols-3 gap-2">
-                                                    {[
-                                                        { id: 'none',            label: 'No Effect',        icon: Ban,       color: '#94a3b8' },
-                                                        { id: 'fade-in',         label: 'Fade In',          icon: Sunrise,   color: '#fbbf24' },
-                                                        { id: 'velocity',        label: 'Velocity',         icon: Zap,       color: '#f59e0b' },
-                                                        { id: 'motion-blur',     label: 'Motion Blur',      icon: Wind,      color: '#c084fc' },
-                                                        { id: 'shake',           label: 'Shake',            icon: Vibrate,   color: '#60a5fa' },
-                                                        { id: 'flash-effect',    label: 'Flash',            icon: Zap,       color: '#facc15' },
-                                                        { id: 'rgb-split',       label: 'RGB Split',        icon: Palette,   color: '#f472b6' },
-                                                        { id: 'film-grain',      label: 'Film Grain',       icon: Film,      color: '#a78bfa' },
-                                                        { id: 'soft-glow',       label: 'Soft Glow',        icon: Sparkles,  color: '#e879f9' },
-                                                        { id: 'old-tv',          label: 'Old TV',           icon: Tv,        color: '#34d399' },
-                                                        { id: 'slow-motion',     label: 'Slow Mo',          icon: Clock3,    color: '#38bdf8' },
-                                                        { id: 'smooth-zoom',     label: 'Smooth Zoom',      icon: ZoomIn,    color: '#fb923c' },
-                                                        { id: 'glitch',          label: 'Glitch',           icon: ScanLine,  color: '#f87171' },
-                                                        { id: 'motion-tracking', label: 'Tracking',         icon: Crosshair, color: '#4ade80' },
-                                                    ].map((eff) => {
-                                                        const isActive = selectedEffect === eff.id;
-                                                        const Icon = eff.icon;
-                                                        return (
-                                                            <button
-                                                                key={eff.id}
-                                                                onClick={() => setSelectedEffect(eff.id as any)}
-                                                                type="button"
-                                                                className={`relative flex flex-col items-center justify-center gap-2 h-[80px] rounded-xl border transition-all duration-200 group overflow-hidden ${
-                                                                    isActive
-                                                                        ? 'bg-purple-500/15 border-purple-400/60 shadow-[0_0_16px_rgba(168,85,247,0.25)] scale-[1.02]'
-                                                                        : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/20 hover:-translate-y-0.5'
-                                                                }`}
-                                                            >
-                                                                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" style={{ background: `radial-gradient(circle at 50% 40%, ${eff.color}18 0%, transparent 70%)` }} />
-                                                                <Icon size={20} className="relative z-10 transition-transform duration-200 group-hover:scale-110" style={{ color: isActive ? '#c084fc' : eff.color }} />
-                                                                <span className={`relative z-10 text-[8px] font-bold uppercase tracking-wider text-center leading-tight px-1 line-clamp-2 ${isActive ? 'text-purple-200' : 'text-slate-400 group-hover:text-slate-200'}`}>{eff.label}</span>
-                                                                {isActive && <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-purple-400" />}
-                                                            </button>
-                                                        );
-                                                    })}
+                                            <div className="flex-1 overflow-y-auto p-3 custom-scrollbar flex flex-col min-h-0">
+                                                {/* Category Selector Chips */}
+                                                <div className="flex gap-1.5 overflow-x-auto pb-2 mb-3 shrink-0 scrollbar-none">
+                                                    {['all', 'camera', 'blur', 'glitch', 'cinematic', 'distortion', 'motion', 'light', 'retro'].map((cat) => (
+                                                        <button
+                                                            key={cat}
+                                                            onClick={() => setEffectsCategory(cat)}
+                                                            type="button"
+                                                            className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-wider transition-all border shrink-0 ${
+                                                                effectsCategory === cat
+                                                                    ? 'bg-purple-500/20 border-purple-500/60 text-purple-200'
+                                                                    : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200'
+                                                            }`}
+                                                        >
+                                                            {cat}
+                                                        </button>
+                                                    ))}
+                                                </div>
+
+                                                <div className="grid grid-cols-3 gap-2 pb-4">
+                                                    {effectsCategory === 'all' && (
+                                                        <button
+                                                            onClick={() => setSelectedEffect('none')}
+                                                            type="button"
+                                                            className={`relative flex flex-col items-center justify-center gap-2 h-[80px] rounded-xl border transition-all duration-200 group overflow-hidden ${
+                                                                selectedEffect === 'none'
+                                                                    ? 'bg-purple-500/15 border-purple-400/60 shadow-[0_0_16px_rgba(168,85,247,0.25)] scale-[1.02]'
+                                                                    : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/20 hover:-translate-y-0.5'
+                                                            }`}
+                                                        >
+                                                            <Ban size={20} className="text-slate-400" />
+                                                            <span className="text-[8px] font-bold uppercase tracking-wider text-center text-slate-300">No Effect</span>
+                                                            {selectedEffect === 'none' && <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-purple-400" />}
+                                                        </button>
+                                                    )}
+
+                                                    {(() => {
+                                                        const proEffects = getAllProEffects();
+                                                        const filteredProEffects = effectsCategory === 'all'
+                                                            ? proEffects
+                                                            : proEffects.filter(eff => eff.category === effectsCategory);
+                                                        return filteredProEffects.map((eff) => {
+                                                            const isActive = selectedEffect === eff.id;
+                                                            const Icon = eff.icon || Sparkles;
+                                                            return (
+                                                                <button
+                                                                    key={eff.id}
+                                                                    onClick={() => {
+                                                                        setSelectedEffect(eff.id);
+                                                                        setProParams(eff.defaultParameters || {});
+                                                                    }}
+                                                                    type="button"
+                                                                    className={`relative flex flex-col items-center justify-center gap-2 h-[80px] rounded-xl border transition-all duration-200 group overflow-hidden ${
+                                                                        isActive
+                                                                            ? 'bg-purple-500/15 border-purple-400/60 shadow-[0_0_16px_rgba(168,85,247,0.25)] scale-[1.02]'
+                                                                            : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/20 hover:-translate-y-0.5'
+                                                                    }`}
+                                                                >
+                                                                    {eff.thumbnail ? (
+                                                                        <div className="absolute inset-0 w-full h-full pointer-events-none">
+                                                                            <img src={eff.thumbnail} className="w-full h-full object-cover opacity-25 group-hover:opacity-40 transition-opacity duration-300" alt="" />
+                                                                            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0b0d26]/90" />
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" style={{ background: `radial-gradient(circle at 50% 40%, #c084fc18 0%, transparent 70%)` }} />
+                                                                    )}
+                                                                    <Icon size={18} className="relative z-10 transition-transform duration-200 group-hover:scale-110 text-purple-300" />
+                                                                    <span className="relative z-10 text-[8px] font-bold uppercase tracking-wider text-center leading-tight px-1 line-clamp-2 text-white/95">{eff.name}</span>
+                                                                    {isActive && <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-purple-400" />}
+                                                                </button>
+                                                            );
+                                                        });
+                                                    })()}
                                                 </div>
                                             </div>
                                         )}
@@ -5108,12 +5253,6 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                             </div>
                                         )}
 
-                                        {/* ── TITLES panel ── */}
-                                        {leftTab === 'titles' && (
-                                            <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
-                                                )}
-                                            </div>
-                                        )}
 
                                         {/* ── TOOLS panel ── */}
                                         {leftTab === 'tools' && (
@@ -5180,6 +5319,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                                 isCaptionPlacementMode={isCaptionPlacementMode} setIsCaptionPlacementMode={setIsCaptionPlacementMode}
                                                                 handleAutoCaption={handleAutoCaption}
                                                                 isAutoCapturing={isAutoCapturing} autoCaptionStatus={autoCaptionStatus}
+                                                                proParams={proParams} setProParams={setProParams}
                                                             />
                                                         </div>
                                                     </div>
@@ -5286,91 +5426,95 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                             transition={{ duration: 0.2 }}
                                             className="absolute inset-0 w-full h-full"
                                         >
-                                            {activePreviewItem.type === 'video' ? (
-                                                <>
-                                                    <video
-                                                        ref={videoRef}
-                                                        key={`video-${activePreviewItem.id}`}
-                                                        onTimeUpdate={handleTimeUpdate}
-                                                        onEnded={() => {
-                                                            if (lastTriggeredEndRef.current !== activePreviewItem.id) {
-                                                                lastTriggeredEndRef.current = activePreviewItem.id;
-                                                                console.log("📹 [PLAYBACK] Clip reached end in onEnded:", activePreviewItem.id);
-                                                                playNextMedia(activePreviewItem.id);
-                                                            }
-                                                        }}
-                                                        onLoadStart={() => {
-                                                            console.log("📹 [PLAYBACK] onLoadStart");
-                                                        }}
-                                                        onLoadedMetadata={() => {
-                                                            console.log("📹 [PLAYBACK] onLoadedMetadata");
-                                                            if (selectedEffect === 'fade-in') setPreviewOpacity(0);
-                                                            else setPreviewOpacity(1);
-                                                            if (selectedEffect !== 'zoom') setPreviewZoom(1);
-                                                        }}
-                                                        onLoadedData={() => {
-                                                            console.log("📹 [PLAYBACK] onLoadedData, videoRef.current exists:", !!videoRef.current);
-                                                            // Reset current time to trim start when new video is loaded
-                                                            if (videoRef.current) {
-                                                                const activeItem = mediaItems.find(i => i.id === activePreviewId);
-                                                                if (activeItem?.type === 'video') {
-                                                                    const targetStart = getTargetStartTime(activeItem);
-                                                                    const videoElement = videoRef.current;
-                                                                    videoElement.currentTime = targetStart;
-                                                                    console.log("📹 [PLAYBACK] Video loaded, current time set to:", targetStart, "isPlaying:", isPlaying);
-
-                                                                    // Clear the pending seek offset once applied
-                                                                    if (pendingTransitionSeekRef.current && pendingTransitionSeekRef.current.clipId === activePreviewId) {
-                                                                        pendingTransitionSeekRef.current = null;
-                                                                    }
-
-                                                                    safePlay(videoElement);
-                                                                } else {
-                                                                    videoRef.current.currentTime = 0;
+                                            {activePreviewItem.type === 'video' ? (() => {
+                                                const isPro = selectedEffect && selectedEffect.startsWith('pro-');
+                                                const showCanvas = isPro || CANVAS_PREVIEW_EFFECTS.includes(selectedEffect) || CANVAS_PREVIEW_FILTERS.includes(selectedFilter);
+                                                return (
+                                                    <>
+                                                        <video
+                                                            ref={videoRef}
+                                                            key={`video-${activePreviewItem.id}`}
+                                                            onTimeUpdate={handleTimeUpdate}
+                                                            onEnded={() => {
+                                                                if (lastTriggeredEndRef.current !== activePreviewItem.id) {
+                                                                    lastTriggeredEndRef.current = activePreviewItem.id;
+                                                                    console.log("📹 [PLAYBACK] Clip reached end in onEnded:", activePreviewItem.id);
+                                                                    playNextMedia(activePreviewItem.id);
                                                                 }
-                                                            }
-                                                        }}
-                                                        onCanPlay={(e) => {
-                                                            const videoElement = e.currentTarget;
-                                                            console.log("📹 [PLAYBACK] onCanPlay fired, isPlaying:", isPlaying, "videoElement:", !!videoElement);
-                                                            safePlay(videoElement);
-                                                        }}
-                                                        onSeeked={(e) => {
-                                                            const videoElement = e.currentTarget;
-                                                            console.log("📹 [PLAYBACK] onSeeked fired, isPlaying:", isPlaying, "paused:", videoElement.paused);
-                                                            safePlay(videoElement);
-                                                        }}
-                                                        onError={(e) => {
-                                                            console.error("📹 [PLAYBACK] Video error:", e);
-                                                        }}
-                                                        src={activePreviewItem.preview}
-                                                        className={CANVAS_PREVIEW_EFFECTS.includes(selectedEffect) || CANVAS_PREVIEW_FILTERS.includes(selectedFilter) ? 'hidden' : 'w-full h-full object-contain'}
-                                                        style={{
-                                                            opacity: selectedEffect === 'fade-in' ? previewOpacity : 1,
-                                                            filter: getCombinedPreviewFilterCss(),
-                                                            transform: getCombinedPreviewTransform(),
-                                                            clipPath: getPreviewClipPath(),
-                                                            transformOrigin: 'center center',
-                                                            borderRadius: `${cornerRadius}px`,
-                                                        }}
-                                                        muted={isMuted}
-                                                        playsInline
-                                                    />
-                                                    {(CANVAS_PREVIEW_EFFECTS.includes(selectedEffect) || CANVAS_PREVIEW_FILTERS.includes(selectedFilter)) && (
-                                                        <canvas
-                                                            ref={greenScreenCanvasRef}
-                                                            className="w-full h-full object-contain"
+                                                            }}
+                                                            onLoadStart={() => {
+                                                                console.log("📹 [PLAYBACK] onLoadStart");
+                                                            }}
+                                                            onLoadedMetadata={() => {
+                                                                console.log("📹 [PLAYBACK] onLoadedMetadata");
+                                                                if (selectedEffect === 'fade-in') setPreviewOpacity(0);
+                                                                else setPreviewOpacity(1);
+                                                                if (selectedEffect !== 'zoom') setPreviewZoom(1);
+                                                            }}
+                                                            onLoadedData={() => {
+                                                                console.log("📹 [PLAYBACK] onLoadedData, videoRef.current exists:", !!videoRef.current);
+                                                                // Reset current time to trim start when new video is loaded
+                                                                if (videoRef.current) {
+                                                                    const activeItem = mediaItems.find(i => i.id === activePreviewId);
+                                                                    if (activeItem?.type === 'video') {
+                                                                        const targetStart = getTargetStartTime(activeItem);
+                                                                        const videoElement = videoRef.current;
+                                                                        videoElement.currentTime = targetStart;
+                                                                        console.log("📹 [PLAYBACK] Video loaded, current time set to:", targetStart, "isPlaying:", isPlaying);
+
+                                                                        // Clear the pending seek offset once applied
+                                                                        if (pendingTransitionSeekRef.current && pendingTransitionSeekRef.current.clipId === activePreviewId) {
+                                                                            pendingTransitionSeekRef.current = null;
+                                                                        }
+
+                                                                        safePlay(videoElement);
+                                                                    } else {
+                                                                        videoRef.current.currentTime = 0;
+                                                                    }
+                                                                }
+                                                            }}
+                                                            onCanPlay={(e) => {
+                                                                const videoElement = e.currentTarget;
+                                                                console.log("📹 [PLAYBACK] onCanPlay fired, isPlaying:", isPlaying, "videoElement:", !!videoElement);
+                                                                safePlay(videoElement);
+                                                            }}
+                                                            onSeeked={(e) => {
+                                                                const videoElement = e.currentTarget;
+                                                                console.log("📹 [PLAYBACK] onSeeked fired, isPlaying:", isPlaying, "paused:", videoElement.paused);
+                                                                safePlay(videoElement);
+                                                            }}
+                                                            onError={(e) => {
+                                                                console.error("📹 [PLAYBACK] Video error:", e);
+                                                            }}
+                                                            src={activePreviewItem.preview}
+                                                            className={showCanvas ? 'hidden' : 'w-full h-full object-contain'}
                                                             style={{
+                                                                opacity: selectedEffect === 'fade-in' ? previewOpacity : 1,
                                                                 filter: getCombinedPreviewFilterCss(),
                                                                 transform: getCombinedPreviewTransform(),
                                                                 clipPath: getPreviewClipPath(),
                                                                 transformOrigin: 'center center',
                                                                 borderRadius: `${cornerRadius}px`,
                                                             }}
+                                                            muted={isMuted}
+                                                            playsInline
                                                         />
-                                                    )}
-                                                </>
-                                            ) : (
+                                                        {showCanvas && (
+                                                            <canvas
+                                                                ref={greenScreenCanvasRef}
+                                                                className="w-full h-full object-contain"
+                                                                style={{
+                                                                    filter: getCombinedPreviewFilterCss(),
+                                                                    transform: getCombinedPreviewTransform(),
+                                                                    clipPath: getPreviewClipPath(),
+                                                                    transformOrigin: 'center center',
+                                                                    borderRadius: `${cornerRadius}px`,
+                                                                }}
+                                                            />
+                                                        )}
+                                                    </>
+                                                );
+                                            })() : (
                                                 <>
                                                     <img
                                                         src={activePreviewItem.preview}

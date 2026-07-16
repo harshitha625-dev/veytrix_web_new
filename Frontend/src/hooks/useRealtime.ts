@@ -43,12 +43,12 @@ export function useRealtime(subscriptions: RealtimeSubscription[]) {
               table: sub.table,
               filter: sub.filter,
             },
-            (payload) => {
+            (payload: any) => {
               sub.callback(payload);
             }
           );
 
-          channel.subscribe((status) => {
+          channel.subscribe((status: any) => {
             if (status === 'SUBSCRIBED') {
               setIsConnected(true);
             } else if (status === 'CHANNEL_ERROR') {

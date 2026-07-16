@@ -87,7 +87,7 @@ export function DeveloperUsersPage() {
   const { users: allUsers, isLoading, error, refetch } = useUserList(page, 20);
 
   const filteredUsers = (allUsers?.users || []).filter(
-    (user) =>
+    (user: any) =>
       user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -144,7 +144,7 @@ export function DeveloperUsersPage() {
   const handleAddCredits = async (userId: string, amount: number) => {
     setIsUpdating(true);
     try {
-      const currentUser = allUsers?.users.find(u => u.id === userId);
+      const currentUser = allUsers?.users.find((u: any) => u.id === userId);
       if (!currentUser) return;
 
       const response = await addCreditsToUser(userId, amount, "Manual adjustment from developer portal");
@@ -430,7 +430,7 @@ export function DeveloperUsersPage() {
                         </tr>
                       )}
 
-                      {!isLoading && !error && filteredUsers.map((user, index) => (
+                      {!isLoading && !error && filteredUsers.map((user: any, index: number) => (
                         <tr 
                           key={user.id} 
                           className={`group transition-all duration-250 hover:bg-white/[0.04] hover:shadow-[0_0_20px_rgba(0,0,0,0.5)] ${index % 2 === 0 ? 'bg-transparent' : 'bg-white/[0.01]'}`}

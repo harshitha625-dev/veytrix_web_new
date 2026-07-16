@@ -13,8 +13,9 @@
     "strict": false,
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    "typeRoots": ["./node_modules/@types"],
     "baseUrl": ".",
-    "ignoreDeprecations": "6.0",
+    "ignoreDeprecations": "5.0",
     "paths": {
       "@/*": [
         "Frontend/src/*"
@@ -23,6 +24,7 @@
   },
   "include": [
     "Frontend/src/**/*",
+    "Frontend/effects/**/*",
     "Frontend/main.tsx",
     "Frontend/vite.config.ts",
     "vite.config.ts",

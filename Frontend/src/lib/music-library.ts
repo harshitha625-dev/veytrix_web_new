@@ -157,7 +157,7 @@ export const fetchMusicLibrary = async (query = ""): Promise<MusicTrack[]> => {
     const data = await res.json();
     return data.tracks || [];
   } catch (error) {
-    console.warn("⚠️ [music-library] Failed to fetch live music, falling back to mock catalog:", error.message || error);
+    console.warn("⚠️ [music-library] Failed to fetch live music, falling back to mock catalog:", (error as any).message || error);
     return query ? searchMusicLibrary(query) : MUSIC_LIBRARY;
   }
 };

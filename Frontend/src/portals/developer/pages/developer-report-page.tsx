@@ -15,6 +15,7 @@ type DeveloperReport = {
   status?: string;
   assigned_developer?: string;
   created_at?: string;
+  resolved_at?: string;
   severity?: string;
   attachment_count?: number;
   attachment_urls?: string[];
@@ -85,10 +86,10 @@ export function DeveloperReportPage() {
       const newReports = Array.isArray(data) ? data : [];
       
       // Detect new reports assigned to current developer and create notifications
-      if (profile?.full_name || profile?.email) {
+      if (profile?.fullName || profile?.email) {
         const currentDeveloper = fallbackDeveloperColumns.find(
           (dev) =>
-            profile?.full_name?.toUpperCase().includes(dev) ||
+            profile?.fullName?.toUpperCase().includes(dev) ||
             profile?.email?.toUpperCase().includes(dev)
         );
         

@@ -12,6 +12,10 @@ type SupabaseProfileRow = {
   phone?: string | null;
   country?: string | null;
   language?: string | null;
+  portal_access?: string[] | null;
+  developer_credits?: number | null;
+  user_credits?: number | null;
+  testing_mode_enabled?: boolean | null;
 };
 
 export function buildFallbackProfile(session: Session): AppProfile {
@@ -21,6 +25,10 @@ export function buildFallbackProfile(session: Session): AppProfile {
     id: session.user.id,
     email: session.user.email || "",
     fullName,
+    portalAccess: ["user"],
+    credits: { userCredits: 0, developerCredits: 0 },
+    developerCredits: 0,
+    testingModeEnabled: false,
   };
 }
 
@@ -37,17 +45,24 @@ function normalizeProfile(row: SupabaseProfileRow, session: Session): AppProfile
     phone: row.phone || undefined,
     country: row.country || undefined,
     language: row.language || undefined,
+    portalAccess: row.portal_access || fallback.portalAccess,
+    credits: {
+      userCredits: row.user_credits ?? 0,
+      developerCredits: row.developer_credits ?? 0,
+    },
+    developerCredits: row.developer_credits ?? 0,
+    testingModeEnabled: row.testing_mode_enabled ?? false,
   };
 }
 
-async function selectProfile(tableName: string, session: Session) {
+async function selectProfile(tableName: string, session: Session, selectList = "id,email,full_name,name,timezone,role,phone,country,language") {
   if (!supabase) {
     return null;
   }
 
   const query = await supabase
     .from(tableName)
-    .select("id,email,full_name,name,timezone,role,phone,country,language")
+    .select(selectList)
     .eq("id", session.user.id)
     .maybeSingle();
 
@@ -71,8 +86,8 @@ export async function fetchAppProfile(session: Session): Promise<AppProfile> {
   try {
     // Add a timeout to prevent hanging
     const profilePromise = Promise.all([
-      selectProfile("app_profiles", session),
-      selectProfile("profiles", session),
+      selectProfile("app_profiles", session, "id,email,full_name,name,timezone,role,phone,country,language,portal_access,developer_credits,user_credits,testing_mode_enabled"),
+      selectProfile("profiles", session, "id,email,full_name,role"),
     ]);
 
     const timeoutPromise = new Promise<[null, null]>((resolve) => {

@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     bootstrap();
 
-    const authListener = supabase?.auth.onAuthStateChange(async (_event, nextSession) => {
+    const authListener = supabase?.auth.onAuthStateChange(async (_event: any, nextSession: any) => {
       if (!mounted) {
         return;
       }

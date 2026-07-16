@@ -1,0 +1,17 @@
+- [x] Update compiler configurations:
+  - [x] Add `"effects/**/*"` to Frontend tsconfig.json compiler include list.
+  - [x] Add `"Frontend/effects/**/*"` to Root tsconfig.json compiler include list.
+- [x] Implement state management & logic in Frontend style-screen.tsx:
+  - [x] Import pro effects index module.
+  - [x] Adjust `selectedEffect` type signature & add `proParams` state.
+  - [x] Update loading/saving settings hooks to sync `proParams` with `clipSettings`.
+  - [x] Adjust `showCanvas` calculation & canvas `requestAnimationFrame` loop to render dynamic pro effects.
+  - [x] Copy `proParams` into the final `mediaForProcessing` payload object.
+- [x] Update Left Panel & Grid UI in Frontend style-screen.tsx:
+  - [x] Create category selection selector chips.
+  - [x] Render pro effects filtered by category.
+- [x] Update ToolInspector UI in Frontend style-screen.tsx:
+  - [x] Render adjustable sliders dynamically based on selected pro effect definition.
+- [x] Verification:
+  - [x] Run typescript compile checks.
+  - [x] Verify that there are no runtime compilation errors.
