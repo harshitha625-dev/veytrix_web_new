@@ -539,15 +539,15 @@ const FilmoraLeftPanel = memo(({
                             title={tab.label}
                             className={`relative flex flex-col items-center justify-center gap-1 w-[56px] h-[54px] rounded-xl transition-all duration-200 group ${
                                 isActive
-                                    ? 'bg-teal-500/[0.12] text-teal-300'
+                                    ? 'bg-purple-500/[0.12] text-purple-300'
                                     : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]'
                             }`}
                         >
                             {isActive && (
-                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-teal-400 rounded-r-full" />
+                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-purple-400 rounded-r-full" />
                             )}
-                            <Icon className={`w-[15px] h-[15px] transition-colors ${isActive ? 'text-teal-300' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                            <span className={`text-[7.5px] font-bold uppercase tracking-wide leading-none text-center ${isActive ? 'text-teal-300' : 'text-slate-600 group-hover:text-slate-400'}`}>
+                            <Icon className={`w-[15px] h-[15px] transition-colors ${isActive ? 'text-purple-300' : 'text-slate-500 group-hover:text-slate-300'}`} />
+                            <span className={`text-[7.5px] font-bold uppercase tracking-wide leading-none text-center ${isActive ? 'text-purple-300' : 'text-slate-600 group-hover:text-slate-400'}`}>
                                 {tab.label}
                             </span>
                         </button>
@@ -568,7 +568,7 @@ const FilmoraLeftPanel = memo(({
                         {leftTab === 'tools'       && 'Toolbox'}
                     </span>
                     {leftTab === 'transitions' && activePreviewId && (
-                        <span className="text-[7.5px] font-bold text-teal-400 bg-teal-500/10 border border-teal-500/20 rounded px-1.5 py-0.5 truncate max-w-[110px]">
+                        <span className="text-[7.5px] font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 rounded px-1.5 py-0.5 truncate max-w-[110px]">
                             {clipTransitions[activePreviewId] || 'none'}
                         </span>
                     )}
@@ -579,7 +579,7 @@ const FilmoraLeftPanel = memo(({
                     <div className="flex-1 overflow-y-auto p-2.5 custom-scrollbar">
                         <div className={`mb-2.5 px-2.5 py-1.5 rounded-lg text-[7.5px] font-bold uppercase tracking-wider text-center border ${
                             activePreviewId
-                                ? 'bg-teal-500/10 border-teal-500/20 text-teal-300'
+                                ? 'bg-purple-500/10 border-purple-500/20 text-purple-300'
                                 : 'bg-white/[0.03] border-white/5 text-slate-500'
                         }`}>
                             {activePreviewId ? 'Clip selected — click to apply' : 'Select a clip from the timeline'}
@@ -588,8 +588,8 @@ const FilmoraLeftPanel = memo(({
                             transitionItems,
                             activePreviewId ? clipTransitions[activePreviewId] : undefined,
                             (id) => applyTransitionForActiveClip(id),
-                            'bg-teal-500/15 border-teal-400/60 shadow-[0_0_14px_rgba(45,212,191,0.22)]',
-                            'bg-teal-400',
+                            'bg-purple-500/15 border-purple-400/60 shadow-[0_0_14px_rgba(168,85,247,0.22)]',
+                            'bg-purple-400',
                         )}
                     </div>
                 )}
@@ -847,6 +847,31 @@ const QuickToolsGrid = memo(({ QUICK_TOOLS, activeTool, setActiveTool, copyActiv
     </div>
 ));
 
+const KeyframeButton = ({ active, onClick }: { active: boolean; onClick: () => void }) => (
+    <button
+        onClick={(e) => { e.stopPropagation(); onClick(); }}
+        type="button"
+        className={`transition-all duration-150 p-1 cursor-pointer shrink-0 ${
+            active ? 'text-[#D946EF] drop-shadow-[0_0_6px_rgba(217,70,239,0.65)] scale-110' : 'text-slate-600 hover:text-slate-400 hover:scale-105'
+        }`}
+        title="Add Keyframe"
+    >
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="11"
+            height="11"
+            viewBox="0 0 24 24"
+            fill={active ? 'currentColor' : 'none'}
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M2.7 10.3a2.4 2.4 0 0 0 0 3.4l7.9 7.9a2.4 2.4 0 0 0 3.4 0l7.9-7.9a2.4 2.4 0 0 0 0-3.4L14 2.4a2.4 2.4 0 0 0-3.4 0z" />
+        </svg>
+    </button>
+);
+
 const ToolInspector = memo(({
     velocitySpeed,
     setVelocitySpeed,
@@ -956,6 +981,7 @@ const ToolInspector = memo(({
     const [localCategory, setLocalCategory] = useState('all');
     const [newCaptionStart, setNewCaptionStart] = useState(0);
     const [newCaptionEnd, setNewCaptionEnd] = useState(3);
+    const [textSubTab, setTextSubTab] = useState<'fonts' | 'styles'>('fonts');
 
     switch (activeTool) {
         case 'filters':
@@ -1745,97 +1771,118 @@ const ToolInspector = memo(({
                                 className="mt-1 w-full bg-[#08090d] border border-white/[0.08] hover:border-white/15 focus:border-purple-500/50 text-slate-200 text-[13px] font-medium min-h-[85px] rounded-lg p-3 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-purple-500/30 transition-all resize-none shadow-inner"
                             />
                         </div>
-                        <div>
-                            <div className="bg-[#12141c] border border-white/[0.06] rounded-xl overflow-hidden shadow-inner select-none flex flex-col">
-                                <div className="px-3.5 py-2.5 bg-[#090b11] text-[9.5px] font-black uppercase tracking-widest text-[#4d5c75] border-b border-white/[0.04]">
-                                    Project Fonts
-                                </div>
-                                <div className="px-3.5 py-1.5 bg-[#0e1017] text-[8.5px] font-extrabold uppercase tracking-widest text-[#5c6e8e] border-b border-white/[0.02]">
-                                    My Fonts
-                                </div>
-                                <div className="max-h-[220px] overflow-y-auto divide-y divide-white/[0.02] pr-0.5 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/[0.08] [&::-webkit-scrollbar-thumb]:rounded-full">
-                                    {textFontOptions.map((font) => {
-                                        const isActive = overlayFontId === font.id;
-                                        
-                                        // Specific icons from the user's mockup image
-                                        const showUpload = ['rubik', 'abril', 'adderley', 'adelia', 'akira'].includes(font.id);
-                                        const showChevron = ['rubik', 'abeezee', 'adderley', 'advent'].includes(font.id);
+                        {/* Category Selector Chips */}
+                        <div className="flex gap-1.5 pb-1 shrink-0 scrollbar-none">
+                            {[
+                                { id: 'fonts', label: 'Project Fonts' },
+                                { id: 'styles', label: 'Text Style' }
+                            ].map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setTextSubTab(tab.id as any)}
+                                    type="button"
+                                    className={`px-3 py-1.5 rounded-full text-[8.5px] font-black uppercase tracking-wider transition-all border shrink-0 cursor-pointer ${
+                                        textSubTab === tab.id
+                                            ? 'bg-purple-500/20 border-purple-500/60 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
+                                            : 'bg-[#12141c]/50 border-white/[0.06] text-slate-400 hover:bg-[#12141c] hover:text-slate-200'
+                                    }`}
+                                >
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
 
+                        {/* Switch Content based on textSubTab */}
+                        {textSubTab === 'fonts' ? (
+                            <div className="flex-1 min-h-0 flex flex-col">
+                                <div className="bg-[#12141c] border border-white/[0.06] rounded-xl overflow-hidden shadow-inner select-none flex flex-col flex-1 min-h-0">
+                                    <div className="px-3.5 py-1.5 bg-[#0e1017] text-[8.5px] font-extrabold uppercase tracking-widest text-[#5c6e8e] border-b border-white/[0.02] shrink-0">
+                                        My Fonts
+                                    </div>
+                                    <div className="flex-1 min-h-[220px] overflow-y-auto divide-y divide-white/[0.02] pr-0.5 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/[0.08] [&::-webkit-scrollbar-thumb]:rounded-full">
+                                        {textFontOptions.map((font) => {
+                                            const isActive = overlayFontId === font.id;
+                                            
+                                            // Specific icons from the user's mockup image
+                                            const showUpload = ['rubik', 'abril', 'adderley', 'adelia', 'akira'].includes(font.id);
+                                            const showChevron = ['rubik', 'abeezee', 'adderley', 'advent'].includes(font.id);
+
+                                            return (
+                                                <button
+                                                    key={font.id}
+                                                    onClick={() => setOverlayFontId(font.id)}
+                                                    className={`w-full flex items-center justify-between py-2.5 px-3.5 text-left border-l-2 transition-all duration-150 active:scale-[0.99] cursor-pointer ${
+                                                        isActive
+                                                            ? 'bg-[#1e172a] border-[#D946EF] text-[#e879f9]'
+                                                            : 'border-transparent text-slate-300 hover:bg-white/[0.02] hover:text-white'
+                                                    }`}
+                                                >
+                                                    <span 
+                                                        className="text-[12.5px] font-medium leading-none"
+                                                        style={{ 
+                                                            fontFamily: font.family,
+                                                            letterSpacing: font.letterSpacing || 'normal',
+                                                            fontWeight: font.fontWeight || 'normal'
+                                                        }}
+                                                    >
+                                                        {font.label}
+                                                    </span>
+                                                    
+                                                    <div className="flex items-center gap-2.5 text-slate-500 group-hover:text-slate-400 shrink-0">
+                                                        {showUpload && (
+                                                            <Upload className={`w-3 h-3 transition-colors ${isActive ? 'text-[#D946EF]/70' : 'text-slate-500 hover:text-slate-300'}`} />
+                                                        )}
+                                                        {showChevron && (
+                                                            <ChevronDown className={`w-3.5 h-3.5 transition-colors ${isActive ? 'text-[#D946EF]/70' : 'text-slate-500'}`} />
+                                                        )}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex-1 min-h-[220px] overflow-y-auto pr-1 scrollbar-thin">
+                                <div className="grid grid-cols-2 gap-2.5 pb-2">
+                                    {[
+                                        { id: 'cinematic-title', label: 'Cinematic Title' },
+                                        { id: 'animated-captions', label: 'Animated Captions' },
+                                        { id: 'kinetic-typography', label: 'Kinetic Typography' },
+                                        { id: 'neon-glow-text', label: 'Neon Glow Text' },
+                                        { id: 'glitch-text', label: 'Glitch Text' },
+                                        { id: 'typewriter-text', label: 'Typewriter Text' },
+                                        { id: 'bold-hype-text', label: 'Bold Hype Text' },
+                                        { id: 'lyrics-text', label: 'Lyrics Text' },
+                                        { id: 'minimal-clean-text', label: 'Minimal Clean Text' },
+                                        { id: '3d-text', label: '3D Text' },
+                                        { id: 'subtitle-style-text', label: 'Subtitle Style Text' },
+                                        { id: 'motion-tracking-text', label: 'Motion Tracking Text' },
+                                    ].map((style) => {
+                                        const isActive = overlayTextStylePreset === style.id;
                                         return (
                                             <button
-                                                key={font.id}
-                                                onClick={() => setOverlayFontId(font.id)}
-                                                className={`w-full flex items-center justify-between py-2.5 px-3.5 text-left border-l-2 transition-all duration-150 active:scale-[0.99] ${
+                                                key={style.id}
+                                                onClick={() => {
+                                                    setOverlayTextStylePreset(style.id);
+                                                    setSelectedEffect(getOverlayTextEffectForPreset(style.id));
+                                                    if (style.id === 'animated-captions') {
+                                                        setAnimatedText(overlayText);
+                                                    }
+                                                }}
+                                                className={`h-10 px-3 flex items-center justify-center text-[9px] font-bold uppercase tracking-wider border rounded-lg transition-all duration-200 active:scale-[0.98] cursor-pointer ${
                                                     isActive
-                                                        ? 'bg-[#1e172a] border-[#D946EF] text-[#e879f9]'
-                                                        : 'border-transparent text-slate-300 hover:bg-white/[0.02] hover:text-white'
+                                                        ? 'bg-[#181125] text-[#D946EF] border-[#A855F7] shadow-[0_0_12px_rgba(168,85,247,0.2)]'
+                                                        : 'bg-[#0e111a]/60 text-slate-200 border-white/[0.05] hover:bg-white/[0.04] hover:border-white/10 hover:text-white'
                                                 }`}
                                             >
-                                                <span 
-                                                    className="text-[12.5px] font-medium leading-none"
-                                                    style={{ 
-                                                        fontFamily: font.family,
-                                                        letterSpacing: font.letterSpacing || 'normal',
-                                                        fontWeight: font.fontWeight || 'normal'
-                                                    }}
-                                                >
-                                                    {font.label}
-                                                </span>
-                                                
-                                                <div className="flex items-center gap-2.5 text-slate-500 group-hover:text-slate-400 shrink-0">
-                                                    {showUpload && (
-                                                        <Upload className={`w-3 h-3 transition-colors ${isActive ? 'text-[#D946EF]/70' : 'text-slate-500 hover:text-slate-300'}`} />
-                                                    )}
-                                                    {showChevron && (
-                                                        <ChevronDown className={`w-3.5 h-3.5 transition-colors ${isActive ? 'text-[#D946EF]/70' : 'text-slate-500'}`} />
-                                                    )}
-                                                </div>
+                                                {style.label}
                                             </button>
                                         );
                                     })}
                                 </div>
                             </div>
-                        </div>
-                        <div>
-                            <label className="text-[10px] font-extrabold uppercase tracking-wider text-[#6A7B95] block mb-2">Text Style</label>
-                            <div className="mt-1 grid grid-cols-2 gap-2.5 max-h-[195px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/[0.08] [&::-webkit-scrollbar-thumb]:rounded-full">
-                                {[
-                                    { id: 'cinematic-title', label: 'Cinematic Title' },
-                                    { id: 'animated-captions', label: 'Animated Captions' },
-                                    { id: 'kinetic-typography', label: 'Kinetic Typography' },
-                                    { id: 'neon-glow-text', label: 'Neon Glow Text' },
-                                    { id: 'glitch-text', label: 'Glitch Text' },
-                                    { id: 'typewriter-text', label: 'Typewriter Text' },
-                                    { id: 'bold-hype-text', label: 'Bold Hype Text' },
-                                    { id: 'lyrics-text', label: 'Lyrics Text' },
-                                    { id: 'minimal-clean-text', label: 'Minimal Clean Text' },
-                                    { id: '3d-text', label: '3D Text' },
-                                    { id: 'subtitle-style-text', label: 'Subtitle Style Text' },
-                                    { id: 'motion-tracking-text', label: 'Motion Tracking Text' },
-                                ].map((style) => {
-                                    const isActive = overlayTextStylePreset === style.id;
-                                    return (
-                                        <button
-                                            key={style.id}
-                                            onClick={() => {
-                                                setOverlayTextStylePreset(style.id);
-                                                setSelectedEffect(getOverlayTextEffectForPreset(style.id));
-                                                if (style.id === 'animated-captions') {
-                                                    setAnimatedText(overlayText);
-                                                }
-                                            }}
-                                            className={`h-10 px-3 flex items-center justify-center text-[9px] font-bold uppercase tracking-wider border rounded-lg transition-all duration-200 active:scale-[0.98] ${
-                                                isActive
-                                                    ? 'bg-[#181125] text-[#D946EF] border-[#A855F7] shadow-[0_0_12px_rgba(168,85,247,0.2)]'
-                                                    : 'bg-[#0e111a]/60 text-slate-200 border-white/[0.05] hover:bg-white/[0.04] hover:border-white/10 hover:text-white'
-                                            }`}
-                                        >
-                                            {style.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
+                        )}
                         <div className="grid grid-cols-2 gap-2">
                             <div>
                                 <label className="text-[8px] font-bold uppercase tracking-widest text-slate-400">Size</label>
@@ -1978,7 +2025,7 @@ const ToolInspector = memo(({
                                                 key={cap.id}
                                                 onClick={() => setCurrentCaption(cap)}
                                                 className={`flex items-start gap-1.5 px-2 py-1.5 rounded-lg border cursor-pointer transition-all group ${currentCaption?.id === cap.id
-                                                    ? 'bg-fuchsia-500/20 border-fuchsia-400 shadow-[inset_0_0_8px_rgba(20,184,166,0.1)]'
+                                                    ? 'bg-fuchsia-500/20 border-fuchsia-400 shadow-[inset_0_0_8px_rgba(168,85,247,0.1)]'
                                                     : 'bg-white/5 border-white/5 hover:border-white/10'
                                                     }`}
                                             >
@@ -2490,12 +2537,35 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const [compositingRefocus, setCompositingRefocus] = useState(false);
     const [compositingRelight, setCompositingRelight] = useState(false);
 
-    const [inspectorTab, setInspectorTab] = useState<'video' | 'audio' | 'speed' | 'animation'>('video');
+    const [inspectorTab, setInspectorTab] = useState<'video' | 'audio' | 'speed' | 'animation' | 'color'>('video');
     const [inspectorSubTab, setInspectorSubTab] = useState<'basic' | 'mask' | 'ai-matte'>('basic');
     const [isTransformExpanded, setIsTransformExpanded] = useState(true);
     const [isCompositingExpanded, setIsCompositingExpanded] = useState(true);
     const [isTransformEnabled, setIsTransformEnabled] = useState(true);
     const [isCompositingEnabled, setIsCompositingEnabled] = useState(true);
+
+    const [hasTransformKeyframe, setHasTransformKeyframe] = useState(false);
+    const [hasWidthKeyframe, setHasWidthKeyframe] = useState(false);
+    const [hasHeightKeyframe, setHasHeightKeyframe] = useState(false);
+    const [hasPositionKeyframe, setHasPositionKeyframe] = useState(false);
+    const [hasRotateKeyframe, setHasRotateKeyframe] = useState(false);
+    const [hasRadiusKeyframe, setHasRadiusKeyframe] = useState(false);
+    const [hasCompositingKeyframe, setHasCompositingKeyframe] = useState(false);
+    const [hasOpacityKeyframe, setHasOpacityKeyframe] = useState(false);
+    const [compositingKeyframes, setCompositingKeyframes] = useState<Record<string, boolean>>({});
+    const [hasSpeedKeyframe, setHasSpeedKeyframe] = useState(false);
+    const [hasMultiplierKeyframe, setHasMultiplierKeyframe] = useState(false);
+    const [hasAnimationKeyframe, setHasAnimationKeyframe] = useState(false);
+    const [hasStrengthKeyframe, setHasStrengthKeyframe] = useState(false);
+    const [hasAudioKeyframe, setHasAudioKeyframe] = useState(false);
+    const [hasGainKeyframe, setHasGainKeyframe] = useState(false);
+    const [hasMuteKeyframe, setHasMuteKeyframe] = useState(false);
+    const [hasBrightnessKeyframe, setHasBrightnessKeyframe] = useState(false);
+    const [hasContrastKeyframe, setHasContrastKeyframe] = useState(false);
+    const [hasSaturationKeyframe, setHasSaturationKeyframe] = useState(false);
+    const toggleCompositingKeyframe = (label: string) => {
+        setCompositingKeyframes(prev => ({ ...prev, [label]: !prev[label] }));
+    };
 
     useEffect(() => {
         if (isAspectLocked) {
@@ -4795,15 +4865,15 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                     title={tab.label}
                                                     className={`relative flex flex-col items-center justify-center gap-1 w-14 h-14 rounded-xl transition-all duration-200 group ${
                                                         isActive
-                                                            ? 'bg-teal-500/15 text-teal-300'
+                                                            ? 'bg-purple-500/15 text-purple-300'
                                                             : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
                                                     }`}
                                                 >
                                                     {isActive && (
-                                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-7 bg-teal-400 rounded-r-full" />
+                                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-7 bg-purple-400 rounded-r-full" />
                                                     )}
-                                                    <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-teal-300' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                                                    <span className={`text-[8px] font-bold uppercase tracking-wide leading-none text-center px-0.5 ${isActive ? 'text-teal-300' : 'text-slate-600 group-hover:text-slate-400'}`}>
+                                                    <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-purple-300' : 'text-slate-500 group-hover:text-slate-300'}`} />
+                                                    <span className={`text-[8px] font-bold uppercase tracking-wide leading-none text-center px-0.5 ${isActive ? 'text-purple-300' : 'text-slate-600 group-hover:text-slate-400'}`}>
                                                         {tab.label}
                                                     </span>
                                                 </button>
@@ -4825,7 +4895,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                 {leftTab === 'tools'       && 'Toolbox'}
                                             </span>
                                             {leftTab === 'transitions' && activePreviewId && (
-                                                <span className="text-[8px] font-bold text-teal-400 bg-teal-500/10 border border-teal-500/20 rounded px-1.5 py-0.5 truncate max-w-[120px]">
+                                                <span className="text-[8px] font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 rounded px-1.5 py-0.5 truncate max-w-[120px]">
                                                     {clipTransitions[activePreviewId] || 'none'}
                                                 </span>
                                             )}
@@ -4900,7 +4970,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                 {/* Active clip indicator */}
                                                 <div className={`mb-3 px-2.5 py-1.5 rounded-lg text-[8px] font-bold uppercase tracking-wider text-center border ${
                                                     activePreviewId
-                                                        ? 'bg-teal-500/10 border-teal-500/20 text-teal-300'
+                                                        ? 'bg-purple-500/10 border-purple-500/20 text-purple-300'
                                                         : 'bg-white/[0.03] border-white/5 text-slate-500'
                                                 }`}>
                                                     {activePreviewId ? `Clip selected · drag to apply` : 'Select a clip from the timeline first'}
@@ -4935,7 +5005,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                                 title={tr.label}
                                                                 className={`relative flex flex-col items-center justify-center gap-2 h-[80px] rounded-xl border transition-all duration-200 group overflow-hidden ${
                                                                     isActive
-                                                                        ? 'bg-teal-500/15 border-teal-400/60 shadow-[0_0_16px_rgba(45,212,191,0.25)] scale-[1.02]'
+                                                                        ? 'bg-purple-500/15 border-purple-400/60 shadow-[0_0_16px_rgba(168,85,247,0.25)] scale-[1.02]'
                                                                         : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/20 hover:-translate-y-0.5'
                                                                 }`}
                                                             >
@@ -4947,13 +5017,13 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                                 <Icon
                                                                     size={20}
                                                                     className="relative z-10 transition-transform duration-200 group-hover:scale-110"
-                                                                    style={{ color: isActive ? '#5eead4' : tr.color }}
+                                                                    style={{ color: isActive ? '#d8b4fe' : tr.color }}
                                                                 />
-                                                                <span className={`relative z-10 text-[8px] font-bold uppercase tracking-wider text-center leading-tight px-1 line-clamp-2 ${isActive ? 'text-teal-200' : 'text-slate-400 group-hover:text-slate-200'}`}>
+                                                                <span className={`relative z-10 text-[8px] font-bold uppercase tracking-wider text-center leading-tight px-1 line-clamp-2 ${isActive ? 'text-purple-200' : 'text-slate-400 group-hover:text-slate-200'}`}>
                                                                     {tr.label}
                                                                 </span>
                                                                 {isActive && (
-                                                                    <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-teal-400" />
+                                                                    <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-purple-400" />
                                                                 )}
                                                             </button>
                                                         );
@@ -5101,7 +5171,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                         <button
                                                             key={label}
                                                             className={`w-full text-left px-2 py-2 text-[9px] font-bold transition-colors truncate
-                                                                ${active ? 'text-teal-300 bg-white/5 border-l-2 border-teal-500' : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]'}
+                                                                ${active ? 'text-purple-300 bg-white/5 border-l-2 border-purple-500' : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]'}
                                                                 ${indent ? 'pl-4' : ''}`}
                                                         >
                                                             {label}
@@ -5115,7 +5185,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                     <div className="h-9 flex-none flex items-center gap-1.5 px-2 border-b border-white/[0.05] bg-[#090b14]">
                                                         <button
                                                             onClick={() => mediaInputRef.current?.click()}
-                                                            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-teal-600/20 border border-teal-500/30 text-teal-300 hover:bg-teal-600/30 text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                                                            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-purple-600/20 border border-purple-500/30 text-purple-300 hover:bg-purple-600/30 text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
                                                         >
                                                             <Upload className="w-3 h-3" />
                                                             <span>Import</span>
@@ -5129,9 +5199,9 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                             <div className="flex flex-col items-center justify-center py-8">
                                                                 <div
                                                                     onClick={() => mediaInputRef.current?.click()}
-                                                                    className="w-16 h-16 rounded-xl bg-black/40 border border-white/[0.07] flex items-center justify-center mb-3 cursor-pointer hover:border-teal-500/40 hover:bg-teal-500/5 transition-all group"
+                                                                    className="w-16 h-16 rounded-xl bg-black/40 border border-white/[0.07] flex items-center justify-center mb-3 cursor-pointer hover:border-purple-500/40 hover:bg-purple-500/5 transition-all group"
                                                                 >
-                                                                    <Plus className="w-5 h-5 text-slate-500 group-hover:text-teal-400" />
+                                                                    <Plus className="w-5 h-5 text-slate-500 group-hover:text-purple-400" />
                                                                 </div>
                                                                 <span className="text-[9px] text-slate-500 font-bold text-center">Import Media</span>
                                                             </div>
@@ -5145,7 +5215,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                                         onDragStart={(e: any) => { e.dataTransfer.setData('clipId', item.id); }}
                                                                         className={`group relative aspect-video rounded-lg border transition-all cursor-pointer overflow-hidden bg-slate-900
                                                                             ${activePreviewId === item.id
-                                                                                ? 'border-teal-500 shadow-[0_0_10px_rgba(20,184,166,0.3)]'
+                                                                                ? 'border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.3)]'
                                                                                 : 'border-white/[0.06] hover:border-white/20'}`}
                                                                     >
                                                                         {item.type === 'video' ? (
@@ -5184,10 +5254,10 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                 <div className="text-[8px] font-bold uppercase tracking-widest text-slate-500 mb-1">Premium Stock Media</div>
                                                 <div className="grid grid-cols-2 gap-2">
                                                     {['Nature', 'Cityscapes', 'Abstract', 'Slow Motion', 'Vlog Clips', 'Intro Backgrounds'].map((c) => (
-                                                        <div key={c} className="group relative aspect-video rounded-xl bg-slate-900 border border-white/5 overflow-hidden flex flex-col justify-end p-2 cursor-pointer hover:border-teal-500/40">
+                                                        <div key={c} className="group relative aspect-video rounded-xl bg-slate-900 border border-white/5 overflow-hidden flex flex-col justify-end p-2 cursor-pointer hover:border-purple-500/40">
                                                             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
                                                             <span className="relative z-10 text-[9px] font-bold text-white uppercase">{c}</span>
-                                                            <span className="relative z-10 text-[7px] text-teal-400 font-mono font-medium">Free stock</span>
+                                                            <span className="relative z-10 text-[7px] text-purple-400 font-mono font-medium">Free stock</span>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -5898,19 +5968,19 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                     {/* Right Column: Inspector Panel (Filmora-style) */}
                     <motion.aside
                         initial={false}
-                        animate={{ width: isMediaPoolVisible ? (isMobile ? '100%' : 330) : 0, opacity: isMediaPoolVisible ? 1 : 0 }}
+                        animate={{ width: isMediaPoolVisible ? (isMobile ? '100%' : 340) : 0, opacity: isMediaPoolVisible ? 1 : 0 }}
                         className="flex-none flex flex-col border-l border-white/[0.06] overflow-hidden select-none order-3 bg-[#090b16] text-xs z-20"
                     >
-                        <div className={`${isMobile ? 'w-full' : 'w-[330px]'} h-full flex flex-col min-h-0`}>
+                        <div className={`${isMobile ? 'w-full' : 'w-[340px]'} h-full flex flex-col min-h-0`}>
                             {/* Tab Rail Header */}
                             <div className="h-10 flex-none border-b border-white/[0.05] bg-[#07080f] flex items-center px-1 gap-1">
-                                {(['video', 'audio', 'speed', 'animation'] as const).map(tab => (
+                                {(['video', 'audio', 'speed', 'animation', 'color'] as const).map(tab => (
                                     <button
                                         key={tab}
                                         onClick={() => setInspectorTab(tab)}
-                                        className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider text-center rounded-md transition-colors ${
+                                        className={`flex-1 py-2 text-[9px] font-black uppercase tracking-wider text-center rounded-md transition-colors cursor-pointer ${
                                             inspectorTab === tab
-                                                ? 'bg-teal-500/10 text-teal-300 border border-teal-500/20'
+                                                ? 'bg-purple-500/10 text-purple-300 border border-purple-500/20'
                                                 : 'text-slate-500 hover:text-slate-300'
                                         }`}
                                     >
@@ -5928,13 +5998,13 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                             onClick={() => setInspectorSubTab(subTab)}
                                             className={`transition-colors relative py-1 ${
                                                 inspectorSubTab === subTab
-                                                    ? 'text-teal-300'
+                                                    ? 'text-purple-300'
                                                     : 'hover:text-slate-200'
                                             }`}
                                         >
                                             {subTab}
                                             {inspectorSubTab === subTab && (
-                                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-teal-400 rounded-full" />
+                                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-400 rounded-full" />
                                             )}
                                         </button>
                                     ))}
@@ -5956,131 +6026,146 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                         type="checkbox"
                                                         checked={isTransformEnabled}
                                                         onChange={e => setIsTransformEnabled(e.target.checked)}
-                                                        className="rounded border-white/20 accent-teal-500 bg-black/40 w-3 h-3 cursor-pointer"
+                                                        className="rounded border-white/20 accent-purple-500 bg-black/40 w-3 h-3 cursor-pointer"
                                                     />
                                                     <span className="font-bold text-[10px] uppercase tracking-wider text-slate-200">Transform</span>
                                                 </div>
-                                                <button
-                                                    onClick={() => setIsTransformExpanded(!isTransformExpanded)}
-                                                    className="text-slate-500 hover:text-slate-200"
-                                                >
-                                                    {isTransformExpanded ? <ChevronLeft className="w-3.5 h-3.5 rotate-90" /> : <ChevronLeft className="w-3.5 h-3.5 -rotate-90" />}
-                                                </button>
+                                                <div className="flex items-center gap-1.5">
+                                                    <KeyframeButton active={hasTransformKeyframe} onClick={() => setHasTransformKeyframe(!hasTransformKeyframe)} />
+                                                    <button
+                                                        onClick={() => setIsTransformExpanded(!isTransformExpanded)}
+                                                        className="text-slate-500 hover:text-slate-200 cursor-pointer"
+                                                    >
+                                                        {isTransformExpanded ? <ChevronLeft className="w-3.5 h-3.5 rotate-90" /> : <ChevronLeft className="w-3.5 h-3.5 -rotate-90" />}
+                                                    </button>
+                                                </div>
                                             </div>
 
                                             {isTransformExpanded && (
                                                 <div className={`p-3 space-y-3.5 ${!isTransformEnabled ? 'opacity-40 pointer-events-none' : ''}`}>
                                                     
                                                     {/* Scale Width / Height */}
-                                                    <div className="space-y-1.5">
-                                                        <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                            <span>SCALE (WIDTH)</span>
-                                                            <span className="font-mono text-teal-400">{(zoomToolAmountX * 100).toFixed(0)}%</span>
+                                                    <div className="flex items-end gap-2.5">
+                                                        <div className="flex-1 space-y-1.5">
+                                                            <div className="flex justify-between text-[10px] font-bold text-slate-400">
+                                                                <span>SCALE (WIDTH)</span>
+                                                                <span className="font-mono text-purple-400">{(zoomToolAmountX * 100).toFixed(0)}%</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <input
+                                                                    type="range"
+                                                                    min="0.1"
+                                                                    max="3.0"
+                                                                    step="0.01"
+                                                                    value={zoomToolAmountX}
+                                                                    onChange={e => {
+                                                                        const val = Number(e.target.value);
+                                                                        setZoomToolAmountX(val);
+                                                                        if (isAspectLocked) {
+                                                                            setZoomToolAmountY(val);
+                                                                            setZoomToolAmount(val);
+                                                                        }
+                                                                    }}
+                                                                    className="flex-1 accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
+                                                                />
+                                                                <button
+                                                                    onClick={() => setIsAspectLocked(!isAspectLocked)}
+                                                                    className={`p-1 rounded border transition-colors cursor-pointer ${
+                                                                        isAspectLocked
+                                                                            ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+                                                                            : 'bg-white/5 text-slate-500 border-white/10 hover:text-slate-300'
+                                                                    }`}
+                                                                    title="Lock Aspect Ratio"
+                                                                >
+                                                                    <SlidersHorizontal className="w-3 h-3" />
+                                                                </button>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex items-center gap-2">
+                                                        <KeyframeButton active={hasWidthKeyframe} onClick={() => setHasWidthKeyframe(!hasWidthKeyframe)} />
+                                                    </div>
+
+                                                    <div className="flex items-end gap-2.5">
+                                                        <div className="flex-1 space-y-1.5">
+                                                            <div className="flex justify-between text-[10px] font-bold text-slate-400">
+                                                                <span>SCALE (HEIGHT)</span>
+                                                                <span className="font-mono text-purple-400">{(zoomToolAmountY * 100).toFixed(0)}%</span>
+                                                            </div>
                                                             <input
                                                                 type="range"
                                                                 min="0.1"
                                                                 max="3.0"
                                                                 step="0.01"
-                                                                value={zoomToolAmountX}
+                                                                value={zoomToolAmountY}
                                                                 onChange={e => {
                                                                     const val = Number(e.target.value);
-                                                                    setZoomToolAmountX(val);
+                                                                    setZoomToolAmountY(val);
                                                                     if (isAspectLocked) {
-                                                                        setZoomToolAmountY(val);
+                                                                        setZoomToolAmountX(val);
                                                                         setZoomToolAmount(val);
                                                                     }
                                                                 }}
-                                                                className="flex-1 accent-teal-500 h-1 bg-white/10 rounded-full cursor-pointer"
+                                                                className="w-full accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
                                                             />
-                                                            <button
-                                                                onClick={() => setIsAspectLocked(!isAspectLocked)}
-                                                                className={`p-1 rounded border transition-colors ${
-                                                                    isAspectLocked
-                                                                        ? 'bg-teal-500/20 text-teal-300 border-teal-500/30'
-                                                                        : 'bg-white/5 text-slate-500 border-white/10 hover:text-slate-300'
-                                                                }`}
-                                                                title="Lock Aspect Ratio"
-                                                            >
-                                                                <SlidersHorizontal className="w-3 h-3" />
-                                                            </button>
                                                         </div>
-                                                    </div>
-
-                                                    <div className="space-y-1.5">
-                                                        <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                            <span>SCALE (HEIGHT)</span>
-                                                            <span className="font-mono text-teal-400">{(zoomToolAmountY * 100).toFixed(0)}%</span>
-                                                        </div>
-                                                        <input
-                                                            type="range"
-                                                            min="0.1"
-                                                            max="3.0"
-                                                            step="0.01"
-                                                            value={zoomToolAmountY}
-                                                            onChange={e => {
-                                                                const val = Number(e.target.value);
-                                                                setZoomToolAmountY(val);
-                                                                if (isAspectLocked) {
-                                                                    setZoomToolAmountX(val);
-                                                                    setZoomToolAmount(val);
-                                                                }
-                                                            }}
-                                                            className="w-full accent-teal-500 h-1 bg-white/10 rounded-full cursor-pointer"
-                                                        />
+                                                        <KeyframeButton active={hasHeightKeyframe} onClick={() => setHasHeightKeyframe(!hasHeightKeyframe)} />
                                                     </div>
 
                                                     {/* Position X / Y */}
-                                                    <div className="grid grid-cols-2 gap-3.5">
-                                                        <div className="space-y-1">
-                                                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">POSITION X</span>
-                                                            <div className="flex items-center bg-black/40 border border-white/10 rounded px-2 py-1">
-                                                                <input
-                                                                    type="number"
-                                                                    value={posX}
-                                                                    onChange={e => setPosX(Number(e.target.value))}
-                                                                    className="w-full bg-transparent focus:outline-none text-white text-[11px] font-mono"
-                                                                />
-                                                                <span className="text-[9px] text-slate-600 font-bold ml-1">px</span>
+                                                    <div className="flex items-end gap-2.5">
+                                                        <div className="flex-1 grid grid-cols-2 gap-3.5">
+                                                            <div className="space-y-1">
+                                                                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">POSITION X</span>
+                                                                <div className="flex items-center bg-black/40 border border-white/10 rounded px-2 py-1">
+                                                                    <input
+                                                                        type="number"
+                                                                        value={posX}
+                                                                        onChange={e => setPosX(Number(e.target.value))}
+                                                                        className="w-full bg-transparent focus:outline-none text-white text-[11px] font-mono"
+                                                                    />
+                                                                    <span className="text-[9px] text-slate-600 font-bold ml-1">px</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">POSITION Y</span>
+                                                                <div className="flex items-center bg-black/40 border border-white/10 rounded px-2 py-1">
+                                                                    <input
+                                                                        type="number"
+                                                                        value={posY}
+                                                                        onChange={e => setPosY(Number(e.target.value))}
+                                                                        className="w-full bg-transparent focus:outline-none text-white text-[11px] font-mono"
+                                                                    />
+                                                                    <span className="text-[9px] text-slate-600 font-bold ml-1">px</span>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                        <div className="space-y-1">
-                                                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">POSITION Y</span>
-                                                            <div className="flex items-center bg-black/40 border border-white/10 rounded px-2 py-1">
-                                                                <input
-                                                                    type="number"
-                                                                    value={posY}
-                                                                    onChange={e => setPosY(Number(e.target.value))}
-                                                                    className="w-full bg-transparent focus:outline-none text-white text-[11px] font-mono"
-                                                                />
-                                                                <span className="text-[9px] text-slate-600 font-bold ml-1">px</span>
-                                                            </div>
-                                                        </div>
+                                                        <KeyframeButton active={hasPositionKeyframe} onClick={() => setHasPositionKeyframe(!hasPositionKeyframe)} />
                                                     </div>
 
                                                     {/* Rotation degrees */}
-                                                    <div className="space-y-1.5">
-                                                        <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                            <span>ROTATE</span>
-                                                            <span className="font-mono text-teal-400">{rotationDegrees}°</span>
+                                                    <div className="flex items-end gap-2.5">
+                                                        <div className="flex-1 space-y-1.5">
+                                                            <div className="flex justify-between text-[10px] font-bold text-slate-400">
+                                                                <span>ROTATE</span>
+                                                                <span className="font-mono text-purple-400">{rotationDegrees}°</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-3">
+                                                                <input
+                                                                    type="range"
+                                                                    min="-180"
+                                                                    max="180"
+                                                                    value={rotationDegrees}
+                                                                    onChange={e => setRotationDegrees(Number(e.target.value))}
+                                                                    className="flex-1 accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
+                                                                />
+                                                                <button
+                                                                    onClick={() => setRotationDegrees(0)}
+                                                                    className="text-[9px] font-bold text-slate-500 hover:text-white uppercase transition-colors cursor-pointer"
+                                                                >
+                                                                    Reset
+                                                                </button>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex items-center gap-3">
-                                                            <input
-                                                                type="range"
-                                                                min="-180"
-                                                                max="180"
-                                                                value={rotationDegrees}
-                                                                onChange={e => setRotationDegrees(Number(e.target.value))}
-                                                                className="flex-1 accent-teal-500 h-1 bg-white/10 rounded-full cursor-pointer"
-                                                            />
-                                                            <button
-                                                                onClick={() => setRotationDegrees(0)}
-                                                                className="text-[9px] font-bold text-slate-500 hover:text-white uppercase transition-colors"
-                                                            >
-                                                                Reset
-                                                            </button>
-                                                        </div>
+                                                        <KeyframeButton active={hasRotateKeyframe} onClick={() => setHasRotateKeyframe(!hasRotateKeyframe)} />
                                                     </div>
 
                                                     {/* Flip Horizontal / Vertical */}
@@ -6089,9 +6174,9 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                         <div className="flex gap-2">
                                                             <button
                                                                 onClick={() => setFlipH(!flipH)}
-                                                                className={`px-3 py-1.5 rounded-lg border text-[9px] font-bold transition-all ${
+                                                                className={`px-3 py-1.5 rounded-lg border text-[9px] font-bold transition-all cursor-pointer ${
                                                                     flipH
-                                                                        ? 'bg-teal-500/20 text-teal-300 border-teal-500/40'
+                                                                        ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
                                                                         : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10'
                                                                 }`}
                                                             >
@@ -6099,9 +6184,9 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                             </button>
                                                             <button
                                                                 onClick={() => setFlipV(!flipV)}
-                                                                className={`px-3 py-1.5 rounded-lg border text-[9px] font-bold transition-all ${
+                                                                className={`px-3 py-1.5 rounded-lg border text-[9px] font-bold transition-all cursor-pointer ${
                                                                     flipV
-                                                                        ? 'bg-teal-500/20 text-teal-300 border-teal-500/40'
+                                                                        ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
                                                                         : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10'
                                                                 }`}
                                                             >
@@ -6111,19 +6196,22 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                     </div>
 
                                                     {/* Corner Radius */}
-                                                    <div className="space-y-1.5">
-                                                        <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                            <span>CORNER RADIUS</span>
-                                                            <span className="font-mono text-teal-400">{cornerRadius}px</span>
+                                                    <div className="flex items-end gap-2.5">
+                                                        <div className="flex-1 space-y-1.5">
+                                                            <div className="flex justify-between text-[10px] font-bold text-slate-400">
+                                                                <span>CORNER RADIUS</span>
+                                                                <span className="font-mono text-purple-400">{cornerRadius}px</span>
+                                                            </div>
+                                                            <input
+                                                                type="range"
+                                                                min="0"
+                                                                max="100"
+                                                                value={cornerRadius}
+                                                                onChange={e => setCornerRadius(Number(e.target.value))}
+                                                                className="w-full accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
+                                                            />
                                                         </div>
-                                                        <input
-                                                            type="range"
-                                                            min="0"
-                                                            max="100"
-                                                            value={cornerRadius}
-                                                            onChange={e => setCornerRadius(Number(e.target.value))}
-                                                            className="w-full accent-teal-500 h-1 bg-white/10 rounded-full cursor-pointer"
-                                                        />
+                                                        <KeyframeButton active={hasRadiusKeyframe} onClick={() => setHasRadiusKeyframe(!hasRadiusKeyframe)} />
                                                     </div>
 
                                                 </div>
@@ -6138,36 +6226,42 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                         type="checkbox"
                                                         checked={isCompositingEnabled}
                                                         onChange={e => setIsCompositingEnabled(e.target.checked)}
-                                                        className="rounded border-white/20 accent-teal-500 bg-black/40 w-3 h-3 cursor-pointer"
+                                                        className="rounded border-white/20 accent-purple-500 bg-black/40 w-3 h-3 cursor-pointer"
                                                     />
                                                     <span className="font-bold text-[10px] uppercase tracking-wider text-slate-200">Compositing</span>
                                                 </div>
-                                                <button
-                                                    onClick={() => setIsCompositingExpanded(!isCompositingExpanded)}
-                                                    className="text-slate-500 hover:text-slate-200"
-                                                >
-                                                    {isCompositingExpanded ? <ChevronLeft className="w-3.5 h-3.5 rotate-90" /> : <ChevronLeft className="w-3.5 h-3.5 -rotate-90" />}
-                                                </button>
+                                                <div className="flex items-center gap-1.5">
+                                                    <KeyframeButton active={hasCompositingKeyframe} onClick={() => setHasCompositingKeyframe(!hasCompositingKeyframe)} />
+                                                    <button
+                                                        onClick={() => setIsCompositingExpanded(!isCompositingExpanded)}
+                                                        className="text-slate-500 hover:text-slate-200 cursor-pointer"
+                                                    >
+                                                        {isCompositingExpanded ? <ChevronLeft className="w-3.5 h-3.5 rotate-90" /> : <ChevronLeft className="w-3.5 h-3.5 -rotate-90" />}
+                                                    </button>
+                                                </div>
                                             </div>
 
                                             {isCompositingExpanded && (
                                                 <div className={`p-3 space-y-4 ${!isCompositingEnabled ? 'opacity-40 pointer-events-none' : ''}`}>
                                                     
                                                     {/* Opacity slider */}
-                                                    <div className="space-y-1.5">
-                                                        <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                            <span>OPACITY</span>
-                                                            <span className="font-mono text-teal-400">{(previewOpacity * 100).toFixed(0)}%</span>
+                                                    <div className="flex items-end gap-2.5">
+                                                        <div className="flex-1 space-y-1.5">
+                                                            <div className="flex justify-between text-[10px] font-bold text-slate-400">
+                                                                <span>OPACITY</span>
+                                                                <span className="font-mono text-purple-400">{(previewOpacity * 100).toFixed(0)}%</span>
+                                                            </div>
+                                                            <input
+                                                                type="range"
+                                                                min="0"
+                                                                max="1"
+                                                                step="0.01"
+                                                                value={previewOpacity}
+                                                                onChange={e => setPreviewOpacity(Number(e.target.value))}
+                                                                className="w-full accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
+                                                            />
                                                         </div>
-                                                        <input
-                                                            type="range"
-                                                            min="0"
-                                                            max="1"
-                                                            step="0.01"
-                                                            value={previewOpacity}
-                                                            onChange={e => setPreviewOpacity(Number(e.target.value))}
-                                                            className="w-full accent-teal-500 h-1 bg-white/10 rounded-full cursor-pointer"
-                                                        />
+                                                        <KeyframeButton active={hasOpacityKeyframe} onClick={() => setHasOpacityKeyframe(!hasOpacityKeyframe)} />
                                                     </div>
 
                                                     {/* Compositing features switches */}
@@ -6181,12 +6275,18 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                         ].map(feat => (
                                                             <div key={feat.label} className="flex items-center justify-between py-1 border-b border-white/[0.03] last:border-0">
                                                                 <span>{feat.label}</span>
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={feat.val}
-                                                                    onChange={e => feat.set(e.target.checked)}
-                                                                    className="rounded border-white/20 accent-teal-500 bg-black/40 w-3 h-3 cursor-pointer"
-                                                                />
+                                                                <div className="flex items-center gap-2">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={feat.val}
+                                                                        onChange={e => feat.set(e.target.checked)}
+                                                                        className="rounded border-white/20 accent-purple-500 bg-black/40 w-3 h-3 cursor-pointer"
+                                                                    />
+                                                                    <KeyframeButton 
+                                                                        active={!!compositingKeyframes[feat.label]} 
+                                                                        onClick={() => toggleCompositingKeyframe(feat.label)} 
+                                                                    />
+                                                                </div>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -6201,7 +6301,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                 {/* ── VIDEO -> MASK & AI MATTE PLACEHOLDERS ── */}
                                 {inspectorTab === 'video' && inspectorSubTab !== 'basic' && (
                                     <div className="flex flex-col items-center justify-center py-10 text-center gap-2">
-                                        <Wand2 className="w-8 h-8 text-teal-400 animate-pulse" />
+                                        <Wand2 className="w-8 h-8 text-purple-400 animate-pulse" />
                                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-200">{inspectorSubTab} Controls</span>
                                         <span className="text-[9px] text-slate-500 max-w-[200px]">Advanced AI tools are ready to analyze and map targets. Click generate to apply.</span>
                                     </div>
@@ -6211,32 +6311,41 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                 {inspectorTab === 'audio' && (
                                     <div className="space-y-4">
                                         <div className="border border-white/[0.05] rounded-xl bg-black/25 p-3.5 space-y-3.5">
-                                            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-200">Volume Settings</div>
+                                            <div className="flex items-center justify-between">
+                                                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-200">Volume Settings</div>
+                                                <KeyframeButton active={hasAudioKeyframe} onClick={() => setHasAudioKeyframe(!hasAudioKeyframe)} />
+                                            </div>
                                             
-                                            <div className="space-y-1.5">
-                                                <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                    <span>GAIN LEVEL</span>
-                                                    <span className="font-mono text-teal-400">{(volumeLevel * 100).toFixed(0)}%</span>
+                                            <div className="flex items-end gap-2.5">
+                                                <div className="flex-1 space-y-1.5">
+                                                    <div className="flex justify-between text-[10px] font-bold text-slate-400">
+                                                        <span>GAIN LEVEL</span>
+                                                        <span className="font-mono text-purple-400">{(volumeLevel * 100).toFixed(0)}%</span>
+                                                    </div>
+                                                    <input
+                                                        type="range"
+                                                        min="0"
+                                                        max="2"
+                                                        step="0.05"
+                                                        value={volumeLevel}
+                                                        onChange={e => setVolumeLevel(Number(e.target.value))}
+                                                        className="w-full accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
+                                                    />
                                                 </div>
-                                                <input
-                                                    type="range"
-                                                    min="0"
-                                                    max="2"
-                                                    step="0.05"
-                                                    value={volumeLevel}
-                                                    onChange={e => setVolumeLevel(Number(e.target.value))}
-                                                    className="w-full accent-teal-500 h-1 bg-white/10 rounded-full cursor-pointer"
-                                                />
+                                                <KeyframeButton active={hasGainKeyframe} onClick={() => setHasGainKeyframe(!hasGainKeyframe)} />
                                             </div>
 
                                             <div className="flex items-center justify-between">
                                                 <span className="text-[10px] font-bold text-slate-400">MUTE AUDIO CHANNEL</span>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isMuted}
-                                                    onChange={e => setIsMuted(e.target.checked)}
-                                                    className="rounded border-white/20 accent-teal-500 bg-black/40 w-3.5 h-3.5 cursor-pointer"
-                                                />
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isMuted}
+                                                        onChange={e => setIsMuted(e.target.checked)}
+                                                        className="rounded border-white/20 accent-purple-500 bg-black/40 w-3.5 h-3.5 cursor-pointer"
+                                                    />
+                                                    <KeyframeButton active={hasMuteKeyframe} onClick={() => setHasMuteKeyframe(!hasMuteKeyframe)} />
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -6246,22 +6355,28 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                 {inspectorTab === 'speed' && (
                                     <div className="space-y-4">
                                         <div className="border border-white/[0.05] rounded-xl bg-black/25 p-3.5 space-y-3.5">
-                                            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-200">Speed Control</div>
+                                            <div className="flex items-center justify-between">
+                                                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-200">Speed Control</div>
+                                                <KeyframeButton active={hasSpeedKeyframe} onClick={() => setHasSpeedKeyframe(!hasSpeedKeyframe)} />
+                                            </div>
                                             
-                                            <div className="space-y-1.5">
-                                                <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                    <span>MULTIPLIER</span>
-                                                    <span className="font-mono text-teal-400">{speedValue.toFixed(2)}x</span>
+                                            <div className="flex items-end gap-2.5">
+                                                <div className="flex-1 space-y-1.5">
+                                                    <div className="flex justify-between text-[10px] font-bold text-slate-400">
+                                                        <span>MULTIPLIER</span>
+                                                        <span className="font-mono text-purple-400">{speedValue.toFixed(2)}x</span>
+                                                    </div>
+                                                    <input
+                                                        type="range"
+                                                        min="0.25"
+                                                        max="4.00"
+                                                        step="0.05"
+                                                        value={speedValue}
+                                                        onChange={e => setSpeedValue(Number(e.target.value))}
+                                                        className="w-full accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
+                                                    />
                                                 </div>
-                                                <input
-                                                    type="range"
-                                                    min="0.25"
-                                                    max="4.00"
-                                                    step="0.05"
-                                                    value={speedValue}
-                                                    onChange={e => setSpeedValue(Number(e.target.value))}
-                                                    className="w-full accent-teal-500 h-1 bg-white/10 rounded-full cursor-pointer"
-                                                />
+                                                <KeyframeButton active={hasMultiplierKeyframe} onClick={() => setHasMultiplierKeyframe(!hasMultiplierKeyframe)} />
                                             </div>
                                         </div>
                                     </div>
@@ -6271,7 +6386,10 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                 {inspectorTab === 'animation' && (
                                     <div className="space-y-4">
                                         <div className="border border-white/[0.05] rounded-xl bg-black/25 p-3.5 space-y-3.5">
-                                            <div className="text-[11px] font-black uppercase tracking-wider text-slate-200">KEYFRAME EFFECTS</div>
+                                            <div className="flex items-center justify-between">
+                                                <div className="text-[11px] font-black uppercase tracking-wider text-slate-200">KEYFRAME EFFECTS</div>
+                                                <KeyframeButton active={hasAnimationKeyframe} onClick={() => setHasAnimationKeyframe(!hasAnimationKeyframe)} />
+                                            </div>
                                             
                                             <div className="space-y-2">
                                                 <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">MOTION PATTERN</span>
@@ -6280,9 +6398,9 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                         <button
                                                             key={mode}
                                                             onClick={() => setKeyframeMode(mode)}
-                                                            className={`py-4 text-[10px] font-black uppercase border rounded-xl transition-all ${
+                                                            className={`py-4 text-[10px] font-black uppercase border rounded-xl transition-all cursor-pointer ${
                                                                 keyframeMode === mode
-                                                                    ? 'bg-[#0a2324] text-teal-300 border-teal-500 shadow-[0_0_12px_rgba(20,184,166,0.3)]'
+                                                                    ? 'bg-[#1a0f24] text-purple-300 border-purple-500 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
                                                                     : 'bg-[#13141f] text-slate-400 border-white/5 hover:border-white/10 hover:text-slate-200'
                                                             }`}
                                                         >
@@ -6293,22 +6411,106 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                             </div>
 
                                             {keyframeMode !== 'none' && (
-                                                <div className="space-y-1.5 pt-1">
+                                                <div className="flex items-end gap-2.5 pt-1">
+                                                    <div className="flex-1 space-y-1.5">
+                                                        <div className="flex justify-between text-[10px] font-bold text-slate-400">
+                                                            <span>EFFECT STRENGTH</span>
+                                                            <span className="font-mono text-purple-400">{(keyframeAmount * 100).toFixed(0)}%</span>
+                                                        </div>
+                                                        <input
+                                                            type="range"
+                                                            min="1.0"
+                                                            max="2.0"
+                                                            step="0.05"
+                                                            value={keyframeAmount}
+                                                            onChange={e => setKeyframeAmount(Number(e.target.value))}
+                                                            className="w-full accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
+                                                        />
+                                                    </div>
+                                                    <KeyframeButton active={hasStrengthKeyframe} onClick={() => setHasStrengthKeyframe(!hasStrengthKeyframe)} />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* ── COLOR TAB ── */}
+                                {inspectorTab === 'color' && (
+                                    <div className="space-y-4">
+                                        <div className="border border-white/[0.05] rounded-xl bg-black/25 p-3.5 space-y-3.5">
+                                            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-200">Color Correction</div>
+                                            
+                                            {/* Brightness */}
+                                            <div className="flex items-end gap-2.5">
+                                                <div className="flex-1 space-y-1.5">
                                                     <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                        <span>EFFECT STRENGTH</span>
-                                                        <span className="font-mono text-teal-400">{(keyframeAmount * 100).toFixed(0)}%</span>
+                                                        <span>BRIGHTNESS</span>
+                                                        <span className="font-mono text-purple-400">{brightness.toFixed(1)}</span>
                                                     </div>
                                                     <input
                                                         type="range"
-                                                        min="1.0"
-                                                        max="2.0"
-                                                        step="0.05"
-                                                        value={keyframeAmount}
-                                                        onChange={e => setKeyframeAmount(Number(e.target.value))}
-                                                        className="w-full accent-teal-500 h-1 bg-white/10 rounded-full cursor-pointer"
+                                                        min={0.5}
+                                                        max={1.5}
+                                                        step={0.05}
+                                                        value={brightness}
+                                                        onChange={e => setBrightness(Number(e.target.value))}
+                                                        className="w-full accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
                                                     />
                                                 </div>
-                                            )}
+                                                <KeyframeButton active={hasBrightnessKeyframe} onClick={() => setHasBrightnessKeyframe(!hasBrightnessKeyframe)} />
+                                            </div>
+
+                                            {/* Contrast */}
+                                            <div className="flex items-end gap-2.5">
+                                                <div className="flex-1 space-y-1.5">
+                                                    <div className="flex justify-between text-[10px] font-bold text-slate-400">
+                                                        <span>CONTRAST</span>
+                                                        <span className="font-mono text-purple-400">{contrast.toFixed(1)}</span>
+                                                    </div>
+                                                    <input
+                                                        type="range"
+                                                        min={0.1}
+                                                        max={3}
+                                                        step={0.1}
+                                                        value={contrast}
+                                                        onChange={e => setContrast(Number(e.target.value))}
+                                                        className="w-full accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
+                                                    />
+                                                </div>
+                                                <KeyframeButton active={hasContrastKeyframe} onClick={() => setHasContrastKeyframe(!hasContrastKeyframe)} />
+                                            </div>
+
+                                            {/* Saturation */}
+                                            <div className="flex items-end gap-2.5">
+                                                <div className="flex-1 space-y-1.5">
+                                                    <div className="flex justify-between text-[10px] font-bold text-slate-400">
+                                                        <span>SATURATION</span>
+                                                        <span className="font-mono text-purple-400">{saturation.toFixed(1)}</span>
+                                                    </div>
+                                                    <input
+                                                        type="range"
+                                                        min={0}
+                                                        max={3}
+                                                        step={0.1}
+                                                        value={saturation}
+                                                        onChange={e => setSaturation(Number(e.target.value))}
+                                                        className="w-full accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
+                                                    />
+                                                </div>
+                                                <KeyframeButton active={hasSaturationKeyframe} onClick={() => setHasSaturationKeyframe(!hasSaturationKeyframe)} />
+                                            </div>
+
+                                            {/* Reset Color Correction */}
+                                            <button
+                                                onClick={() => {
+                                                    setBrightness(1);
+                                                    setContrast(1);
+                                                    setSaturation(1);
+                                                }}
+                                                className="w-full py-2 rounded-lg bg-white/5 border border-white/10 text-slate-300 text-[9px] font-black uppercase hover:bg-white/10 transition-colors cursor-pointer"
+                                            >
+                                                Reset Color Settings
+                                            </button>
                                         </div>
                                     </div>
                                 )}
@@ -6331,7 +6533,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
                 {/* Bottom Panel: Multitrack Timeline lanes and Audio Mixer */}
                 <div className={`${timelineSize === 'minimized' ? 'h-[120px]' :
-                    timelineSize === 'maximized' ? 'h-[460px]' : 'h-[280px]'
+                    timelineSize === 'maximized' ? 'h-[50vh]' : 'h-[38vh]'
                     } flex-none border-t border-white/10 bg-black/25 backdrop-blur-3xl flex p-4 gap-4 overflow-hidden select-none transition-all duration-300`}>
                     {/* Timeline hub container */}
                     <div className="flex-1 overflow-hidden h-full">
