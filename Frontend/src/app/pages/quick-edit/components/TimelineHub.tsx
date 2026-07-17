@@ -17,6 +17,7 @@ interface Clip {
   type: "video" | "image" | "audio" | "text" | "effect";
   startTime: number;
   duration: number;
+  originalDuration?: number;
   file?: File;
   preview?: string;
   trackId: string;
@@ -182,6 +183,21 @@ export const TimelineHub = memo(({
   session,
   handleAddAssetToTimeline,
   currentTime: currentTimeProp,
+  clipTransitions = {},
+  setClipTransitions,
+  setLeftTab,
+  setActiveTool,
+  setIsPlaying,
+  clipStartOverrides = {},
+  setClipStartOverrides,
+  clipTrackOverrides = {},
+  setClipTrackOverrides,
+  clipNameOverrides = {},
+  setClipNameOverrides,
+  clipLockedStates = {},
+  setClipLockedStates,
+  clipSettings = {},
+  setClipSettings,
 }: any) => {
 
   /* ── State ─────────────────────────────────────────────────── */
@@ -194,6 +210,15 @@ export const TimelineHub = memo(({
   const [clipboard, setClipboard] = useState<any[]>([]);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   const [viewportWidth, setViewportWidth] = useState(800);
+  const [isZooming, setIsZooming] = useState(false);
+
+  useEffect(() => {
+    setIsZooming(true);
+    const timeout = setTimeout(() => {
+      setIsZooming(false);
+    }, 150); // 150ms debounce
+    return () => clearTimeout(timeout);
+  }, [pixelsPerSecond]);
 
   // Tracks State
   const [tracks, setTracks] = useState<Track[]>([
@@ -201,10 +226,6 @@ export const TimelineHub = memo(({
   ]);
 
   // Local clip overrides for highly production-ready interactive overrides
-  const [clipTrackOverrides, setClipTrackOverrides] = useState<Record<string, string>>({});
-  const [clipStartOverrides, setClipStartOverrides] = useState<Record<string, number>>({});
-  const [clipNameOverrides, setClipNameOverrides] = useState<Record<string, string>>({});
-  const [clipLockedStates, setClipLockedStates] = useState<Record<string, boolean>>({});
   const [clipColorsLocal, setClipColorsLocal] = useState<Record<string, string>>({});
   const [clipSpeeds, setClipSpeeds] = useState<Record<string, number>>({});
   const [clipReverses, setClipReverses] = useState<Record<string, boolean>>({});
@@ -302,6 +323,7 @@ export const TimelineHub = memo(({
         type: it.type,
         startTime: finalStart,
         duration: dur,
+        originalDuration: it.duration,
         file: it.file,
         preview: it.preview,
         trackId: finalTrack,
@@ -321,6 +343,7 @@ export const TimelineHub = memo(({
         type: "audio",
         startTime: finalStart,
         duration: tr.duration || 10,
+        originalDuration: tr.duration || 10,
         trackId: finalTrack,
         isLocked: clipLockedStates[tr.id] || false,
       });
@@ -330,13 +353,15 @@ export const TimelineHub = memo(({
       const finalStart = clipStartOverrides[cap.id] !== undefined ? clipStartOverrides[cap.id] : cap.startTime;
       const finalTrack = clipTrackOverrides[cap.id] || "text-1";
       const finalName = clipNameOverrides[cap.id] || cap.text;
+      const capDur = (cap.endTime ?? cap.startTime + 2) - cap.startTime;
       
       list.push({
         id: cap.id,
         name: finalName,
         type: "text",
         startTime: finalStart,
-        duration: (cap.endTime ?? cap.startTime + 2) - cap.startTime,
+        duration: capDur,
+        originalDuration: capDur,
         trackId: finalTrack,
         isLocked: clipLockedStates[cap.id] || false,
       });
@@ -419,10 +444,12 @@ export const TimelineHub = memo(({
   useEffect(() => {
     if (!scrollRef.current || isDraggingPlayhead) return;
     const targetScrollLeft = currentTime * pixelsPerSecond;
-    scrollRef.current.scrollLeft = targetScrollLeft;
+    if (Math.abs(scrollRef.current.scrollLeft - targetScrollLeft) > 1) {
+      scrollRef.current.scrollLeft = targetScrollLeft;
+    }
   }, [progress, totalDuration, pixelsPerSecond, isDraggingPlayhead, currentTime]);
 
-  /* ── Sync sidebar vertical scroll ─────────────────────────── */
+  /* ── Sync sidebar vertical scroll & horizontal playhead time ── */
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -430,10 +457,17 @@ export const TimelineHub = memo(({
       if (sidebarTracksRef.current) {
         sidebarTracksRef.current.scrollTop = el.scrollTop;
       }
+      
+      if (!isDraggingPlayhead) {
+        const scrolledTime = el.scrollLeft / pixelsPerSecond;
+        if (Math.abs(currentTime - scrolledTime) > 0.01) {
+          handleTimelineClick(scrolledTime);
+        }
+      }
     };
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [currentTime, pixelsPerSecond, handleTimelineClick, isDraggingPlayhead]);
 
   /* ── Snap ──────────────────────────────────────────────────── */
   const getSnappedTime = useCallback((time: number, duration: number, ignoreId?: string) => {
@@ -461,11 +495,21 @@ export const TimelineHub = memo(({
     setPixelsPerSecond(prev => {
       const next = dir === "in" ? prev * 1.3 : dir === "out" ? prev / 1.3 : (dir as number);
       const clamped = Math.max(6, Math.min(300, next));
-      // Re-align scroll position so currentTime stays centered
       if (scrollRef.current) {
-        scrollRef.current.scrollLeft = currentTime * clamped;
+        const relativePlayheadOffset = currentTime * prev - scrollRef.current.scrollLeft;
+        scrollRef.current.scrollLeft = currentTime * clamped - relativePlayheadOffset;
       }
       return clamped;
+    });
+  }, [currentTime]);
+
+  const handleSliderZoom = useCallback((val: number) => {
+    setPixelsPerSecond(prev => {
+      if (scrollRef.current) {
+        const relativePlayheadOffset = currentTime * prev - scrollRef.current.scrollLeft;
+        scrollRef.current.scrollLeft = currentTime * val - relativePlayheadOffset;
+      }
+      return val;
     });
   }, [currentTime]);
 
@@ -479,29 +523,45 @@ export const TimelineHub = memo(({
     }
   }, [totalDuration, currentTime]);
 
-  /* ── Wheel scroll handling ────────────────────────────────── */
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (e.ctrlKey) {
-      e.preventDefault();
-      const factor = e.deltaY < 0 ? 1.15 : 0.85;
-      setPixelsPerSecond(prev => {
-        const next = Math.max(6, Math.min(300, prev * factor));
-        if (scrollRef.current) {
-          scrollRef.current.scrollLeft = currentTime * next;
-        }
-        return next;
-      });
-    } else if (e.shiftKey) {
-      e.preventDefault();
-      if (scrollRef.current) scrollRef.current.scrollLeft += e.deltaY;
-    }
-  }, [currentTime]);
+  /* ── Native non-passive Wheel listener for NLE-style zooming ── */
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const onWheelNative = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.15 : 0.85;
+        const rect = el.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+
+        setPixelsPerSecond(prev => {
+          const next = Math.max(6, Math.min(300, prev * factor));
+          const mouseTime = (el.scrollLeft + mouseX) / prev;
+          el.scrollLeft = mouseTime * next - mouseX;
+          return next;
+        });
+      } else if (e.shiftKey) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      }
+    };
+
+    el.addEventListener("wheel", onWheelNative, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", onWheelNative);
+    };
+  }, []);
 
   /* ── Scrub Playhead Click/Drag ────────────────────────────── */
   const handleRulerMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0 || !scrollRef.current || !rulerRef.current) return;
     e.preventDefault();
     setIsDraggingPlayhead(true);
+
+    if (setIsPlaying) {
+      setIsPlaying(false);
+    }
 
     const updatePlayhead = (clientX: number) => {
       if (!rulerRef.current || !scrollRef.current) return;
@@ -537,58 +597,126 @@ export const TimelineHub = memo(({
     }]);
   }, [currentTime]);
 
+  /* ── Split Clip Memos ───────────────────────────────────────── */
+  const selectedClip = useMemo(() => {
+    if (selectedClipIds.length === 0) return null;
+    return clips.find(c => c.id === selectedClipIds[0]) || null;
+  }, [clips, selectedClipIds]);
+
+  const isPlayheadOverSelectedClip = useMemo(() => {
+    if (!selectedClip) return false;
+    return currentTime >= selectedClip.startTime && currentTime <= selectedClip.startTime + selectedClip.duration;
+  }, [selectedClip, currentTime]);
+
   /* ── Split Clip ────────────────────────────────────────────── */
   const handleSplitClip = useCallback(() => {
-    if (selectedClipIds.length === 0) return;
-    selectedClipIds.forEach(id => {
-      const clip = clips.find(c => c.id === id);
-      if (!clip || clip.isLocked) return;
-      if (currentTime > clip.startTime && currentTime < clip.startTime + clip.duration) {
-        const offset = currentTime - clip.startTime;
+    if (!selectedClip || !isPlayheadOverSelectedClip) return;
+    
+    const id = selectedClip.id;
+    const clip = selectedClip;
+
+    // Get effective clip duration
+    const t = getTrimRangeForItem ? getTrimRangeForItem(clip.id, clip.originalDuration ?? clip.duration) : { start: 0, end: clip.duration };
+    const effDur = clip.type === "video" ? t.end - t.start : clip.duration;
+
+    // Nudge split point to create valid segments (minimum 200ms)
+    const minDur = 0.2;
+    let targetSplitTime = currentTime;
+    if (targetSplitTime - clip.startTime < minDur) {
+      targetSplitTime = clip.startTime + minDur;
+    } else if ((clip.startTime + effDur) - targetSplitTime < minDur) {
+      targetSplitTime = clip.startTime + effDur - minDur;
+    }
+
+    // Ensure we don't exceed boundaries after nudging
+    if (targetSplitTime <= clip.startTime || targetSplitTime >= clip.startTime + effDur) {
+      return;
+    }
+
+    const offset = targetSplitTime - clip.startTime;
+    
+    // Handle splitting
+    if (clip.type === "video" || clip.type === "image") {
+      setMediaItems((prev: any) => {
+        const idx = prev.findIndex((p: any) => p.id === id);
+        if (idx === -1) return prev;
+        const orig = prev[idx];
         
-        // Handle splitting
-        if (clip.type === "video" || clip.type === "image") {
-          setMediaItems((prev: any) => {
-            const idx = prev.findIndex((p: any) => p.id === id);
-            if (idx === -1) return prev;
-            const orig = prev[idx];
-            const t = getTrimRangeForItem ? getTrimRangeForItem(orig.id, orig.duration) : { start: 0, end: orig.duration };
-            
-            const leftId = Math.random().toString(36).slice(2);
-            const rightId = Math.random().toString(36).slice(2);
-            
-            const leftClip = { ...orig, id: leftId };
-            const rightClip = { ...orig, id: rightId };
-            
-            // Adjust start time overrides
-            setClipStartOverrides(prevStarts => ({
-              ...prevStarts,
-              [leftId]: clip.startTime,
-              [rightId]: currentTime,
-            }));
-            
-            // Keep tracks matched
-            setClipTrackOverrides(prevTracks => ({
-              ...prevTracks,
-              [leftId]: clip.trackId,
-              [rightId]: clip.trackId,
-            }));
+        const leftId = Math.random().toString(36).slice(2);
+        const rightId = Math.random().toString(36).slice(2);
+        
+        const leftClip = { ...orig, id: leftId };
+        const rightClip = { ...orig, id: rightId };
+        
+        const nextStarts = {
+          ...clipStartOverrides,
+          [leftId]: clip.startTime,
+          [rightId]: targetSplitTime,
+        };
 
-            setClipTrimRanges((pt: any) => ({
-              ...pt,
-              [leftId]: { start: t.start, end: t.start + offset },
-              [rightId]: { start: t.start + offset, end: t.end },
-            }));
+        const nextTracks = {
+          ...clipTrackOverrides,
+          [leftId]: clip.trackId,
+          [rightId]: clip.trackId,
+        };
 
-            const next = [...prev];
-            next.splice(idx, 1, leftClip, rightClip);
-            saveToUndo(next);
-            return next;
-          });
+        const nextTrimRanges = {
+          ...clipTrimRanges,
+          [leftId]: { start: t.start, end: t.start + offset },
+          [rightId]: { start: t.start + offset, end: t.end },
+        };
+
+        const nextTransitions = { ...clipTransitions };
+        if (clipTransitions[id]) {
+          nextTransitions[rightId] = clipTransitions[id];
+          delete nextTransitions[id];
         }
-      }
-    });
-  }, [selectedClipIds, clips, currentTime, getTrimRangeForItem, setMediaItems, setClipTrimRanges, saveToUndo]);
+
+        const nextSettings = {
+          ...clipSettings,
+          [leftId]: clipSettings[id] ? { ...clipSettings[id] } : undefined,
+          [rightId]: clipSettings[id] ? { ...clipSettings[id] } : undefined,
+        };
+        if (id && nextSettings[id]) {
+          delete nextSettings[id];
+        }
+
+        setClipStartOverrides(nextStarts);
+        setClipTrackOverrides(nextTracks);
+        setClipTrimRanges(nextTrimRanges);
+        if (setClipTransitions) {
+          setClipTransitions(nextTransitions);
+        }
+        if (setClipSettings) {
+          setClipSettings(nextSettings);
+        }
+        
+        const next = [...prev];
+        next.splice(idx, 1, leftClip, rightClip);
+        if (setActivePreviewId) {
+          setActivePreviewId(leftId);
+        }
+        
+        // Seek playhead to the start of the first split segment (left clip)
+        const timeBefore = prev.slice(0, idx).reduce((acc: number, item: any) => {
+          const trimRange = getTrimRangeForItem ? getTrimRangeForItem(item.id, item.duration) : { start: 0, end: item.duration };
+          const duration = item.type === "video" ? trimRange.end - trimRange.start : item.duration;
+          return acc + duration;
+        }, 0);
+        
+        if (handleTimelineClick) {
+          handleTimelineClick(timeBefore);
+        }
+        
+        if (setIsPlaying) {
+          setIsPlaying(false);
+        }
+        
+        saveToUndo(next, nextTransitions, nextTrimRanges, nextStarts, nextTracks, undefined, undefined, nextSettings);
+        return next;
+      });
+    }
+  }, [selectedClip, isPlayheadOverSelectedClip, clips, currentTime, getTrimRangeForItem, setMediaItems, setClipTrimRanges, saveToUndo, setClipTransitions, setActivePreviewId, handleTimelineClick, setIsPlaying, clipStartOverrides, clipTrackOverrides, clipTrimRanges, clipTransitions, clipSettings, setClipSettings]);
 
   /* ── Clip Dragging Interactions ────────────────────────────── */
   const handleClipMouseDown = useCallback((e: React.MouseEvent, clip: Clip) => {
@@ -601,6 +729,10 @@ export const TimelineHub = memo(({
     e.stopPropagation();
     e.preventDefault();
     setContextMenu(null);
+
+    if (setActivePreviewId) {
+      setActivePreviewId(clip.id);
+    }
 
     if (e.ctrlKey || e.metaKey || e.shiftKey) {
       setSelectedClipIds(prev =>
@@ -666,8 +798,8 @@ export const TimelineHub = memo(({
       setDraggedClip(prev => {
         if (prev) {
           // Commit position
-          setClipStartOverrides(starts => ({ ...starts, [clip.id]: prev.ghostStartTime }));
-          setClipTrackOverrides(tracks => ({ ...tracks, [clip.id]: prev.ghostTrackId }));
+          setClipStartOverrides((starts: any) => ({ ...starts, [clip.id]: prev.ghostStartTime }));
+          setClipTrackOverrides((tracks: any) => ({ ...tracks, [clip.id]: prev.ghostTrackId }));
           
           // Magnet alignment ripple editing
           if (isMagnetEnabled) {
@@ -681,11 +813,11 @@ export const TimelineHub = memo(({
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-  }, [clips, selectedClipIds, pixelsPerSecond, getSnappedTime, tracks, paddingLeft, isMagnetEnabled]);
+  }, [clips, selectedClipIds, pixelsPerSecond, getSnappedTime, tracks, paddingLeft, isMagnetEnabled, setActivePreviewId]);
 
   /* ── Magnetic Alignment (Ripple editing) ──────────────────── */
   const triggerMagnetRipple = useCallback((trackId: string) => {
-    setClipStartOverrides(prev => {
+    setClipStartOverrides((prev: any) => {
       const trackClips = clips.filter(c => (clipTrackOverrides[c.id] || c.trackId) === trackId && c.id);
       if (trackClips.length === 0) return prev;
       
@@ -724,10 +856,18 @@ export const TimelineHub = memo(({
     const onUp = () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
+      
+      // Save final trim ranges state to undo history
+      setClipTrimRanges((prev: any) => {
+        if (saveToUndo) {
+          saveToUndo(mediaItems, undefined, prev);
+        }
+        return prev;
+      });
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-  }, [pixelsPerSecond, getTrimRangeForItem, setClipTrimRanges]);
+  }, [pixelsPerSecond, getTrimRangeForItem, setClipTrimRanges, saveToUndo, mediaItems]);
 
   /* ── Canvas Box Selection ──────────────────────────────────── */
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
@@ -798,8 +938,8 @@ export const TimelineHub = memo(({
 
   const handleDropAsset = useCallback((assetId: string, trackId: string, dropTime: number) => {
     const newClipId = `clip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    setClipTrackOverrides(prev => ({ ...prev, [newClipId]: trackId }));
-    setClipStartOverrides(prev => ({ ...prev, [newClipId]: dropTime }));
+    setClipTrackOverrides((prev: any) => ({ ...prev, [newClipId]: trackId }));
+    setClipStartOverrides((prev: any) => ({ ...prev, [newClipId]: dropTime }));
     if (handleAddAssetToTimeline) {
       handleAddAssetToTimeline(assetId, newClipId);
     }
@@ -828,7 +968,7 @@ export const TimelineHub = memo(({
   const handleDeleteTrack = useCallback((trackId: string) => {
     setTracks(p => p.filter(t => t.id !== trackId));
     // Re-assign track items
-    setClipTrackOverrides(prev => {
+    setClipTrackOverrides((prev: any) => {
       const updated = { ...prev };
       Object.keys(updated).forEach(k => {
         if (updated[k] === trackId) delete updated[k];
@@ -847,9 +987,9 @@ export const TimelineHub = memo(({
     const t = currentTime;
     clipboard.forEach(c => {
       const newId = Math.random().toString(36).slice(2);
-      setClipStartOverrides(prev => ({ ...prev, [newId]: t }));
-      setClipTrackOverrides(prev => ({ ...prev, [newId]: c.trackId }));
-      setClipNameOverrides(prev => ({ ...prev, [newId]: `${c.name} (Copy)` }));
+      setClipStartOverrides((prev: any) => ({ ...prev, [newId]: t }));
+      setClipTrackOverrides((prev: any) => ({ ...prev, [newId]: c.trackId }));
+      setClipNameOverrides((prev: any) => ({ ...prev, [newId]: `${c.name} (Copy)` }));
       
       if (c.type === "video" || c.type === "image") {
         setMediaItems((prev: any) => [...prev, { ...c, id: newId }]);
@@ -861,8 +1001,8 @@ export const TimelineHub = memo(({
     const c = clips.find(x => x.id === clipId);
     if (!c) return;
     const newId = Math.random().toString(36).slice(2);
-    setClipStartOverrides(prev => ({ ...prev, [newId]: c.startTime + c.duration }));
-    setClipTrackOverrides(prev => ({ ...prev, [newId]: c.trackId }));
+    setClipStartOverrides((prev: any) => ({ ...prev, [newId]: c.startTime + c.duration }));
+    setClipTrackOverrides((prev: any) => ({ ...prev, [newId]: c.trackId }));
     
     if (c.type === "video" || c.type === "image") {
       setMediaItems((prev: any) => [...prev, { ...c, id: newId }]);
@@ -908,6 +1048,14 @@ export const TimelineHub = memo(({
     return () => window.removeEventListener("keydown", onKey);
   }, [selectedClipIds, clipboard, handleCopy, handlePaste, handleDuplicate, handleSplitClip, handleAddMarker, handleDeleteClip]);
 
+  const hasClipUnderPlayhead = useMemo(() => {
+    return clips.some(clip => 
+      !clip.isLocked && 
+      currentTime > clip.startTime && 
+      currentTime < clip.startTime + clip.duration
+    );
+  }, [clips, currentTime]);
+
   const trackAccent: Record<string, string> = {
     video:   "bg-purple-500",
     audio:   "bg-fuchsia-500",
@@ -931,7 +1079,7 @@ export const TimelineHub = memo(({
         <div className="flex items-center gap-1">
           <TBtn icon={Plus} label="Add Track" onClick={handleAddTrack} text="Add Track" />
           <Divider />
-          <TBtn icon={Scissors} label="Split (Ctrl+B)" onClick={handleSplitClip} disabled={selectedClipIds.length === 0} />
+          <TBtn icon={Scissors} label="Split (Ctrl+B)" onClick={handleSplitClip} disabled={!selectedClip || !isPlayheadOverSelectedClip} />
           <TBtn icon={Trash2} label="Delete (Del)" danger onClick={() => { selectedClipIds.forEach(id => handleDeleteClip(id)); setSelectedClipIds([]); }} disabled={selectedClipIds.length === 0} />
           <Divider />
           <TBtn icon={Copy} label="Copy (Ctrl+C)" onClick={handleCopy} disabled={selectedClipIds.length === 0} />
@@ -977,7 +1125,7 @@ export const TimelineHub = memo(({
             </button>
             <input
               type="range" min="6" max="300" value={pixelsPerSecond}
-              onChange={e => setPixelsPerSecond(Number(e.target.value))}
+              onChange={e => handleSliderZoom(Number(e.target.value))}
               className="w-24 accent-purple-500 h-1 rounded-full cursor-pointer bg-white/10"
             />
             <button onClick={() => handleZoom("in")} className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors" title="Zoom In">
@@ -1106,7 +1254,6 @@ export const TimelineHub = memo(({
           ref={scrollRef}
           className="flex-1 overflow-x-auto overflow-y-auto bg-[#07080f] min-w-0 relative"
           style={{ scrollbarColor: "#1d1e2c transparent", scrollbarWidth: "thin" }}
-          onWheel={handleWheel}
         >
           {/* Canvas Wrapper */}
           <div
@@ -1204,7 +1351,7 @@ export const TimelineHub = memo(({
                         if (!isClipVisible(clip.startTime, clip.duration)) return null;
                         const isSelected = selectedClipIds.includes(clip.id);
                         const isDragging = draggedClip?.id === clip.id;
-                        const trim = getTrimRangeForItem ? getTrimRangeForItem(clip.id, clip.duration) : { start: 0, end: clip.duration };
+                        const trim = getTrimRangeForItem ? getTrimRangeForItem(clip.id, clip.originalDuration ?? clip.duration) : { start: 0, end: clip.duration };
                         const effDur = clip.type === "video" ? trim.end - trim.start : clip.duration;
                         const widthPx = Math.max(6, effDur * pixelsPerSecond);
                         const leftPx = clip.startTime * pixelsPerSecond;
@@ -1213,11 +1360,11 @@ export const TimelineHub = memo(({
 
                         // ── Dynamic Thumbnails (Filmstrip Density) ──
                         const thumbDensity = pixelsPerSecond < 15 ? 120 : pixelsPerSecond < 60 ? 70 : 40;
-                        const numFrames = Math.max(1, Math.ceil(widthPx / thumbDensity));
+                        const numFrames = isZooming ? 1 : Math.min(5, Math.max(1, Math.ceil(widthPx / thumbDensity)));
                         const frameW = widthPx / numFrames;
 
                         // ── Waveform Scaling (Waveform Density) ──
-                        const waveDensity = pixelsPerSecond < 15 ? 12 : pixelsPerSecond < 60 ? 5 : 2;
+                        const waveDensity = isZooming ? 25 : (pixelsPerSecond < 15 ? 12 : pixelsPerSecond < 60 ? 5 : 2);
 
                         const trackOfClip = tracks.find(t => t.id === clip.trackId);
                         const isClipMuted = trackOfClip?.isMuted || false;
@@ -1276,7 +1423,7 @@ export const TimelineHub = memo(({
                                           className="shrink-0 relative overflow-hidden"
                                           style={{ width: frameW, height: clipH - 35 }}
                                         >
-                                          {clip.preview ? (
+                                          {clip.preview && !isZooming ? (
                                             <video
                                               src={`${clip.preview}#t=${frameTime}`}
                                               muted
@@ -1378,14 +1525,14 @@ export const TimelineHub = memo(({
                             {isSelected && !clip.isLocked && (
                               <>
                                 <div
-                                  onMouseDown={e => handleTrimMouseDown(e, clip.id, "left", clip.duration)}
+                                  onMouseDown={e => handleTrimMouseDown(e, clip.id, "left", clip.originalDuration ?? clip.duration)}
                                   className="trim-handle absolute left-0 top-0 bottom-0 w-2 bg-purple-500 cursor-ew-resize z-30 flex items-center justify-center hover:bg-purple-400 transition-colors"
                                   title="Trim Left"
                                 >
                                   <div className="w-0.5 h-3 bg-white/80 rounded" />
                                 </div>
                                 <div
-                                  onMouseDown={e => handleTrimMouseDown(e, clip.id, "right", clip.duration)}
+                                  onMouseDown={e => handleTrimMouseDown(e, clip.id, "right", clip.originalDuration ?? clip.duration)}
                                   className="trim-handle absolute right-0 top-0 bottom-0 w-2 bg-purple-500 cursor-ew-resize z-30 flex items-center justify-center hover:bg-purple-400 transition-colors"
                                   title="Trim Right"
                                 >
@@ -1405,6 +1552,59 @@ export const TimelineHub = memo(({
                           </div>
                         );
                       })}
+
+                      {/* ─── TRANSITIONS BETWEEN CLIPS ─── */}
+                      {track.type === "video" && (() => {
+                        const videoClipsSorted = [...trackClips]
+                          .filter(c => c.type === "video" || c.type === "image")
+                          .sort((a, b) => a.startTime - b.startTime);
+                        
+                        return videoClipsSorted.map((clip, index) => {
+                          const nextClip = videoClipsSorted[index + 1];
+                          if (!nextClip) return null;
+                          
+                          // Render transition + symbol exactly at the junction boundary
+                          const endPx = (clip.startTime + clip.duration) * pixelsPerSecond;
+                          const hasTransition = clipTransitions && clipTransitions[clip.id] && clipTransitions[clip.id] !== "none";
+                          const transitionName = hasTransition ? clipTransitions[clip.id] : "";
+                          
+                          return (
+                            <div
+                              key={`trans-${clip.id}`}
+                              className="absolute z-20 flex items-center justify-center pointer-events-auto"
+                              style={{
+                                left: endPx,
+                                width: 24,
+                                top: 6,
+                                height: trackH - 12,
+                                transform: "translateX(-50%)",
+                              }}
+                            >
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setActivePreviewId(clip.id);
+                                  if (setLeftTab) setLeftTab('transitions');
+                                }}
+                                type="button"
+                                title={hasTransition ? `Transition: ${transitionName} (Click to edit)` : "Add Transition"}
+                                className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg shadow-black/80 hover:scale-110 cursor-pointer
+                                  ${hasTransition 
+                                    ? "bg-teal-500 text-[#07080f] border-2 border-teal-300 font-extrabold shadow-[0_0_12px_rgba(20,184,166,0.6)]" 
+                                    : "bg-[#0b0c15]/95 text-slate-400 hover:text-teal-300 border border-white/10 hover:border-teal-500/50 hover:bg-[#141629]"
+                                  }`}
+                              >
+                                {hasTransition ? (
+                                  <span className="text-[10px]">✨</span>
+                                ) : (
+                                  <Plus className="w-3.5 h-3.5 font-bold" />
+                                )}
+                              </button>
+                            </div>
+                          );
+                        });
+                      })()}
 
                       {/* Ghost preview while dragging */}
                       {draggedClip && draggedClip.ghostTrackId === track.id && (
@@ -1486,7 +1686,7 @@ export const TimelineHub = memo(({
                 onClick={() => {
                   const c = clips.find(x => x.id === contextMenu.clipId);
                   if (c) {
-                    setClipLockedStates(prev => ({ ...prev, [c.id]: !prev[c.id] }));
+                    setClipLockedStates((prev: any) => ({ ...prev, [c.id]: !prev[c.id] }));
                   }
                   setContextMenu(null);
                 }}
@@ -1634,7 +1834,7 @@ export const TimelineHub = memo(({
               <button onClick={() => setEditingClipId(null)} className="px-3.5 py-2 text-slate-400 hover:text-white">Cancel</button>
               <button
                 onClick={() => {
-                  setClipNameOverrides(prev => ({ ...prev, [editingClipId]: editingClipName }));
+                  setClipNameOverrides((prev: any) => ({ ...prev, [editingClipId]: editingClipName }));
                   setEditingClipId(null);
                 }}
                 className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg"

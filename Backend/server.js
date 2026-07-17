@@ -2242,30 +2242,75 @@ const inferEffectFromPrompt = (promptText = "") => {
 const mapClipTransitionToXfade = (transition = "none") => {
   const t = String(transition || "none").toLowerCase().trim();
 
-  // Dissolve / fade family
-  if (t === "fade" || t === "crossfade" || t === "cross-dissolve" || t === "fade-transition") {
-    return "dissolve";
-  }
-  // Dip to black/white
-  if (t === "dip-black") return "fade";
-  if (t === "dip-white") return "fadewhite";
-  // Slides
-  if (t === "slide-left" || t === "swipe-transition") return "slideleft";
-  if (t === "slide-right") return "slideleft"; // flip via wiperight when possible
-  if (t === "wipe") return "wiperight";
-  // Zoom / spin
-  if (t === "zoom-transition" || t === "zoom") return "zoomin";
-  if (t === "spin-transition") return "circlecrop";
-  // Blur / glitch / shake
-  if (t === "blur-transition") return "smoothleft";
-  if (t === "glitch-transition") return "pixelize";
-  if (t === "flash-transition") return "fadewhite";
-  if (t === "camera-shake-transition") return "hblur";
-  if (t === "whip-pan-transition") return "slideleft";
-  // Mask / match cut / speed ramp - use dissolve as best ffmpeg match
-  if (t === "mask-transition") return "coverleft";
-  if (t === "match-cut-transition") return "dissolve";
-  if (t === "speed-ramp-transition") return "smoothright";
+  // 1. DISSOLVES & FADES
+  if (t === "cross-dissolve" || t === "fade" || t === "crossfade" || t === "fade-transition") return "dissolve";
+  if (t === "fade-black" || t === "dip-black") return "fadeblack";
+  if (t === "fade-white" || t === "dip-white") return "fadewhite";
+  if (t === "color-burn") return "dissolve"; // "burn" is not supported by FFmpeg xfade
+  if (t === "exposure-glow" || t === "flash-transition") return "fadewhite"; // "exposure" is not supported by FFmpeg xfade
+  if (t === "luma-fade") return "fade";
+
+  // 2. SLIDES & PUSHES
+  if (t === "slide-left" || t === "push-left" || t === "swipe-transition") return "slideleft";
+  if (t === "slide-right" || t === "push-right") return "slideright";
+  if (t === "slide-up" || t === "push-up") return "slideup";
+  if (t === "slide-down" || t === "push-down") return "slidedown";
+  if (t === "smooth-slide-left") return "smoothleft";
+  if (t === "smooth-slide-right") return "smoothright";
+  if (t === "smooth-slide-up") return "smoothup";
+  if (t === "smooth-slide-down") return "smoothdown";
+  if (t === "squeeze-horizontal") return "squeezeh";
+  if (t === "squeeze-vertical") return "squeezev";
+  if (t === "squeeze-full") return "squeezeh"; // squeezeh is standard fallback for full squeeze
+  if (t === "diagonal-slide" || t === "slide-up-left" || t === "slide-down-left") return "diaglt";
+  if (t === "slide-up-right" || t === "slide-down-right") return "diagrt";
+
+  // 3. WIPES
+  if (t === "swipe-left" || t === "block-wipe-left") return "wipeleft";
+  if (t === "swipe-right" || t === "block-wipe-right" || t === "wipe") return "wiperight";
+  if (t === "swipe-up" || t === "linear-vertical-wipe") return "wipeup";
+  if (t === "swipe-down" || t === "linear-horizontal-wipe") return "wipedown";
+  if (t === "diagonal-wipe-ul-lr") return "diagbl"; // diagld is not supported by FFmpeg
+  if (t === "diagonal-wipe-ll-ur") return "diaglt";
+  if (t === "diagonal-wipe-ur-ll") return "diagbr"; // diagrd is not supported by FFmpeg
+  if (t === "diagonal-wipe-lr-ul") return "diagrt";
+  if (t === "horizontal-open" || t === "curtain-wipe" || t === "horizontal-gate-wipe") return "horzopen"; // horizopen is misspelled
+  if (t === "horizontal-close" || t === "split-horizontal-wipe") return "horzclose"; // horizclose is misspelled
+  if (t === "vertical-open" || t === "vertical-gate-wipe") return "vertopen";
+  if (t === "vertical-close" || t === "split-vertical-wipe") return "vertclose";
+  if (t === "radial-wipe" || t === "spiral-wipe" || t === "kaleidoscope") return "radial";
+  if (t === "circle-crop-wipe") return "circlecrop";
+  if (t === "random-blocks" || t === "grid-dissolve" || t === "checkerboard-reveal") return "random";
+  if (t === "wind-wipe") return "wind";
+  if (t === "box-open-wipe") return "rectcrop";
+  if (t === "box-close-wipe") return "rectcrop";
+  if (t === "corner-wipe-topleft") return "diaglt";
+  if (t === "corner-wipe-topright") return "diagrt";
+
+  // 4. ZOOMS
+  if (t === "zoom-in" || t === "zoom-transition" || t === "zoom") return "zoomin";
+  if (t === "zoom-out") return "zoomin"; // zoomout is not supported by FFmpeg
+  if (t === "cross-zoom" || t === "zoom-pan-left" || t === "zoom-pan-right") return "zoomin"; // crosszoom is not supported
+  if (t === "spiral-zoom") return "circleclose";
+
+  // 5. BLURS & GLITCHES
+  if (t === "blur-horizontal" || t === "blur-transition") return "hblur";
+  if (t === "blur-vertical") return "hblur"; // vblur is not supported by FFmpeg
+  if (t === "pixelize-glitch" || t === "glitch-transition" || t === "rgb-split-glitch") return "pixelize";
+  if (t === "whip-pan" || t === "whip-pan-transition") return "slideleft";
+
+  // 6. SHAPES & CREATIVE
+  if (t === "circle-open" || t === "heart-reveal" || t === "star-reveal" || t === "star-burst" || t === "pentagon-reveal" || t === "hexagon-reveal") return "circleopen";
+  if (t === "circle-close" || t === "mask-transition") return "circleclose";
+  if (t === "elastic-wobble" || t === "camera-shake-transition") return "dissolve"; // wobble is not supported by FFmpeg
+  if (t === "ripple-wave") return "dissolve"; // waterdrop is not supported by FFmpeg
+  if (t === "diamond-wipe" || t === "triangle-reveal" || t === "cross-wipe") return "rectcrop";
+  if (t === "spin-transition") return "circleclose";
+  if (t === "match-cut-transition") return "fade";
+  if (t === "speed-ramp-transition") return "zoomin";
+  if (t === "dissolve-transition") return "dissolve";
+  if (t === "wipe-transition") return "wiperight";
+
   // Explicit cut - keep a very brief dissolve for smoothness
   if (t === "none" || t === "") return "fade";
 
@@ -2470,10 +2515,10 @@ const mergeSegmentsWithTransitions = async (segmentPaths, transitions, outputPat
     const isNone = transitionType === "none" || transitionType === "";
     const xfadeType = mapClipTransitionToXfade(transitionType);
 
-    // Transition duration: 0.04s for cuts, up to 0.8s for real transitions
+    // Transition duration: 0.04s for cuts, up to 1.4s for real transitions
     const transitionDuration = isNone
       ? 0.04
-      : Math.min(0.8, durations[i - 1] * 0.3, durations[i] * 0.3);
+      : Math.min(1.4, durations[i - 1] * 0.3, durations[i] * 0.3);
 
     // Video xfade offset
     const offset = Math.max(0.04, accumulatedDuration - transitionDuration - 0.02);
@@ -4180,7 +4225,7 @@ app.post(
             const isNone = transitionType === "none" || transitionType === "";
             const transitionDuration = isNone
               ? 0.04
-              : Math.min(0.8, segmentDurations[i - 1] * 0.3, segmentDurations[i] * 0.3);
+              : Math.min(1.4, segmentDurations[i - 1] * 0.3, segmentDurations[i] * 0.3);
             accumulatedGlobalTime -= transitionDuration;
           }
           clipGlobalStarts[i] = accumulatedGlobalTime;

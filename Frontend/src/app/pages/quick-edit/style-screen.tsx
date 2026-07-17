@@ -83,8 +83,11 @@ import {
     Contrast,
     Smile,
     Lightbulb,
-    Aperture
+    Aperture,
+    Rewind,
+    FastForward
 } from "lucide-react";
+import * as LucideIcons from "lucide-react";
 import { useNavigate, useLocation } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -112,6 +115,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 import { getAllProEffects, getEffectModule } from "../../../../effects/effects";
+import { getAllTransitions, getTransition } from "../../../../transitions";
 
 const Youtube = ({ className, size = 24, ...props }: React.SVGProps<SVGSVGElement> & { size?: number | string }) => (
     <svg
@@ -417,6 +421,7 @@ const FilmoraLeftPanel = memo(({
     aiOptions, toggleOption, copyActiveClip, setExpandedSections,
     /* aspect ratio */
     aspectRatio, applyAspectRatio, setIsCustomFrameOpen,
+    saveToUndo, mediaItems,
 }: any) => {
     const [leftTab, setLeftTab] = useState<'media' | 'titles' | 'transitions' | 'effects' | 'filters' | 'tools'>('transitions');
 
@@ -689,6 +694,7 @@ const FilmoraLeftPanel = memo(({
                                 handleAutoCaption={handleAutoCaption}
                                 isAutoCapturing={isAutoCapturing} autoCaptionStatus={autoCaptionStatus}
                                 proParams={proParams} setProParams={setProParams}
+                                saveToUndo={saveToUndo} mediaItems={mediaItems}
                             />
                         </div>
                     </div>
@@ -758,6 +764,7 @@ const FilmoraLeftPanel = memo(({
                                         handleAutoCaption={handleAutoCaption}
                                         isAutoCapturing={isAutoCapturing} autoCaptionStatus={autoCaptionStatus}
                                         proParams={proParams} setProParams={setProParams}
+                                        saveToUndo={saveToUndo} mediaItems={mediaItems}
                                     />
                                 </div>
                             </div>
@@ -975,6 +982,8 @@ const ToolInspector = memo(({
     autoCaptionStatus,
     proParams,
     setProParams,
+    saveToUndo,
+    mediaItems,
 }: any) => {
     const [captionTab, setCaptionTab] = useState<'list' | 'style'>('list');
     const [newCaptionText, setNewCaptionText] = useState('');
@@ -1516,6 +1525,9 @@ const ToolInspector = memo(({
                                             videoRef.current.currentTime = nextStart;
                                         }
                                     }}
+                                    onMouseUp={() => {
+                                        saveToUndo(mediaItems, undefined, clipTrimRanges);
+                                    }}
                                     className="w-full accent-purple-400"
                                 />
                             </div>
@@ -1542,16 +1554,21 @@ const ToolInspector = memo(({
                                             },
                                         }));
                                     }}
+                                    onMouseUp={() => {
+                                        saveToUndo(mediaItems, undefined, clipTrimRanges);
+                                    }}
                                     className="w-full accent-purple-400"
                                 />
                             </div>
                             <button
                                 onClick={() => {
                                     if (activePreviewItem) {
-                                        setClipTrimRanges((prev: any) => ({
-                                            ...prev,
-                                            [activePreviewItem.id]: { start: 0, end: activePreviewItem.duration },
-                                        }));
+                                        const updatedTrim = {
+                                            ...clipTrimRanges,
+                                            [activePreviewItem.id]: { start: 0, end: activePreviewItem.duration }
+                                        };
+                                        setClipTrimRanges(updatedTrim);
+                                        saveToUndo(mediaItems, undefined, updatedTrim);
                                     }
                                 }}
                                 className="w-full py-1.5 rounded bg-white/5 border border-white/10 text-slate-300 text-[8px] font-black uppercase hover:bg-white/10"
@@ -2437,32 +2454,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         };
     }, []);
 
-    const saveToUndo = useCallback((items: typeof mediaItems) => {
-        const itemsStr = JSON.stringify(items);
-        setHistory(prev => {
-            // Don't save if identical to last state
-            if (prev[historyIndex] === itemsStr) return prev;
-            const newHistory = prev.slice(0, historyIndex + 1);
-            return [...newHistory, itemsStr];
-        });
-        setHistoryIndex(prev => prev + 1);
-    }, [historyIndex]);
 
-    const undo = () => {
-        if (historyIndex > 0) {
-            const prevItems = JSON.parse(history[historyIndex - 1]);
-            setMediaItems(prevItems);
-            setHistoryIndex(prev => prev - 1);
-        }
-    };
-
-    const redo = () => {
-        if (historyIndex < history.length - 1) {
-            const nextItems = JSON.parse(history[historyIndex + 1]);
-            setMediaItems(nextItems);
-            setHistoryIndex(prev => prev + 1);
-        }
-    };
 
     const getMediaDuration = (file: File): Promise<number> => {
         return new Promise((resolve) => {
@@ -2617,27 +2609,13 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const [clipTrimRanges, setClipTrimRanges] = useState<Record<string, { start: number; end: number | null }>>({});
     const [clipSettings, setClipSettings] = useState<Record<string, any>>({});
 
-    type TransitionType =
-        | 'none'
-        | 'fade-transition'
-        | 'zoom-transition'
-        | 'blur-transition'
-        | 'swipe-transition'
-        | 'spin-transition'
-        | 'whip-pan-transition'
-        | 'glitch-transition'
-        | 'mask-transition'
-        | 'flash-transition'
-        | 'camera-shake-transition'
-        | 'match-cut-transition'
-        | 'speed-ramp-transition'
-        | 'cross-dissolve'
-        | 'slide-left'
-        | 'slide-right'
-        | 'dip-black'
-        | 'dip-white';
+    type TransitionType = string;
 
     const [clipTransitions, setClipTransitions] = useState<Record<string, TransitionType>>({});
+    const [clipStartOverrides, setClipStartOverrides] = useState<Record<string, number>>({});
+    const [clipTrackOverrides, setClipTrackOverrides] = useState<Record<string, string>>({});
+    const [clipNameOverrides, setClipNameOverrides] = useState<Record<string, string>>({});
+    const [clipLockedStates, setClipLockedStates] = useState<Record<string, boolean>>({});
     const [transitionOverlay, setTransitionOverlay] = useState<{
         fromId: string;
         toId: string;
@@ -2651,6 +2629,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const [selectedEffect, setSelectedEffect] = useState<string>('none');
     const [proParams, setProParams] = useState<Record<string, any>>({});
     const [effectsCategory, setEffectsCategory] = useState<string>('all');
+    const [transitionsCategory, setTransitionsCategory] = useState<string>('all');
     const [previewOpacity, setPreviewOpacity] = useState(1);
     const [previewZoom, setPreviewZoom] = useState(1);
     const [brightness, setBrightness] = useState(1);
@@ -2865,6 +2844,65 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const pendingTransitionSeekRef = useRef<{ clipId: string; seekTime: number } | null>(null);
     const lastTriggeredEndRef = useRef<string | null>(null);
 
+    const saveToUndo = useCallback((
+        items: typeof mediaItems,
+        transitions?: any,
+        trimRanges?: any,
+        startOverrides?: any,
+        trackOverrides?: any,
+        nameOverrides?: any,
+        lockedStates?: any,
+        settings?: any
+    ) => {
+        const stateObj = {
+            mediaItems: items,
+            clipTransitions: transitions !== undefined ? transitions : clipTransitions,
+            clipTrimRanges: trimRanges !== undefined ? trimRanges : clipTrimRanges,
+            clipStartOverrides: startOverrides !== undefined ? startOverrides : clipStartOverrides,
+            clipTrackOverrides: trackOverrides !== undefined ? trackOverrides : clipTrackOverrides,
+            clipNameOverrides: nameOverrides !== undefined ? nameOverrides : clipNameOverrides,
+            clipLockedStates: lockedStates !== undefined ? lockedStates : clipLockedStates,
+            clipSettings: settings !== undefined ? settings : clipSettings,
+        };
+        const stateStr = JSON.stringify(stateObj);
+        setHistory(prev => {
+            if (prev[historyIndex] === stateStr) return prev;
+            const newHistory = prev.slice(0, historyIndex + 1);
+            return [...newHistory, stateStr];
+        });
+        setHistoryIndex(prev => prev + 1);
+    }, [historyIndex, clipTransitions, clipTrimRanges, clipStartOverrides, clipTrackOverrides, clipNameOverrides, clipLockedStates, clipSettings]);
+
+    const undo = () => {
+        if (historyIndex > 0) {
+            const prevState = JSON.parse(history[historyIndex - 1]);
+            setMediaItems(prevState.mediaItems);
+            setClipTransitions(prevState.clipTransitions || {});
+            setClipTrimRanges(prevState.clipTrimRanges || {});
+            setClipStartOverrides(prevState.clipStartOverrides || {});
+            setClipTrackOverrides(prevState.clipTrackOverrides || {});
+            setClipNameOverrides(prevState.clipNameOverrides || {});
+            setClipLockedStates(prevState.clipLockedStates || {});
+            setClipSettings(prevState.clipSettings || {});
+            setHistoryIndex(prev => prev - 1);
+        }
+    };
+
+    const redo = () => {
+        if (historyIndex < history.length - 1) {
+            const nextState = JSON.parse(history[historyIndex + 1]);
+            setMediaItems(nextState.mediaItems);
+            setClipTransitions(nextState.clipTransitions || {});
+            setClipTrimRanges(nextState.clipTrimRanges || {});
+            setClipStartOverrides(nextState.clipStartOverrides || {});
+            setClipTrackOverrides(nextState.clipTrackOverrides || {});
+            setClipNameOverrides(nextState.clipNameOverrides || {});
+            setClipLockedStates(nextState.clipLockedStates || {});
+            setClipSettings(nextState.clipSettings || {});
+            setHistoryIndex(prev => prev + 1);
+        }
+    };
+
     // --- Auto-caption handler (Gemini via backend) ---
     const handleAutoCaption = useCallback(async () => {
         // Find the active video clip or the first video clip
@@ -2961,14 +2999,19 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
     const getClipGlobalStart = useCallback((clipId: string) => {
         let accumulated = 0;
-        for (const item of mediaItems) {
+        const sorted = [...mediaItems].sort((a, b) => {
+            const startA = clipStartOverrides[a.id] !== undefined ? clipStartOverrides[a.id] : 0;
+            const startB = clipStartOverrides[b.id] !== undefined ? clipStartOverrides[b.id] : 0;
+            return startA - startB;
+        });
+        for (const item of sorted) {
             if (item.id === clipId) {
                 return accumulated;
             }
             accumulated += getEffectiveDurationForItem(item);
         }
         return 0;
-    }, [mediaItems, getEffectiveDurationForItem]);
+    }, [mediaItems, getEffectiveDurationForItem, clipStartOverrides]);
 
     const getTargetStartTime = useCallback((item: any) => {
         const trim = getTrimRangeForItem(item.id, item.duration);
@@ -3176,6 +3219,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const safePlay = useCallback((videoElement: HTMLVideoElement | null) => {
         // Use ref so this works even when called from stale event-handler closures
         if (!videoElement || !videoElement.isConnected || !isPlayingRef.current) return;
+        if (transitionOverlay) return; // Do NOT play main video during transition overlay!
 
         // Check if video is already playing
         if (!videoElement.paused) return;
@@ -3192,7 +3236,35 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 videoElement.play().catch(e => console.log("Muted play fallback failed", e));
             }
         });
-    }, [setIsMuted]);
+    }, [setIsMuted, transitionOverlay]);
+
+    // Sync video seek time immediately when switching activePreviewId if the video source is identical
+    useEffect(() => {
+        if (videoRef.current && activePreviewId) {
+            const activeItem = mediaItems.find(i => i.id === activePreviewId);
+            if (activeItem?.type === 'video') {
+                const videoElement = videoRef.current;
+                const targetStart = getTargetStartTime(activeItem);
+                
+                const currentSrc = videoElement.src || videoElement.getAttribute('src') || '';
+                const itemPreviewResolved = new URL(activeItem.preview, window.location.href).href;
+                const videoSrcResolved = new URL(currentSrc, window.location.href).href;
+                
+                if (itemPreviewResolved === videoSrcResolved) {
+                    console.log("📹 [PLAYBACK] Same video source - seeking instantly to:", targetStart);
+                    videoElement.currentTime = targetStart;
+                    
+                    if (pendingTransitionSeekRef.current && pendingTransitionSeekRef.current.clipId === activePreviewId) {
+                        pendingTransitionSeekRef.current = null;
+                    }
+                    
+                    if (isPlaying) {
+                        safePlay(videoElement);
+                    }
+                }
+            }
+        }
+    }, [activePreviewId, isPlaying, mediaItems, getTargetStartTime, safePlay]);
 
 
     const triggerClipTransition = useCallback((nextId: string) => {
@@ -3223,6 +3295,9 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             durationMs: 1400,
         });
         setTransitionProgress(0);
+
+        // Instantly switch activePreviewId to nextId so main video element loads it in the background
+        setActivePreviewId(nextId);
     }, [activePreviewId, clipTransitions]);
 
     // Select clip for preview, optionally triggering transition animation
@@ -3244,17 +3319,33 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         }
 
         console.log("📹 [PLAYBACK] playNextMedia called for item:", currentId);
-        const currentIndex = mediaItems.findIndex(i => i.id === currentId);
-        if (currentIndex !== -1 && currentIndex < mediaItems.length - 1) {
-            const nextId = mediaItems[currentIndex + 1].id;
+        const sorted = [...mediaItems].sort((a, b) => {
+            const startA = clipStartOverrides[a.id] !== undefined ? clipStartOverrides[a.id] : 0;
+            const startB = clipStartOverrides[b.id] !== undefined ? clipStartOverrides[b.id] : 0;
+            return startA - startB;
+        });
+        const currentIndex = sorted.findIndex(i => i.id === currentId);
+        if (currentIndex !== -1 && currentIndex < sorted.length - 1) {
+            const nextId = sorted[currentIndex + 1].id;
             console.log("📹 [PLAYBACK] Transitioning to next clip:", nextId);
             triggerClipTransition(nextId);
             setIsPlaying(true);
         } else {
-            console.log("📹 [PLAYBACK] No more clips to play");
+            console.log("📹 [PLAYBACK] No more clips to play, resetting to start");
             setIsPlaying(false);
+            if (sorted.length > 0) {
+                const firstItem = sorted[0];
+                setActivePreviewId(firstItem.id);
+                setProgress(0);
+                setTimeout(() => {
+                    if (videoRef.current && firstItem.type === 'video') {
+                        const trim = getTrimRangeForItem(firstItem.id, firstItem.duration);
+                        videoRef.current.currentTime = trim.start;
+                    }
+                }, 10);
+            }
         }
-    }, [activePreviewId, mediaItems, triggerClipTransition]);
+    }, [activePreviewId, mediaItems, triggerClipTransition, getTrimRangeForItem, setActivePreviewId, clipStartOverrides]);
 
     const togglePlay = () => {
         console.log("📹 [PLAYBACK] togglePlay called, current isPlaying:", isPlaying);
@@ -3292,7 +3383,12 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
     const handleTimeUpdate = () => {
         if (videoRef.current && mediaItems.length > 0) {
-            const activeIndex = mediaItems.findIndex(i => i.id === activePreviewId);
+            const sorted = [...mediaItems].sort((a, b) => {
+                const startA = clipStartOverrides[a.id] !== undefined ? clipStartOverrides[a.id] : 0;
+                const startB = clipStartOverrides[b.id] !== undefined ? clipStartOverrides[b.id] : 0;
+                return startA - startB;
+            });
+            const activeIndex = sorted.findIndex(i => i.id === activePreviewId);
             if (activeIndex < 0) return; // Safety check
 
             // If we are currently waiting for a transition seek to complete, ignore or hold the position
@@ -3301,8 +3397,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 return;
             }
 
-            const activeItem = activeIndex >= 0 ? mediaItems[activeIndex] : null;
-            const timeBefore = mediaItems
+            const activeItem = activeIndex >= 0 ? sorted[activeIndex] : null;
+            const timeBefore = sorted
                 .slice(0, activeIndex)
                 .reduce((acc, item) => acc + getEffectiveDurationForItem(item), 0);
             const totalDuration = getTotalEffectiveDuration();
@@ -3314,11 +3410,25 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                     videoRef.current.currentTime = trim.start;
                     currentLocalTime = trim.start;
                 }
-                if (currentLocalTime >= trim.end) {
+
+                // Check if there is a transition on this clip to trigger overlap early
+                const transitionType = clipTransitions[activeItem.id] || 'none';
+                const hasTransition = transitionType !== 'none';
+                const transitionDuration = 1.4; // 1.4 seconds matching durationMs
+                const endTriggerTime = hasTransition ? Math.max(trim.start, trim.end - transitionDuration) : trim.end;
+
+                if (currentLocalTime >= endTriggerTime) {
                     if (lastTriggeredEndRef.current !== activeItem.id) {
                         lastTriggeredEndRef.current = activeItem.id;
-                        console.log("📹 [PLAYBACK] Clip reached end in handleTimeUpdate:", activeItem.id);
-                        setProgress(((timeBefore + (trim.end - trim.start)) / (totalDuration || 1)) * 100 || 0);
+                        console.log("📹 [PLAYBACK] Clip reached transition/end boundary in handleTimeUpdate:", activeItem.id, "at:", currentLocalTime);
+                        
+                        // Immediately pause the video element to prevent playing trimmed part
+                        if (videoRef.current) {
+                            videoRef.current.pause();
+                            videoRef.current.currentTime = endTriggerTime;
+                        }
+                        
+                        setProgress(((timeBefore + (endTriggerTime - trim.start)) / (totalDuration || 1)) * 100 || 0);
                         playNextMedia(activeItem.id);
                     }
                     return;
@@ -3405,7 +3515,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         setReadLinePosition(pos);
     }, [mediaItems, getEffectiveDurationForItem, getTotalEffectiveDuration, setActivePreviewId, getTrimRangeForItem]);
 
-    const moveReadLine = (deltaSeconds: number) => {
+    const moveReadLine = useCallback((deltaSeconds: number) => {
         const totalDuration = getTotalEffectiveDuration();
         if (totalDuration === 0) return;
         const currentTime = (progress / 100) * totalDuration;
@@ -3414,7 +3524,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         const nextPos = (nextTime / totalDuration) * 100;
         setReadLinePosition(nextPos);
         setProgress(nextPos);
-    };
+    }, [progress, getTotalEffectiveDuration, handleTimelineClick]);
 
     useEffect(() => {
         if (showReadLine) {
@@ -3539,6 +3649,30 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             }
         }
     }, [activePreviewId, mediaItems, getTrimRangeForItem, clipTrimRanges, getTargetStartTime]);
+
+    // Keyboard Shortcuts: Space (Play/Pause), Left/Right Arrows (Back/Front 10s)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const tag = document.activeElement?.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.getAttribute('contenteditable') === 'true') {
+                return;
+            }
+
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                moveReadLine(-10);
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                moveReadLine(10);
+            } else if (e.key === ' ' || e.code === 'Space') {
+                e.preventDefault();
+                togglePlay();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [moveReadLine, togglePlay]);
 
     // Compute overlay text style CSS from selected preset for use in preview
     const overlayTextStylePresetCss = getOverlayTextStylePresetCss(overlayTextStylePreset);
@@ -3891,26 +4025,45 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             if (p < 1) {
                 raf = requestAnimationFrame(tick);
             } else {
-                // Transition preview finished - update to the next clip
                 console.log("✅ [TRANSITIONS] Preview animation completed for transition:", transitionOverlay.type);
-                console.log("📹 [PLAYBACK] Switching to next clip after transition, isPlaying:", isPlaying);
-
-                // Store transition duration as a pending seek offset for the incoming clip
-                pendingTransitionSeekRef.current = {
-                    clipId: transitionOverlay.toId,
-                    seekTime: transitionOverlay.durationMs / 1000,
-                };
-
-                setActivePreviewId(transitionOverlay.toId);
+                
+                const wasPlaying = isPlayingRef.current;
+                
                 setTransitionOverlay(null);
                 setTransitionProgress(0);
 
-                // Ensure playback continues on the next clip
-                if (isPlaying) {
+                if (wasPlaying) {
+                    console.log("📹 [PLAYBACK] Normal playback: switching to next clip after transition");
+                    pendingTransitionSeekRef.current = {
+                        clipId: transitionOverlay.toId,
+                        seekTime: transitionOverlay.durationMs / 1000,
+                    };
+                    setActivePreviewId(transitionOverlay.toId);
+                    
                     setTimeout(() => {
                         if (videoRef.current) {
+                            const nextItem = mediaItems.find((m: any) => m.id === transitionOverlay.toId);
+                            if (nextItem && nextItem.type === 'video') {
+                                const trim = getTrimRangeForItem(nextItem.id, nextItem.duration);
+                                const targetStart = Math.min(trim.end, trim.start + (transitionOverlay.durationMs / 1000));
+                                videoRef.current.currentTime = targetStart;
+                                console.log("📹 [PLAYBACK] Transition complete, seeked next clip to target start:", targetStart);
+                            }
                             console.log("📹 [PLAYBACK] Resuming playback on next clip");
                             safePlay(videoRef.current);
+                        }
+                    }, 50);
+                } else {
+                    console.log("📹 [PLAYBACK] User applying transition: stay on source clip and seek to start");
+                    setActivePreviewId(transitionOverlay.fromId);
+                    setTimeout(() => {
+                        if (videoRef.current) {
+                            const fromItem = mediaItems.find((m: any) => m.id === transitionOverlay.fromId);
+                            if (fromItem) {
+                                const trim = getTrimRangeForItem(fromItem.id, fromItem.duration);
+                                videoRef.current.currentTime = trim.start;
+                                console.log("📹 [PLAYBACK] Seeked to start of from clip:", trim.start);
+                            }
                         }
                     }, 50);
                 }
@@ -3919,7 +4072,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
         raf = requestAnimationFrame(tick);
         return () => cancelAnimationFrame(raf);
-    }, [transitionOverlay, isPlaying, mediaItems, getClipGlobalStart, getEffectiveDurationForItem, getTotalEffectiveDuration, safePlay]);
+    }, [transitionOverlay, isPlaying, mediaItems, getClipGlobalStart, getEffectiveDurationForItem, getTotalEffectiveDuration, safePlay, getTrimRangeForItem]);
 
     useEffect(() => {
         let timer: ReturnType<typeof setTimeout>;
@@ -4290,7 +4443,34 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const handleDeleteClip = useCallback((clipId: string) => {
         setMediaItems((prev) => {
             const updated = prev.filter((item) => item.id !== clipId);
-            saveToUndo(updated);
+
+            // Clean up related states for deleted clip
+            const nextTransitions = { ...clipTransitions };
+            delete nextTransitions[clipId];
+            setClipTransitions(nextTransitions);
+
+            const nextTrimRanges = { ...clipTrimRanges };
+            delete nextTrimRanges[clipId];
+            setClipTrimRanges(nextTrimRanges);
+
+            const nextStarts = { ...clipStartOverrides };
+            delete nextStarts[clipId];
+            setClipStartOverrides(nextStarts);
+
+            const nextTracks = { ...clipTrackOverrides };
+            delete nextTracks[clipId];
+            setClipTrackOverrides(nextTracks);
+
+            const nextNames = { ...clipNameOverrides };
+            delete nextNames[clipId];
+            setClipNameOverrides(nextNames);
+
+            const nextLocks = { ...clipLockedStates };
+            delete nextLocks[clipId];
+            setClipLockedStates(nextLocks);
+
+            // Save to undo stack with updated clean states
+            saveToUndo(updated, nextTransitions, nextTrimRanges, nextStarts, nextTracks, nextNames, nextLocks);
 
             // If the deleted clip was active, select a new active clip
             if (activePreviewId === clipId) {
@@ -4300,7 +4480,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
             return updated;
         });
-    }, [activePreviewId, saveToUndo]);
+    }, [activePreviewId, saveToUndo, clipTransitions, clipTrimRanges, clipStartOverrides, clipTrackOverrides, clipNameOverrides, clipLockedStates]);
 
     const handleAddAudio = (type: 'extracted' | 'direct', trackIndex = 0) => {
         const input = document.createElement('input');
@@ -4356,6 +4536,11 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 return;
             }
 
+            setIsPlaying(false);
+            if (videoRef.current) {
+                videoRef.current.pause();
+            }
+
             console.log("📝 [TRANSITIONS] Applying transition to clip", {
                 clipId: activePreviewId,
                 transition,
@@ -4370,34 +4555,31 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                     transition,
                     updated
                 });
+                saveToUndo(mediaItems, updated);
                 return updated;
             });
 
             const currentIndex = mediaItems.findIndex((item) => item.id === activePreviewId);
-            if (currentIndex !== -1 && currentIndex < mediaItems.length - 1) {
-                // Only show preview if there's a next clip
-                const nextId = mediaItems[currentIndex + 1].id;
+            if (currentIndex !== -1) {
+                const activeItem = mediaItems[currentIndex];
+                const trim = getTrimRangeForItem(activeItem.id, activeItem.duration);
+                
+                // Seek to 2 seconds before the end of the clip (transition start area)
+                const seekLocal = Math.max(trim.start, trim.end - 2.0);
+                if (videoRef.current) {
+                    videoRef.current.currentTime = seekLocal;
+                }
+                
+                const timeBefore = mediaItems.slice(0, currentIndex).reduce((acc, item) => acc + getEffectiveDurationForItem(item), 0);
+                const seekGlobal = timeBefore + (seekLocal - trim.start);
+                const totalDuration = getTotalEffectiveDuration();
+                const startPos = (seekGlobal / (totalDuration || 1)) * 100;
+                setProgress(startPos);
+                setReadLinePosition(startPos);
 
-                console.log("📺 [TRANSITIONS] Playing preview animation", {
-                    from: activePreviewId,
-                    to: nextId,
-                    type: transition,
-                    message: "Preview shows what transition will look like in final video"
-                });
-
-                setTransitionOverlay({
-                    fromId: activePreviewId,
-                    toId: nextId,
-                    type: transition,
-                    startAt: performance.now(),
-                    durationMs: 1400,
-                });
-                setTransitionProgress(0);
-            } else {
-                console.log("📝 [TRANSITIONS] No preview (last clip or single clip selected)");
+                setIsPlaying(true);
             }
 
-            // Close tool panel after a brief delay to ensure state is saved
             setTimeout(() => {
                 setActiveTool(null);
             }, 100);
@@ -4425,7 +4607,12 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             ...proParams,
         };
 
-        const mediaForProcessing = mediaItems
+        const mediaForProcessing = [...mediaItems]
+            .sort((a, b) => {
+                const startA = clipStartOverrides[a.id] !== undefined ? clipStartOverrides[a.id] : 0;
+                const startB = clipStartOverrides[b.id] !== undefined ? clipStartOverrides[b.id] : 0;
+                return startA - startB;
+            })
             .filter((item) => item.file)
             .map((item) => {
                 const settings = clipSettings[item.id] || {};
@@ -4709,6 +4896,14 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         const isFrom = layer === 'from';
         const base: React.CSSProperties = { opacity: 1, transform: 'none', filter: 'none' };
 
+        const registeredTransition = getTransition(type);
+        if (registeredTransition) {
+            return {
+                ...base,
+                ...registeredTransition.getCssStyle(p, layer)
+            };
+        }
+
         if (type === 'cross-dissolve') {
             base.opacity = isFrom ? 1 - p : p;
         } else if (type === 'slide-left') {
@@ -4959,6 +5154,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                         handleAutoCaption={handleAutoCaption}
                                                         isAutoCapturing={isAutoCapturing} autoCaptionStatus={autoCaptionStatus}
                                                         proParams={proParams} setProParams={setProParams}
+                                                        saveToUndo={saveToUndo} mediaItems={mediaItems}
                                                     />
                                                 </div>
                                             </div>
@@ -4966,9 +5162,9 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
                                         {/* ── TRANSITIONS panel ── */}
                                         {leftTab === 'transitions' && (
-                                            <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
+                                            <div className="flex-1 overflow-y-auto p-3 custom-scrollbar flex flex-col min-h-0">
                                                 {/* Active clip indicator */}
-                                                <div className={`mb-3 px-2.5 py-1.5 rounded-lg text-[8px] font-bold uppercase tracking-wider text-center border ${
+                                                <div className={`mb-3 px-2.5 py-1.5 rounded-lg text-[8px] font-bold uppercase tracking-wider text-center border shrink-0 ${
                                                     activePreviewId
                                                         ? 'bg-purple-500/10 border-purple-500/20 text-purple-300'
                                                         : 'bg-white/[0.03] border-white/5 text-slate-500'
@@ -4976,58 +5172,90 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                     {activePreviewId ? `Clip selected · drag to apply` : 'Select a clip from the timeline first'}
                                                 </div>
 
+                                                {/* Category Selector Chips */}
+                                                <div className="flex gap-1.5 overflow-x-auto pb-2 mb-3 shrink-0 scrollbar-none">
+                                                    {['all', 'dissolve', 'slide', 'wipe', 'zoom', 'blur', 'glitch', 'shape', 'creative'].map((cat) => (
+                                                        <button
+                                                            key={cat}
+                                                            onClick={() => setTransitionsCategory(cat)}
+                                                            type="button"
+                                                            className={`px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-wider transition-all border shrink-0 ${
+                                                                transitionsCategory === cat
+                                                                    ? 'bg-teal-500/20 border-teal-500/60 text-teal-200'
+                                                                    : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200'
+                                                            }`}
+                                                        >
+                                                            {cat}
+                                                        </button>
+                                                    ))}
+                                                </div>
+
                                                 {/* Transition grid */}
-                                                <div className="grid grid-cols-3 gap-2">
-                                                    {[
-                                                        { id: 'none',                    label: 'None',          icon: CircleOff,      color: '#94a3b8' },
-                                                        { id: 'fade-transition',         label: 'Fade',          icon: Droplets,       color: '#38bdf8' },
-                                                        { id: 'zoom-transition',         label: 'Zoom',          icon: ZoomIn,         color: '#a78bfa' },
-                                                        { id: 'blur-transition',         label: 'Blur',          icon: Wind,           color: '#c084fc' },
-                                                        { id: 'swipe-transition',        label: 'Swipe',         icon: MoveHorizontal, color: '#34d399' },
-                                                        { id: 'spin-transition',         label: 'Spin',          icon: RotateCw,       color: '#fb923c' },
-                                                        { id: 'whip-pan-transition',     label: 'Whip Pan',      icon: MoveRight,      color: '#f472b6' },
-                                                        { id: 'glitch-transition',       label: 'Glitch',        icon: ScanLine,       color: '#f87171' },
-                                                        { id: 'mask-transition',         label: 'Mask',          icon: Square,         color: '#facc15' },
-                                                        { id: 'flash-transition',        label: 'Flash',         icon: Zap,            color: '#fbbf24' },
-                                                        { id: 'camera-shake-transition', label: 'Shake',         icon: Vibrate,        color: '#60a5fa' },
-                                                        { id: 'match-cut-transition',    label: 'Match Cut',     icon: Scissors,       color: '#4ade80' },
-                                                        { id: 'speed-ramp-transition',   label: 'Speed Ramp',    icon: Gauge,          color: '#e879f9' },
-                                                        { id: 'wipe-transition',         label: 'Wipe',          icon: ChevronRight,   color: '#22d3ee' },
-                                                        { id: 'dissolve-transition',     label: 'Dissolve',      icon: Droplets,       color: '#a3e635' },
-                                                    ].map((tr) => {
-                                                        const isActive = activePreviewId && clipTransitions[activePreviewId] === tr.id;
-                                                        const Icon = tr.icon;
-                                                        return (
-                                                            <button
-                                                                key={tr.id}
-                                                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); applyTransitionForActiveClip(tr.id as any); }}
-                                                                type="button"
-                                                                title={tr.label}
-                                                                className={`relative flex flex-col items-center justify-center gap-2 h-[80px] rounded-xl border transition-all duration-200 group overflow-hidden ${
-                                                                    isActive
-                                                                        ? 'bg-purple-500/15 border-purple-400/60 shadow-[0_0_16px_rgba(168,85,247,0.25)] scale-[1.02]'
-                                                                        : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/20 hover:-translate-y-0.5'
-                                                                }`}
-                                                            >
-                                                                {/* glow blob behind icon */}
-                                                                <div
-                                                                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                                                                    style={{ background: `radial-gradient(circle at 50% 40%, ${tr.color}18 0%, transparent 70%)` }}
-                                                                />
-                                                                <Icon
-                                                                    size={20}
-                                                                    className="relative z-10 transition-transform duration-200 group-hover:scale-110"
-                                                                    style={{ color: isActive ? '#d8b4fe' : tr.color }}
-                                                                />
-                                                                <span className={`relative z-10 text-[8px] font-bold uppercase tracking-wider text-center leading-tight px-1 line-clamp-2 ${isActive ? 'text-purple-200' : 'text-slate-400 group-hover:text-slate-200'}`}>
-                                                                    {tr.label}
-                                                                </span>
-                                                                {isActive && (
-                                                                    <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-purple-400" />
-                                                                )}
-                                                            </button>
-                                                        );
-                                                    })}
+                                                <div className="grid grid-cols-3 gap-2 pb-4">
+                                                    {/* None option */}
+                                                    {transitionsCategory === 'all' && (
+                                                        <button
+                                                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); applyTransitionForActiveClip('none'); }}
+                                                            type="button"
+                                                            className={`relative flex flex-col items-center justify-center gap-2 h-[80px] rounded-xl border transition-all duration-200 group overflow-hidden ${
+                                                                activePreviewId && clipTransitions[activePreviewId] === 'none'
+                                                                    ? 'bg-teal-500/15 border-teal-400/60 shadow-[0_0_16px_rgba(45,212,191,0.25)] scale-[1.02]'
+                                                                    : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/20 hover:-translate-y-0.5'
+                                                            }`}
+                                                        >
+                                                            <LucideIcons.CircleOff size={20} className="text-slate-400" />
+                                                            <span className="text-[8px] font-bold uppercase tracking-wider text-center text-slate-300">None</span>
+                                                            {activePreviewId && clipTransitions[activePreviewId] === 'none' && (
+                                                                <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-teal-400" />
+                                                            )}
+                                                        </button>
+                                                    )}
+
+                                                    {/* Loaded 50 transitions */}
+                                                    {getAllTransitions()
+                                                        .filter(tr => transitionsCategory === 'all' || tr.category === transitionsCategory)
+                                                        .map((tr) => {
+                                                            const isActive = activePreviewId && clipTransitions[activePreviewId] === tr.id;
+                                                            const Icon = (LucideIcons as any)[tr.iconName] || LucideIcons.Droplets;
+                                                            const trColor = tr.category === 'dissolve' ? '#38bdf8'
+                                                                          : tr.category === 'slide' ? '#a78bfa'
+                                                                          : tr.category === 'wipe' ? '#34d399'
+                                                                          : tr.category === 'zoom' ? '#fb923c'
+                                                                          : tr.category === 'blur' ? '#f472b6'
+                                                                          : tr.category === 'glitch' ? '#f87171'
+                                                                          : tr.category === 'shape' ? '#facc15'
+                                                                          : '#60a5fa'; // default
+                                                            return (
+                                                                <button
+                                                                    key={tr.id}
+                                                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); applyTransitionForActiveClip(tr.id); }}
+                                                                    type="button"
+                                                                    title={tr.description}
+                                                                    className={`relative flex flex-col items-center justify-center gap-2 h-[80px] rounded-xl border transition-all duration-200 group overflow-hidden ${
+                                                                        isActive
+                                                                            ? 'bg-teal-500/15 border-teal-400/60 shadow-[0_0_16px_rgba(45,212,191,0.25)] scale-[1.02]'
+                                                                            : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/20 hover:-translate-y-0.5'
+                                                                    }`}
+                                                                >
+                                                                    <div
+                                                                        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                                                                        style={{ background: `radial-gradient(circle at 50% 40%, ${trColor}18 0%, transparent 70%)` }}
+                                                                    />
+                                                                    <Icon
+                                                                        size={20}
+                                                                        className="relative z-10 transition-transform duration-200 group-hover:scale-110"
+                                                                        style={{ color: isActive ? '#5eead4' : trColor }}
+                                                                    />
+                                                                    <span className={`relative z-10 text-[8px] font-bold uppercase tracking-wider text-center leading-tight px-1 line-clamp-2 ${isActive ? 'text-teal-200' : 'text-slate-400 group-hover:text-slate-200'}`}>
+                                                                        {tr.name}
+                                                                    </span>
+                                                                    {isActive && (
+                                                                        <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-teal-400" />
+                                                                    )}
+                                                                </button>
+                                                            );
+                                                        })}
+
                                                 </div>
                                             </div>
                                         )}
@@ -5390,6 +5618,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                                 handleAutoCaption={handleAutoCaption}
                                                                 isAutoCapturing={isAutoCapturing} autoCaptionStatus={autoCaptionStatus}
                                                                 proParams={proParams} setProParams={setProParams}
+                                                                saveToUndo={saveToUndo} mediaItems={mediaItems}
                                                             />
                                                         </div>
                                                     </div>
@@ -5503,7 +5732,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                     <>
                                                         <video
                                                             ref={videoRef}
-                                                            key={`video-${activePreviewItem.id}`}
+                                                            key="main-editor-video-preview"
                                                             onTimeUpdate={handleTimeUpdate}
                                                             onEnded={() => {
                                                                 if (lastTriggeredEndRef.current !== activePreviewItem.id) {
@@ -5663,11 +5892,48 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                             };
                                             return (
                                                 <>
+                                                    {/* From Item Layer */}
                                                     <div className="absolute inset-0" style={fromStyle}>
-                                                        {fromItem.type === 'video' ? <video src={fromItem.preview} className="w-full h-full object-contain" muted playsInline autoPlay loop /> : <img src={fromItem.preview} className="w-full h-full object-contain" alt="" />}
+                                                        {fromItem.type === 'video' ? (
+                                                            <video
+                                                                key={`overlay-from-${fromItem.id}`}
+                                                                src={fromItem.preview}
+                                                                className="w-full h-full object-contain"
+                                                                muted
+                                                                playsInline
+                                                                preload="auto"
+                                                                onLoadedMetadata={(e) => {
+                                                                    const trim = getTrimRangeForItem(fromItem.id, fromItem.duration);
+                                                                    e.currentTarget.currentTime = trim.end;
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <img src={fromItem.preview} className="w-full h-full object-contain" alt="" />
+                                                        )}
                                                     </div>
+
+                                                    {/* To Item Layer */}
                                                     <div className="absolute inset-0" style={toStyle}>
-                                                        {toItem.type === 'video' ? <video src={toItem.preview} className="w-full h-full object-contain" muted playsInline autoPlay loop /> : <img src={toItem.preview} className="w-full h-full object-contain" alt="" />}
+                                                        {toItem.type === 'video' ? (
+                                                            <video
+                                                                key={`overlay-to-${toItem.id}`}
+                                                                src={toItem.preview}
+                                                                className="w-full h-full object-contain"
+                                                                muted
+                                                                playsInline
+                                                                autoPlay
+                                                                preload="auto"
+                                                                onLoadedMetadata={(e) => {
+                                                                    const trim = getTrimRangeForItem(toItem.id, toItem.duration);
+                                                                    e.currentTarget.currentTime = trim.start;
+                                                                }}
+                                                                onCanPlay={(e) => {
+                                                                    e.currentTarget.play().catch(() => {});
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <img src={toItem.preview} className="w-full h-full object-contain" alt="" />
+                                                        )}
                                                     </div>
                                                     {(transitionOverlay.type === 'dip-black' || transitionOverlay.type === 'dip-white' || transitionOverlay.type === 'flash-transition') && (
                                                         <div
@@ -5886,10 +6152,26 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                 </button>
 
                                 <button
+                                    onClick={() => moveReadLine(-10)}
+                                    className="p-1.5 text-slate-400 hover:text-white transition-all duration-150 active:scale-95 cursor-pointer hover:bg-white/5 rounded-lg"
+                                    title="Back 10s (Left Arrow)"
+                                >
+                                    <Rewind className="w-4 h-4" />
+                                </button>
+
+                                <button
                                     onClick={togglePlay}
                                     className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-[#0B1020] hover:scale-105 active:scale-95 transition-all shadow-md shadow-purple-500/10"
                                 >
                                     {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                                </button>
+
+                                <button
+                                    onClick={() => moveReadLine(10)}
+                                    className="p-1.5 text-slate-400 hover:text-white transition-all duration-150 active:scale-95 cursor-pointer hover:bg-white/5 rounded-lg"
+                                    title="Forward 10s (Right Arrow)"
+                                >
+                                    <FastForward className="w-4 h-4" />
                                 </button>
 
                                 <button
@@ -6545,12 +6827,13 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                             audioTracks={audioTracks}
                             captions={captions}
                             currentCaption={currentCaption}
-                            setCurrentCaption={setCurrentCaption}
+                                            setCurrentCaption={setCurrentCaption}
                             progress={progress}
                             handleTimelineClick={handleTimelineClick}
                             activePreviewId={activePreviewId}
                             setActivePreviewId={setActivePreviewId}
                             isPlaying={isPlaying}
+                            setIsPlaying={setIsPlaying}
                             clipTrimRanges={clipTrimRanges}
                             setClipTrimRanges={setClipTrimRanges}
                             getTrimRangeForItem={getTrimRangeForItem}
@@ -6574,6 +6857,20 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                             setShowReadLine={setShowReadLine}
                             selectPreviewWithTransition={selectPreviewWithTransition}
                             handleAddAssetToTimeline={handleAddAssetToTimeline}
+                            clipTransitions={clipTransitions}
+                            setClipTransitions={setClipTransitions}
+                            clipStartOverrides={clipStartOverrides}
+                            setClipStartOverrides={setClipStartOverrides}
+                            clipTrackOverrides={clipTrackOverrides}
+                            setClipTrackOverrides={setClipTrackOverrides}
+                            clipNameOverrides={clipNameOverrides}
+                            setClipNameOverrides={setClipNameOverrides}
+                            clipLockedStates={clipLockedStates}
+                            setClipLockedStates={setClipLockedStates}
+                            clipSettings={clipSettings}
+                            setClipSettings={setClipSettings}
+                            setLeftTab={setLeftTab}
+                            setActiveTool={setActiveTool}
                         />
                     </div>
 

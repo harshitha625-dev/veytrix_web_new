@@ -140,6 +140,13 @@ export function QuickEditResultScreen() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+           <button 
+             onClick={handleDownload}
+             className="px-4 py-1.5 rounded-full bg-purple-500 hover:bg-purple-600 border border-purple-500/20 text-[11px] font-bold text-[#0B1020] hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+           >
+              <Download className="w-3.5 h-3.5 text-[#0B1020]" />
+              Download Video
+           </button>
            <button className="px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-bold text-slate-300 hover:bg-white/10 flex items-center gap-2">
               <Share2 className="w-3.5 h-3.5" />
               Share Link
@@ -226,7 +233,7 @@ export function QuickEditResultScreen() {
                       className="px-8 h-12 rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 text-[#0B1020] text-sm font-black uppercase tracking-widest flex items-center gap-3"
                     >
                        <Download className="w-4 h-4" />
-                       Save to Device
+                       Download Video
                     </motion.button>
                  </div>
               </div>
