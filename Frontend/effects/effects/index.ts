@@ -5,6 +5,16 @@ import { distortionExtraEffectsList } from './distortion/distortionPackExtra';
 import { glitchExtraEffectsList } from './glitch/glitchPackExtra';
 import { extraPacksMegaList } from './extraPacksMega';
 import { extraPacksSuperList } from './extraPacksSuper';
+import { professionalFiltersList } from '../../filters/professionalFilters';
+import { extraProfessionalFiltersList } from '../../filters/extraProfessionalFilters';
+import { productionCameraEffectsList } from './camera/productionCameraEffects';
+import { productionCinematicEffectsList } from './cinematic/productionCinematicEffects';
+import { productionRetroEffectsList } from './retro/productionRetroEffects';
+import { productionLightEffectsList } from './light/productionLightEffects';
+import { productionBlurEffectsList } from './blur/productionBlurEffects';
+import { productionDistortionEffectsList } from './distortion/productionDistortionEffects';
+import { productionGlitchEffectsList } from './glitch/productionGlitchEffects';
+import { productionMotionEffectsList } from './motion/productionMotionEffects';
 import { smoothZoom } from './camera/smoothZoom';
 import { hyperZoom } from './camera/hyperZoom';
 import { beatShake } from './camera/beatShake';
@@ -355,7 +365,17 @@ const extraPacksList = [
   ...distortionExtraEffectsList,
   ...glitchExtraEffectsList,
   ...extraPacksMegaList,
-  ...extraPacksSuperList
+  ...extraPacksSuperList,
+  ...professionalFiltersList,
+  ...extraProfessionalFiltersList,
+  ...productionCameraEffectsList,
+  ...productionCinematicEffectsList,
+  ...productionRetroEffectsList,
+  ...productionLightEffectsList,
+  ...productionBlurEffectsList,
+  ...productionDistortionEffectsList,
+  ...productionGlitchEffectsList,
+  ...productionMotionEffectsList
 ];
 
 extraPacksList.forEach((eff) => {

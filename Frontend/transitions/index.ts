@@ -2,10 +2,13 @@ export * from './types';
 export * from './transitionsPack';
 
 import { transitionsPack } from './transitionsPack';
+import { extraTransitionsPack } from './extraTransitionsPack';
 import { TransitionModule } from './types';
 
+const allTransitionsList = [...transitionsPack, ...extraTransitionsPack];
+
 const transitionRegistry = new Map<string, TransitionModule>();
-transitionsPack.forEach(t => transitionRegistry.set(t.id, t));
+allTransitionsList.forEach(t => transitionRegistry.set(t.id, t));
 
 /**
  * Retrieves a transition module by its unique identifier.
@@ -20,12 +23,12 @@ export const getTransition = (id: string): TransitionModule | null => {
  * @param category The transition category
  */
 export const getTransitionsByCategory = (category: string): TransitionModule[] => {
-  return transitionsPack.filter(t => t.category === category);
+  return allTransitionsList.filter(t => t.category === category);
 };
 
 /**
  * Retrieves all registered transitions.
  */
 export const getAllTransitions = (): TransitionModule[] => {
-  return transitionsPack;
+  return allTransitionsList;
 };

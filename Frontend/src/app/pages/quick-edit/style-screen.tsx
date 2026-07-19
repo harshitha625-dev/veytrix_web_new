@@ -117,6 +117,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 import { getAllProEffects, getEffectModule } from "../../../../effects/effects";
+import { getFilterConfig } from "../../../../filters/professionalFilters";
 import { getAllTransitions, getTransition } from "../../../../transitions";
 
 const Youtube = ({ className, size = 24, ...props }: React.SVGProps<SVGSVGElement> & { size?: number | string }) => (
@@ -451,6 +452,7 @@ const FilmoraLeftPanel = memo(({
     clipSettings, setClipSettings
 }: any) => {
     const [leftTab, setLeftTab] = useState<'media' | 'titles' | 'captions' | 'transitions' | 'effects' | 'filters' | 'tools'>('transitions');
+    const [localFilterCategory, setLocalFilterCategory] = useState('all');
 
     const leftTabs = [
         { id: 'media',       icon: Film,    label: 'Media'       },
@@ -643,19 +645,123 @@ const FilmoraLeftPanel = memo(({
                 )}
 
                 {/* ── FILTERS ── */}
-                {leftTab === 'filters' && (
-                    <div className="flex-1 overflow-y-auto p-2.5 custom-scrollbar">
-                        {renderGrid(
-                            filterItems,
-                            selectedFilter,
-                            setSelectedFilter,
-                            'bg-pink-500/15 border-pink-400/60 shadow-[0_0_14px_rgba(236,72,153,0.22)]',
-                            'bg-pink-400',
-                        )}
-                    </div>
-                )}
+                {leftTab === 'filters' && (() => {
+                    const proEffects = getAllProEffects();
+                    const proFilters = proEffects.filter(eff => eff.id.startsWith('pro-filter-'));
+                    const filteredFilters = localFilterCategory === 'all'
+                        ? proFilters
+                        : proFilters.filter(eff => eff.name.startsWith(localFilterCategory + ' v'));
+                    return (
+                        <div className="flex-1 flex flex-col min-h-0 p-2.5">
+                            {/* Filter Category Selector Chips */}
+                            <div className="flex gap-1.5 overflow-x-auto pb-2 shrink-0 scrollbar-none mb-2">
+                                {['all', 'Basic', 'Cinematic', 'Vintage', 'Retro', 'Film', 'HDR', 'LUT', 'Black & White', 'Sepia', 'Neon', 'Cyberpunk', 'Dream', 'Glow', 'Matte', 'Moody', 'Warm', 'Cool', 'Teal & Orange', 'Golden Hour', 'Sunset', 'Night', 'RGB', 'VHS', 'CRT', 'Glitch', 'Grain', 'Blur', 'Sharpen', 'Portrait', 'Beauty', 'Landscape', 'Nature', 'Food', 'Travel', 'Wedding', 'Fashion', 'Sports', 'Gaming', 'Social', 'Artistic', '3D', 'Hollywood', 'IMAX', 'Netflix', 'Kodak', 'Fujifilm', 'ARRI', 'RED', 'Sony Cinema', 'Blackmagic', 'Seasons', 'Ocean', 'Forest', 'Desert', 'Aurora', 'Galaxy', 'Space', 'Synthwave', 'Vaporwave', 'Luxury', 'Diamond', 'Gold', 'Crystal', 'Anime', 'Comic', 'Oil Painting', 'Watercolor', 'Sketch', 'Documentary', 'Analog', 'Sci-Fi'].map((cat) => (
+                                    <button
+                                        key={cat}
+                                        onClick={() => setLocalFilterCategory(cat)}
+                                        type="button"
+                                        className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider transition-all border shrink-0 ${
+                                            localFilterCategory === cat
+                                                ? 'bg-pink-500/20 border-pink-500/60 text-pink-200'
+                                                : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200'
+                                        }`}
+                                    >
+                                        {cat}
+                                    </button>
+                                ))}
+                            </div>
 
-                {/* ── MEDIA ── */}
+                            <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                <div className="grid grid-cols-3 gap-2 pb-4">
+                                    {localFilterCategory === 'all' && (
+                                        <button
+                                            onClick={() => {
+                                                setSelectedFilter('none');
+                                                setSelectedEffect('none');
+                                            }}
+                                            type="button"
+                                            className={`relative flex flex-col items-center justify-center gap-2 h-[80px] rounded-xl border transition-all duration-200 group overflow-hidden ${
+                                                selectedFilter === 'none' && selectedEffect === 'none'
+                                                    ? 'bg-pink-500/15 border-pink-400/60 shadow-[0_0_16px_rgba(236,72,153,0.25)] scale-[1.02]'
+                                                    : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/20 hover:-translate-y-0.5'
+                                            }`}
+                                        >
+                                            <CircleOff size={20} className="text-[#94a3b8]" />
+                                            <span className="text-[8px] font-bold uppercase tracking-wider text-center text-slate-400">No Filter</span>
+                                        </button>
+                                    )}
+                                    {filteredFilters.map((eff) => {
+                                        const isActive = selectedFilter === eff.id || selectedEffect === eff.id;
+                                        const Icon = eff.icon || Sparkles;
+                                        return (
+                                            <button
+                                                key={eff.id}
+                                                onClick={() => {
+                                                    setSelectedFilter(eff.id as any);
+                                                    setSelectedEffect(eff.id);
+                                                    setProParams(eff.defaultParameters || {});
+                                                }}
+                                                type="button"
+                                                className={`relative flex flex-col items-center justify-center gap-2 h-[80px] rounded-xl border transition-all duration-200 group overflow-hidden ${
+                                                    isActive
+                                                        ? 'bg-pink-500/15 border-pink-400/60 shadow-[0_0_16px_rgba(236,72,153,0.25)] scale-[1.02]'
+                                                        : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/20 hover:-translate-y-0.5'
+                                                }`}
+                                            >
+                                                {eff.thumbnail && (
+                                                    <div className="absolute inset-0 w-full h-full pointer-events-none">
+                                                        <img src={eff.thumbnail} className="w-full h-full object-cover opacity-20 group-hover:opacity-35 transition-opacity duration-300" alt="" />
+                                                        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/85" />
+                                                    </div>
+                                                )}
+                                                <Icon size={20} className="relative z-10 transition-transform duration-200 group-hover:scale-110 text-purple-300" />
+                                                <span className="relative z-10 text-[8px] font-bold uppercase tracking-wider text-center leading-tight px-1 line-clamp-2 text-slate-400 group-hover:text-slate-200">{eff.name}</span>
+                                                {isActive && <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-pink-400" />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {selectedEffect && selectedEffect.startsWith('pro-filter-') && (() => {
+                                const effectModule = getEffectModule(selectedEffect);
+                                if (!effectModule) return null;
+                                return (
+                                    <div className="mt-2 p-2.5 rounded-lg bg-white/5 border border-white/10 space-y-2.5 shrink-0">
+                                        {effectModule.adjustableParameters.map((param: any) => {
+                                            const paramValue = proParams[param.key] ?? effectModule.defaultParameters[param.key];
+                                            return (
+                                                <div key={param.key}>
+                                                    <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-widest text-slate-300 mb-0.5">
+                                                        <span>{param.name}</span>
+                                                        <span>{typeof paramValue === 'number' ? paramValue.toFixed(param.step && param.step < 1 ? 2 : 0) : String(paramValue)}</span>
+                                                    </div>
+                                                    {param.type === 'number' && (
+                                                        <input
+                                                            type="range"
+                                                            min={param.min ?? 0}
+                                                            max={param.max ?? 100}
+                                                            step={param.step ?? 1}
+                                                            value={paramValue}
+                                                            onChange={(e) => {
+                                                                const val = Number(e.target.value);
+                                                                setProParams((prev: any) => ({
+                                                                    ...prev,
+                                                                    [param.key]: val
+                                                                }));
+                                                            }}
+                                                            className="w-full accent-purple-400"
+                                                        />
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    );
+                })()}{/* ── MEDIA ── */}
                 {leftTab === 'media' && (
                     <div className="flex-1 overflow-y-auto p-2.5 custom-scrollbar flex flex-col gap-3">
                         <div className="text-[7.5px] font-bold uppercase tracking-widest text-slate-500">Project Media</div>
@@ -1028,59 +1134,140 @@ const ToolInspector = memo(({
     const [captionTab, setCaptionTab] = useState<'list' | 'style'>('style');
     const [newCaptionText, setNewCaptionText] = useState('');
     const [localCategory, setLocalCategory] = useState('all');
+    const [localFilterCategory, setLocalFilterCategory] = useState('all');
     const [newCaptionStart, setNewCaptionStart] = useState(0);
     const [newCaptionEnd, setNewCaptionEnd] = useState(3);
     const [textSubTab, setTextSubTab] = useState<'fonts' | 'styles'>('fonts');
 
     switch (activeTool) {
-        case 'filters':
+        case 'filters': {
+            const proEffects = getAllProEffects();
+            const proFilters = proEffects.filter(eff => eff.id.startsWith('pro-filter-'));
+            const filteredFilters = localFilterCategory === 'all'
+                ? proFilters
+                : proFilters.filter(eff => eff.name.startsWith(localFilterCategory + ' v'));
+
             return (
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between border-b border-white/5 pb-1.5">
+                <div className="space-y-3 flex flex-col min-h-0">
+                    <div className="flex items-center justify-between border-b border-white/5 pb-1.5 shrink-0">
                         <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">Filters</span>
                         <span className="text-[8px] text-slate-500 font-bold uppercase">Color Presets</span>
                     </div>
-                    <div className="grid grid-cols-3 gap-[16px] max-h-[350px] overflow-y-auto pr-2 pb-4 [&::-webkit-scrollbar]:w-[5px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gradient-to-b [&::-webkit-scrollbar-thumb]:from-[#7C3AED] [&::-webkit-scrollbar-thumb]:to-[#A855F7] [&::-webkit-scrollbar-thumb]:rounded-full">
-                        {[
-                            { id: 'none', label: 'No Filter', icon: CircleOff },
-                            { id: 'cinematic', label: 'Cinematic', icon: Clapperboard },
-                            { id: 'moody', label: 'Moody', icon: MoonStar },
-                            { id: 'warm-tone', label: 'Warm Tone', icon: Sun },
-                            { id: 'cool-tone', label: 'Cool Tone', icon: Snowflake },
-                            { id: 'vintage', label: 'Vintage', icon: Clock3 },
-                            { id: 'black-white', label: 'Black & White', icon: Contrast },
-                            { id: 'teal-orange', label: 'Teal & Orange', icon: Palette },
-                            { id: 'dreamy-glow', label: 'Dreamy Glow', icon: Sparkles },
-                            { id: 'film-look', label: 'Film Look', icon: Film },
-                            { id: 'vhs', label: 'VHS', icon: Tv },
-                            { id: 'soft-skin', label: 'Soft Skin', icon: Smile },
-                            { id: 'neon-glow', label: 'Neon Glow', icon: Lightbulb },
-                            { id: 'hdr-pop', label: 'HDR Pop', icon: Aperture },
-                        ].map((f) => (
+
+                    {/* Filter Category Selector Chips */}
+                    <div className="flex gap-1.5 overflow-x-auto pb-2 shrink-0 scrollbar-none">
+                        {['all', 'Basic', 'Cinematic', 'Vintage', 'Retro', 'Film', 'HDR', 'LUT', 'Black & White', 'Sepia', 'Neon', 'Cyberpunk', 'Dream', 'Glow', 'Matte', 'Moody', 'Warm', 'Cool', 'Teal & Orange', 'Golden Hour', 'Sunset', 'Night', 'RGB', 'VHS', 'CRT', 'Glitch', 'Grain', 'Blur', 'Sharpen', 'Portrait', 'Beauty', 'Landscape', 'Nature', 'Food', 'Travel', 'Wedding', 'Fashion', 'Sports', 'Gaming', 'Social', 'Artistic', '3D', 'Hollywood', 'IMAX', 'Netflix', 'Kodak', 'Fujifilm', 'ARRI', 'RED', 'Sony Cinema', 'Blackmagic', 'Seasons', 'Ocean', 'Forest', 'Desert', 'Aurora', 'Galaxy', 'Space', 'Synthwave', 'Vaporwave', 'Luxury', 'Diamond', 'Gold', 'Crystal', 'Anime', 'Comic', 'Oil Painting', 'Watercolor', 'Sketch', 'Documentary', 'Analog', 'Sci-Fi'].map((cat) => (
                             <button
-                                key={f.id}
-                                onClick={() => setSelectedFilter(f.id as any)}
+                                key={cat}
+                                onClick={() => setLocalFilterCategory(cat)}
                                 type="button"
-                                className={`flex flex-col items-center justify-center w-full h-[95px] rounded-[20px] backdrop-blur-[20px] transition-all duration-300 group ${selectedFilter === f.id
-                                    ? 'bg-gradient-to-b from-[rgba(168,85,247,0.18)] to-[rgba(124,58,237,0.08)] border border-[#A855F7] shadow-[0_0_25px_rgba(168,85,247,0.35)] scale-[1.03]'
-                                    : 'bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] shadow-[0_10px_30px_rgba(0,0,0,0.25)] hover:-translate-y-[4px] hover:scale-[1.04] hover:border-[#A855F7] hover:shadow-[0_0_15px_rgba(168,85,247,0.2)] cursor-pointer'
-                                    }`}
+                                className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider transition-all border shrink-0 ${
+                                    localFilterCategory === cat
+                                        ? 'bg-purple-500/20 border-purple-500/60 text-purple-200'
+                                        : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200'
+                                }`}
                             >
-                                <f.icon
-                                    size={28}
-                                    strokeWidth={2.2}
-                                    className={`transition-colors duration-300 ${selectedFilter === f.id ? 'text-[#FFD84D]' : 'text-[#B794F4] group-hover:drop-shadow-[0_0_8px_rgba(183,148,244,0.8)]'
-                                        }`}
-                                />
-                                <span className={`mt-[12px] text-[8px] sm:text-[9px] font-bold uppercase tracking-widest text-center leading-tight px-2 line-clamp-2 ${selectedFilter === f.id ? 'text-white' : 'text-white/90'
-                                    }`}>
-                                    {f.label}
-                                </span>
+                                {cat}
                             </button>
                         ))}
                     </div>
+
+                    <div className="grid grid-cols-3 gap-[12px] max-h-[300px] overflow-y-auto pr-2 pb-4 scrollbar-thin">
+                        {localFilterCategory === 'all' && (
+                            <button
+                                onClick={() => {
+                                    setSelectedFilter('none');
+                                    setSelectedEffect('none');
+                                }}
+                                type="button"
+                                className={`flex flex-col items-center justify-center w-full h-[95px] rounded-[20px] backdrop-blur-[20px] transition-all duration-300 group ${
+                                    selectedFilter === 'none' && selectedEffect === 'none'
+                                        ? 'bg-gradient-to-b from-[rgba(168,85,247,0.18)] to-[rgba(124,58,237,0.08)] border border-[#A855F7] shadow-[0_0_25px_rgba(168,85,247,0.35)] scale-[1.03]'
+                                        : 'bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] shadow-[0_10px_30px_rgba(0,0,0,0.25)] hover:-translate-y-[4px] hover:scale-[1.04] hover:border-[#A855F7] hover:shadow-[0_0_15px_rgba(168,85,247,0.2)] cursor-pointer'
+                                }`}
+                            >
+                                <Ban size={28} className="text-[#B794F4]" />
+                                <span className="mt-[12px] text-[8px] sm:text-[9px] font-bold uppercase tracking-widest text-center leading-tight px-2 text-white/90">No Filter</span>
+                            </button>
+                        )}
+
+                        {filteredFilters.map((eff) => {
+                            const isActive = selectedFilter === eff.id || selectedEffect === eff.id;
+                            const Icon = eff.icon || Sparkles;
+                            return (
+                                <button
+                                    key={eff.id}
+                                    onClick={() => {
+                                        setSelectedFilter(eff.id as any);
+                                        setSelectedEffect(eff.id);
+                                        setProParams(eff.defaultParameters || {});
+                                    }}
+                                    type="button"
+                                    className={`relative flex flex-col items-center justify-center w-full h-[95px] rounded-[20px] backdrop-blur-[20px] transition-all duration-300 group overflow-hidden ${isActive
+                                        ? 'bg-gradient-to-b from-[rgba(168,85,247,0.18)] to-[rgba(124,58,237,0.08)] border border-[#A855F7] shadow-[0_0_25px_rgba(168,85,247,0.35)] scale-[1.03]'
+                                        : 'bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] shadow-[0_10px_30px_rgba(0,0,0,0.25)] hover:-translate-y-[4px] hover:scale-[1.04] hover:border-[#A855F7] hover:shadow-[0_0_15px_rgba(168,85,247,0.2)] cursor-pointer'
+                                        }`}
+                                >
+                                    {eff.thumbnail && (
+                                        <div className="absolute inset-0 w-full h-full pointer-events-none">
+                                            <img src={eff.thumbnail} className="w-full h-full object-cover opacity-20 group-hover:opacity-35 transition-opacity duration-300" alt="" />
+                                            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/85" />
+                                        </div>
+                                    )}
+                                    <Icon
+                                        size={28}
+                                        strokeWidth={2.2}
+                                        className={`relative z-10 transition-colors duration-300 ${isActive ? 'text-[#FFD84D]' : 'text-[#B794F4] group-hover:drop-shadow-[0_0_8px_rgba(183,148,244,0.8)]'
+                                            }`}
+                                    />
+                                    <span className={`relative z-10 mt-[12px] text-[8px] sm:text-[9px] font-bold uppercase tracking-widest text-center leading-tight px-2 line-clamp-2 ${isActive ? 'text-white' : 'text-white/90'
+                                        }`}>
+                                        {eff.name}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {selectedEffect && selectedEffect.startsWith('pro-filter-') && (() => {
+                        const effectModule = getEffectModule(selectedEffect);
+                        if (!effectModule) return null;
+                        return (
+                            <div className="mt-2 p-2.5 rounded-lg bg-white/5 border border-white/10 space-y-2.5">
+                                {effectModule.adjustableParameters.map((param: any) => {
+                                    const paramValue = proParams[param.key] ?? effectModule.defaultParameters[param.key];
+                                    return (
+                                        <div key={param.key}>
+                                            <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-widest text-slate-300 mb-0.5">
+                                                <span>{param.name}</span>
+                                                <span>{typeof paramValue === 'number' ? paramValue.toFixed(param.step && param.step < 1 ? 2 : 0) : String(paramValue)}</span>
+                                            </div>
+                                            {param.type === 'number' && (
+                                                <input
+                                                    type="range"
+                                                    min={param.min ?? 0}
+                                                    max={param.max ?? 100}
+                                                    step={param.step ?? 1}
+                                                    value={paramValue}
+                                                    onChange={(e) => {
+                                                        const val = Number(e.target.value);
+                                                        setProParams((prev: any) => ({
+                                                            ...prev,
+                                                            [param.key]: val
+                                                        }));
+                                                    }}
+                                                    className="w-full accent-purple-400"
+                                                />
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })()}
                 </div>
             );
+        }
         case 'effects':
             return (
                 <div className="space-y-3 flex flex-col min-h-0">
@@ -2541,6 +2728,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
     // -- State Management --
     const [selectedStyle, setSelectedStyle] = useState("youtube");
+    const [localFilterCategory, setLocalFilterCategory] = useState('all');
     const { aspectRatio, applyAspectRatio, formattedRatio, getRatioValue } = useAspectRatio();
     const [isCustomFrameOpen, setIsCustomFrameOpen] = useState(false);
     const [fps, setFps] = useState(60);
@@ -3879,7 +4067,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const overlayTextStylePresetCss = getOverlayTextStylePresetCss(overlayTextStylePreset);
 
     useEffect(() => {
-        const isProEffect = selectedEffect && selectedEffect.startsWith('pro-');
+        const isProEffect = selectedEffect && selectedEffect.startsWith('pro-') && !selectedEffect.startsWith('pro-filter-');
         const activeCanvasMode = isProEffect
             ? selectedEffect
             : CANVAS_PREVIEW_EFFECTS.includes(selectedEffect)
@@ -4392,6 +4580,15 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         if (selectedEffect === 'sepia') return 'sepia(1)';
         if (selectedEffect === 'hdr') return 'contrast(1.6) brightness(1.2) saturate(1.4)';
         if (selectedEffect === 'vivid') return 'contrast(1.3) brightness(1.1) saturate(2.5)';
+
+        if (selectedFilter && selectedFilter.startsWith('pro-filter-')) {
+            const parts = selectedFilter.split('-');
+            const categorySlug = parts[2];
+            const index = parseInt(parts[3], 10);
+            const intensity = proParams.intensity ?? 0.5;
+            const config = getFilterConfig(categorySlug, index, intensity);
+            return config.css;
+        }
 
         if (selectedFilter === 'black-white') return 'grayscale(1) contrast(1.15)';
         if (selectedFilter === 'cinematic') return 'contrast(1.45) brightness(1.1) saturate(1.25)';
@@ -5086,42 +5283,43 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             .filter((item) => item.file)
             .map((item) => {
                 const settings = clipSettings[item.id] || {};
+                const isCurrent = item.id === activePreviewId;
                 return {
                     id: item.id,
                     file: item.file,
                     type: item.type,
                     duration: item.duration,
-                    effect: settings.selectedEffect || 'none',
-                    filter: settings.selectedFilter || 'none',
+                    effect: isCurrent ? (selectedEffect || 'none') : (settings.selectedEffect || 'none'),
+                    filter: isCurrent ? (selectedFilter || 'none') : (settings.selectedFilter || 'none'),
                     effectSettings: {
-                        blurAmount: settings.blurAmount ?? 10,
-                        brightness: settings.brightness ?? 1,
-                        contrast: settings.contrast ?? 1,
-                        saturation: settings.saturation ?? 1,
-                        slowMotionSpeed: settings.slowMotionSpeed ?? 0.25,
-                        glitchIntensity: settings.glitchIntensity ?? 1,
-                        velocitySpeed: settings.velocitySpeed ?? 1.5,
-                        motionBlurAmount: settings.motionBlurAmount ?? 3,
-                        shakeStrength: settings.shakeStrength ?? 1.5,
-                        flashIntensity: settings.flashIntensity ?? 0.75,
-                        rgbSplitAmount: settings.rgbSplitAmount ?? 12,
-                        smoothZoomAmount: settings.smoothZoomAmount ?? 0.35,
-                        filmGrainOpacity: settings.filmGrainOpacity ?? 0.4,
-                        ...(settings.proParams ?? {}),
+                        blurAmount: settings.blurAmount ?? (isCurrent ? blurAmount : 10),
+                        brightness: settings.brightness ?? (isCurrent ? brightness : 1),
+                        contrast: settings.contrast ?? (isCurrent ? contrast : 1),
+                        saturation: settings.saturation ?? (isCurrent ? saturation : 1),
+                        slowMotionSpeed: settings.slowMotionSpeed ?? (isCurrent ? slowMotionSpeed : 0.25),
+                        glitchIntensity: settings.glitchIntensity ?? (isCurrent ? glitchIntensity : 1),
+                        velocitySpeed: settings.velocitySpeed ?? (isCurrent ? velocitySpeed : 1.5),
+                        motionBlurAmount: settings.motionBlurAmount ?? (isCurrent ? motionBlurAmount : 3),
+                        shakeStrength: settings.shakeStrength ?? (isCurrent ? shakeStrength : 1.5),
+                        flashIntensity: settings.flashIntensity ?? (isCurrent ? flashIntensity : 0.75),
+                        rgbSplitAmount: settings.rgbSplitAmount ?? (isCurrent ? rgbSplitAmount : 12),
+                        smoothZoomAmount: settings.smoothZoomAmount ?? (isCurrent ? smoothZoomAmount : 0.35),
+                        filmGrainOpacity: settings.filmGrainOpacity ?? (isCurrent ? filmGrainOpacity : 0.4),
+                        ...(isCurrent ? (proParams || {}) : (settings.proParams ?? {})),
                     },
                     textOverlay: {
-                        enabled: (settings.overlayText || '').trim().length > 0,
-                        text: settings.overlayText || '',
-                        stylePreset: settings.overlayTextStylePreset || 'none',
-                        fontId: settings.overlayFontId || 'rubik',
-                        fontFamily: textFontOptions.find((f) => f.id === settings.overlayFontId)?.family || textFontOptions[0].family,
-                        fontSize: settings.overlayFontSize ?? 48,
-                        color: settings.overlayColor || '#FFFFFF',
-                        bgEnabled: settings.overlayBgEnabled ?? false,
-                        bgColorHex: settings.overlayBgColorHex || '#000000',
+                        enabled: (settings.overlayText || (isCurrent ? overlayText : '')).trim().length > 0,
+                        text: settings.overlayText || (isCurrent ? overlayText : ''),
+                        stylePreset: settings.overlayTextStylePreset || (isCurrent ? overlayTextStylePreset : 'none'),
+                        fontId: settings.overlayFontId || (isCurrent ? overlayFontId : 'rubik'),
+                        fontFamily: textFontOptions.find((f) => f.id === (settings.overlayFontId || (isCurrent ? overlayFontId : 'rubik')))?.family || textFontOptions[0].family,
+                        fontSize: settings.overlayFontSize ?? (isCurrent ? overlayFontSize : 48),
+                        color: settings.overlayColor || (isCurrent ? overlayColor : '#FFFFFF'),
+                        bgEnabled: settings.overlayBgEnabled ?? (isCurrent ? overlayBgEnabled : false),
+                        bgColorHex: settings.overlayBgColorHex || (isCurrent ? overlayBgColorHex : '#000000'),
                         position: {
-                            x: settings.overlayPosX ?? 50,
-                            y: settings.overlayPosY ?? 50,
+                            x: settings.overlayPosX ?? (isCurrent ? overlayPosX : 50),
+                            y: settings.overlayPosY ?? (isCurrent ? overlayPosY : 50),
                         },
                     },
                 };
@@ -5807,50 +6005,86 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                         )}
 
                                         {/* ── FILTERS panel ── */}
-                                        {leftTab === 'filters' && (
-                                            <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
-                                                <div className="grid grid-cols-3 gap-2">
-                                                    {[
-                                                        { id: 'none',         label: 'No Filter',   icon: CircleOff,   color: '#94a3b8' },
-                                                        { id: 'cinematic',    label: 'Cinematic',   icon: Clapperboard,color: '#a78bfa' },
-                                                        { id: 'moody',        label: 'Moody',       icon: MoonStar,    color: '#6366f1' },
-                                                        { id: 'warm-tone',    label: 'Warm',        icon: Sun,         color: '#f59e0b' },
-                                                        { id: 'cool-tone',    label: 'Cool',        icon: Snowflake,   color: '#38bdf8' },
-                                                        { id: 'vintage',      label: 'Vintage',     icon: Clock3,      color: '#fb923c' },
-                                                        { id: 'black-white',  label: 'B&W',         icon: Contrast,    color: '#94a3b8' },
-                                                        { id: 'teal-orange',  label: 'Teal+Orange', icon: Palette,     color: '#2dd4bf' },
-                                                        { id: 'dreamy-glow',  label: 'Dreamy',      icon: Sparkles,    color: '#e879f9' },
-                                                        { id: 'film-look',    label: 'Film Look',   icon: Film,        color: '#c084fc' },
-                                                        { id: 'vhs',          label: 'VHS',         icon: Tv,          color: '#4ade80' },
-                                                        { id: 'soft-skin',    label: 'Soft Skin',   icon: Smile,       color: '#f9a8d4' },
-                                                        { id: 'neon-glow',    label: 'Neon',        icon: Lightbulb,   color: '#facc15' },
-                                                        { id: 'hdr-pop',      label: 'HDR Pop',     icon: Aperture,    color: '#f87171' },
-                                                    ].map((f) => {
-                                                        const isActive = selectedFilter === f.id;
-                                                        const Icon = f.icon;
-                                                        return (
-                                                            <button
-                                                                key={f.id}
-                                                                onClick={() => setSelectedFilter(f.id as any)}
-                                                                type="button"
-                                                                className={`relative flex flex-col items-center justify-center gap-2 h-[80px] rounded-xl border transition-all duration-200 group overflow-hidden ${
-                                                                    isActive
-                                                                        ? 'bg-pink-500/15 border-pink-400/60 shadow-[0_0_16px_rgba(236,72,153,0.25)] scale-[1.02]'
-                                                                        : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/20 hover:-translate-y-0.5'
-                                                                }`}
-                                                            >
-                                                                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" style={{ background: `radial-gradient(circle at 50% 40%, ${f.color}18 0%, transparent 70%)` }} />
-                                                                <Icon size={20} className="relative z-10 transition-transform duration-200 group-hover:scale-110" style={{ color: isActive ? '#f9a8d4' : f.color }} />
-                                                                <span className={`relative z-10 text-[8px] font-bold uppercase tracking-wider text-center leading-tight px-1 line-clamp-2 ${isActive ? 'text-pink-200' : 'text-slate-400 group-hover:text-slate-200'}`}>{f.label}</span>
-                                                                {isActive && <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-pink-400" />}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        )}
+                                        {leftTab === 'filters' && (() => {
+                                             const proEffects = getAllProEffects();
+                                             const proFilters = proEffects.filter(eff => eff.id.startsWith('pro-filter-'));
+                                             const filteredFilters = localFilterCategory === 'all'
+                                                 ? proFilters
+                                                 : proFilters.filter(eff => eff.name.startsWith(localFilterCategory + ' v'));
+                                             return (
+                                                 <div className="flex-1 flex flex-col min-h-0 bg-[#07080f] p-3">
+                                                     {/* Filter Category Selector Chips */}
+                                                     <div className="flex gap-1.5 overflow-x-auto pb-2 shrink-0 scrollbar-none mb-2">
+                                                         {['all', 'Basic', 'Cinematic', 'Vintage', 'Retro', 'Film', 'HDR', 'LUT', 'Black & White', 'Sepia', 'Neon', 'Cyberpunk', 'Dream', 'Glow', 'Matte', 'Moody', 'Warm', 'Cool', 'Teal & Orange', 'Golden Hour', 'Sunset', 'Night', 'RGB', 'VHS', 'CRT', 'Glitch', 'Grain', 'Blur', 'Sharpen', 'Portrait', 'Beauty', 'Landscape', 'Nature', 'Food', 'Travel', 'Wedding', 'Fashion', 'Sports', 'Gaming', 'Social', 'Artistic', '3D', 'Hollywood', 'IMAX', 'Netflix', 'Kodak', 'Fujifilm', 'ARRI', 'RED', 'Sony Cinema', 'Blackmagic', 'Seasons', 'Ocean', 'Forest', 'Desert', 'Aurora', 'Galaxy', 'Space', 'Synthwave', 'Vaporwave', 'Luxury', 'Diamond', 'Gold', 'Crystal', 'Anime', 'Comic', 'Oil Painting', 'Watercolor', 'Sketch', 'Documentary', 'Analog', 'Sci-Fi'].map((cat) => (
+                                                             <button
+                                                                 key={cat}
+                                                                 onClick={() => setLocalFilterCategory(cat)}
+                                                                 type="button"
+                                                                 className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider transition-all border shrink-0 ${
+                                                                     localFilterCategory === cat
+                                                                         ? 'bg-pink-500/20 border-pink-500/60 text-pink-200'
+                                                                         : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200'
+                                                                 }`}
+                                                             >
+                                                                 {cat}
+                                                             </button>
+                                                         ))}
+                                                     </div>
 
-                                        {/* ── MEDIA panel (Wondershare Filmora-style Left Column Media Pool) ── */}
+                                                     <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                                         <div className="grid grid-cols-3 gap-2 pb-4">
+                                                             {localFilterCategory === 'all' && (
+                                                                 <button
+                                                                     onClick={() => {
+                                                                         setSelectedFilter('none');
+                                                                         setSelectedEffect('none');
+                                                                     }}
+                                                                     type="button"
+                                                                     className={`relative flex flex-col items-center justify-center gap-2 h-[80px] rounded-xl border transition-all duration-200 group overflow-hidden ${
+                                                                         selectedFilter === 'none' && selectedEffect === 'none'
+                                                                             ? 'bg-pink-500/15 border-pink-400/60 shadow-[0_0_16px_rgba(236,72,153,0.25)] scale-[1.02]'
+                                                                             : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/20 hover:-translate-y-0.5'
+                                                                     }`}
+                                                                 >
+                                                                     <CircleOff size={20} className="text-[#94a3b8]" />
+                                                                     <span className="text-[8px] font-bold uppercase tracking-wider text-center text-slate-400">No Filter</span>
+                                                                 </button>
+                                                             )}
+                                                             {filteredFilters.map((eff) => {
+                                                                 const isActive = selectedFilter === eff.id || selectedEffect === eff.id;
+                                                                 const Icon = eff.icon || Sparkles;
+                                                                 return (
+                                                                     <button
+                                                                         key={eff.id}
+                                                                         onClick={() => {
+                                                                             setSelectedFilter(eff.id as any);
+                                                                             setSelectedEffect(eff.id);
+                                                                             setProParams(eff.defaultParameters || {});
+                                                                         }}
+                                                                         type="button"
+                                                                         className={`relative flex flex-col items-center justify-center gap-2 h-[80px] rounded-xl border transition-all duration-200 group overflow-hidden ${
+                                                                             isActive
+                                                                                 ? 'bg-pink-500/15 border-pink-400/60 shadow-[0_0_16px_rgba(236,72,153,0.25)] scale-[1.02]'
+                                                                                 : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/20 hover:-translate-y-0.5'
+                                                                         }`}
+                                                                     >
+                                                                         {eff.thumbnail && (
+                                                                             <div className="absolute inset-0 w-full h-full pointer-events-none">
+                                                                                 <img src={eff.thumbnail} className="w-full h-full object-cover opacity-20 group-hover:opacity-35 transition-opacity duration-300" alt="" />
+                                                                                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/85" />
+                                                                             </div>
+                                                                         )}
+                                                                         <Icon size={20} className="relative z-10 transition-transform duration-200 group-hover:scale-110 text-purple-300" />
+                                                                         <span className="relative z-10 text-[8px] font-bold uppercase tracking-wider text-center leading-tight px-1 line-clamp-2 text-slate-400 group-hover:text-slate-200">{eff.name}</span>
+                                                                         {isActive && <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-pink-400" />}
+                                                                     </button>
+                                                                 );
+                                                             })}
+                                                         </div>
+                                                     </div>
+                                                 </div>
+                                             );
+                                         })()}{/* ── MEDIA panel (Wondershare Filmora-style Left Column Media Pool) ── */}
                                         {leftTab === 'media' && (
                                             <div className="flex-1 flex min-h-0 overflow-hidden bg-[#07080f]">
                                                 {/* Category rail */}
@@ -6185,7 +6419,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                             className="absolute inset-0 w-full h-full"
                                         >
                                             {activePreviewItem.type === 'video' ? (() => {
-                                                const isPro = selectedEffect && selectedEffect.startsWith('pro-');
+                                                const isPro = selectedEffect && selectedEffect.startsWith('pro-') && !selectedEffect.startsWith('pro-filter-');
                                                 const showCanvas = isPro || CANVAS_PREVIEW_EFFECTS.includes(selectedEffect) || CANVAS_PREVIEW_FILTERS.includes(selectedFilter);
                                                 return (
                                                     <>
@@ -6245,7 +6479,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                                 console.error("📹 [PLAYBACK] Video error:", e);
                                                             }}
                                                             src={activePreviewItem.preview}
-                                                            className={showCanvas ? 'hidden' : `w-full h-full ${clipSettings[activePreviewId]?.fill ? 'object-cover' : 'object-contain'}`}
+                                                            className={showCanvas ? 'opacity-0 absolute pointer-events-none w-0 h-0' : `w-full h-full ${clipSettings[activePreviewId]?.fill ? 'object-cover' : 'object-contain'}`}
                                                             style={{
                                                                 opacity: selectedEffect === 'fade-in' ? previewOpacity : (clipSettings[activePreviewId]?.opacity ?? 100) / 100,
                                                                 filter: getCombinedPreviewFilterCss(),

@@ -1764,6 +1764,322 @@ const mapProEffectToFfmpegFilter = (effectId, params, startTime, endTime, durati
   const enableStr = `:enable='between(t,${startTime},${endTime})'`;
   const filters = [];
 
+  if (effectId.startsWith("pro-filter-")) {
+    const parts = effectId.split("-");
+    const index = parseInt(parts[parts.length - 1], 10);
+    const categorySlug = parts.slice(2, parts.length - 1).join("-");
+    const intensity = Number(params.intensity ?? 0.5);
+    const i = index;
+
+    switch (categorySlug) {
+      case 'basic': {
+        const contrast = (1 + i * 0.03 * intensity).toFixed(3);
+        const saturate = (1 + (i - 7) * 0.05 * intensity).toFixed(3);
+        const brightnessFfmpeg = ((i - 7) * 0.015 * intensity).toFixed(3);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}:brightness=${brightnessFfmpeg}${enableStr}`);
+        break;
+      }
+      case 'cinematic': {
+        const contrast = (1.1 + i * 0.03 * intensity).toFixed(3);
+        const saturate = (1.0 + i * 0.02 * intensity).toFixed(3);
+        const hue = (-i * 1.5 * intensity).toFixed(1);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        filters.push(`colorchannelmixer=.393:.769:.189:.349:.686:.168:.272:.534:.131${enableStr}`);
+        filters.push(`hue=h=${hue}${enableStr}`);
+        break;
+      }
+      case 'vintage': {
+        const contrast = (1 - i * 0.02 * intensity).toFixed(3);
+        const saturate = (1 - i * 0.03 * intensity).toFixed(3);
+        const brightnessFfmpeg = (i * 0.01 * intensity).toFixed(3);
+        filters.push(`colorchannelmixer=.393:.769:.189:.349:.686:.168:.272:.534:.131${enableStr}`);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}:brightness=${brightnessFfmpeg}${enableStr}`);
+        break;
+      }
+      case 'retro': {
+        const contrast = (1.0 + (i - 7) * 0.03 * intensity).toFixed(3);
+        const saturate = (0.9 + i * 0.02 * intensity).toFixed(3);
+        filters.push(`colorchannelmixer=.393:.769:.189:.349:.686:.168:.272:.534:.131${enableStr}`);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        break;
+      }
+      case 'film': {
+        const contrast = (1.05 + i * 0.02 * intensity).toFixed(3);
+        const saturate = (1.0 + (i - 7) * 0.04 * intensity).toFixed(3);
+        const hue = ((i - 7) * 1.2 * intensity).toFixed(1);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        filters.push(`hue=h=${hue}${enableStr}`);
+        break;
+      }
+      case 'hdr': {
+        const contrast = (1.2 + i * 0.04 * intensity).toFixed(3);
+        const saturate = (1.1 + i * 0.03 * intensity).toFixed(3);
+        const brightnessFfmpeg = (0.02 + i * 0.01 * intensity).toFixed(3);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}:brightness=${brightnessFfmpeg}${enableStr}`);
+        filters.push(`unsharp=5:5:0.8:5:5:0.0${enableStr}`);
+        break;
+      }
+      case 'lut': {
+        const contrast = (1.08 + i * 0.02 * intensity).toFixed(3);
+        const saturate = (0.95 + (i - 7) * 0.05 * intensity).toFixed(3);
+        const hue = ((i - 7) * 1.5 * intensity).toFixed(1);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        filters.push(`hue=h=${hue}${enableStr}`);
+        break;
+      }
+      case 'black-white': {
+        const contrast = (1.0 + i * 0.05 * intensity).toFixed(3);
+        const brightnessFfmpeg = (-0.04 + i * 0.01 * intensity).toFixed(3);
+        filters.push(`hue=s=0${enableStr}`);
+        filters.push(`eq=contrast=${contrast}:brightness=${brightnessFfmpeg}${enableStr}`);
+        break;
+      }
+      case 'sepia': {
+        const contrast = (0.9 + i * 0.02 * intensity).toFixed(3);
+        const saturate = (0.85 + i * 0.015 * intensity).toFixed(3);
+        filters.push(`colorchannelmixer=.393:.769:.189:.349:.686:.168:.272:.534:.131${enableStr}`);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        break;
+      }
+      case 'neon': {
+        const saturate = (1.35 + i * 0.06 * intensity).toFixed(3);
+        const brightnessFfmpeg = (0.04 + i * 0.015 * intensity).toFixed(3);
+        const hue = ((i - 7) * 3 * intensity).toFixed(1);
+        filters.push(`eq=saturation=${saturate}:brightness=${brightnessFfmpeg}${enableStr}`);
+        filters.push(`hue=h=${hue}${enableStr}`);
+        break;
+      }
+      case 'cyberpunk': {
+        const hue = (-20 + i * 2.5 * intensity).toFixed(1);
+        const saturate = (1.15 + i * 0.04 * intensity).toFixed(3);
+        const contrast = (1.08 + i * 0.02 * intensity).toFixed(3);
+        filters.push(`hue=h=${hue}${enableStr}`);
+        filters.push(`eq=saturation=${saturate}:contrast=${contrast}${enableStr}`);
+        break;
+      }
+      case 'dream': {
+        const brightnessFfmpeg = (0.06 + i * 0.015 * intensity).toFixed(3);
+        const contrast = (0.96 - i * 0.015 * intensity).toFixed(3);
+        const saturate = (1.0 + i * 0.02 * intensity).toFixed(3);
+        filters.push(`eq=brightness=${brightnessFfmpeg}:contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        break;
+      }
+      case 'glow': {
+        const brightnessFfmpeg = (0.03 + i * 0.015 * intensity).toFixed(3);
+        const saturate = (1.1 + i * 0.025 * intensity).toFixed(3);
+        const contrast = (1.04 + i * 0.015 * intensity).toFixed(3);
+        filters.push(`eq=brightness=${brightnessFfmpeg}:saturation=${saturate}:contrast=${contrast}${enableStr}`);
+        break;
+      }
+      case 'matte': {
+        const contrast = (0.88 - i * 0.015 * intensity).toFixed(3);
+        const saturate = (0.78 + i * 0.015 * intensity).toFixed(3);
+        const brightnessFfmpeg = (0.01 + i * 0.008 * intensity).toFixed(3);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}:brightness=${brightnessFfmpeg}${enableStr}`);
+        break;
+      }
+      case 'moody': {
+        const brightnessFfmpeg = (-0.04 - i * 0.015 * intensity).toFixed(3);
+        const contrast = (1.08 + i * 0.035 * intensity).toFixed(3);
+        const saturate = (0.92 - i * 0.025 * intensity).toFixed(3);
+        filters.push(`eq=brightness=${brightnessFfmpeg}:contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        break;
+      }
+      case 'warm': {
+        const saturate = (1.06 + i * 0.025 * intensity).toFixed(3);
+        const hue = (-i * 1.2 * intensity).toFixed(1);
+        filters.push(`colorchannelmixer=.393:.769:.189:.349:.686:.168:.272:.534:.131${enableStr}`);
+        filters.push(`eq=saturation=${saturate}${enableStr}`);
+        filters.push(`hue=h=${hue}${enableStr}`);
+        break;
+      }
+      case 'cool': {
+        const saturate = (1.03 + i * 0.018 * intensity).toFixed(3);
+        const hue = (8 + i * 2.2 * intensity).toFixed(1);
+        const brightnessFfmpeg = (-0.01 - i * 0.008 * intensity).toFixed(3);
+        filters.push(`eq=saturation=${saturate}:brightness=${brightnessFfmpeg}${enableStr}`);
+        filters.push(`hue=h=${hue}${enableStr}`);
+        break;
+      }
+      case 'teal-orange': {
+        const contrast = (1.12 + i * 0.03 * intensity).toFixed(3);
+        const saturate = (1.08 + i * 0.025 * intensity).toFixed(3);
+        const hue = (-5 - i * 0.8 * intensity).toFixed(1);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        filters.push(`hue=h=${hue}${enableStr}`);
+        break;
+      }
+      case 'golden-hour': {
+        const saturate = (1.12 + i * 0.03 * intensity).toFixed(3);
+        const brightnessFfmpeg = (0.02 + i * 0.008 * intensity).toFixed(3);
+        filters.push(`colorchannelmixer=.393:.769:.189:.349:.686:.168:.272:.534:.131${enableStr}`);
+        filters.push(`eq=saturation=${saturate}:brightness=${brightnessFfmpeg}${enableStr}`);
+        break;
+      }
+      case 'sunset': {
+        const saturate = (1.16 + i * 0.04 * intensity).toFixed(3);
+        const hue = (-6 - i * 1.5 * intensity).toFixed(1);
+        filters.push(`colorchannelmixer=.393:.769:.189:.349:.686:.168:.272:.534:.131${enableStr}`);
+        filters.push(`eq=saturation=${saturate}${enableStr}`);
+        filters.push(`hue=h=${hue}${enableStr}`);
+        break;
+      }
+      case 'night': {
+        const brightnessFfmpeg = (-0.22 - i * 0.025 * intensity).toFixed(3);
+        const contrast = (0.96 + i * 0.015 * intensity).toFixed(3);
+        const hue = (12 + i * 2.5 * intensity).toFixed(1);
+        const saturate = (0.72 + i * 0.015 * intensity).toFixed(3);
+        filters.push(`eq=brightness=${brightnessFfmpeg}:contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        filters.push(`hue=h=${hue}${enableStr}`);
+        break;
+      }
+      case 'rgb': {
+        const contrast = (1.06 + i * 0.015 * intensity).toFixed(3);
+        const saturate = (1.12 + i * 0.025 * intensity).toFixed(3);
+        const redShift = (i * 0.01 * intensity).toFixed(3);
+        const blueShift = (-i * 0.01 * intensity).toFixed(3);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        filters.push(`colorbalance=rs=${redShift}:bs=${blueShift}${enableStr}`);
+        break;
+      }
+      case 'vhs': {
+        const contrast = (1.04 + i * 0.015 * intensity).toFixed(3);
+        const saturate = (1.08 + i * 0.025 * intensity).toFixed(3);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        filters.push(`colorchannelmixer=.393:.769:.189:.349:.686:.168:.272:.534:.131${enableStr}`);
+        break;
+      }
+      case 'crt': {
+        const contrast = (1.04 + i * 0.015 * intensity).toFixed(3);
+        const saturate = (0.96 + i * 0.015 * intensity).toFixed(3);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        filters.push(`drawgrid=width=iw:height=4:thickness=1:color=black@0.08${enableStr}`);
+        break;
+      }
+      case 'glitch': {
+        const contrast = (1.08 + i * 0.025 * intensity).toFixed(3);
+        const saturate = (1.15 + i * 0.03 * intensity).toFixed(3);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        filters.push(`noise=alls=${Math.round(5 + i * intensity)}:allf=t+u${enableStr}`);
+        break;
+      }
+      case 'grain': {
+        const contrast = (1.03 + i * 0.015 * intensity).toFixed(3);
+        const brightnessFfmpeg = (0.01 + i * 0.008 * intensity).toFixed(3);
+        filters.push(`eq=contrast=${contrast}:brightness=${brightnessFfmpeg}${enableStr}`);
+        filters.push(`noise=alls=${Math.round(4 + i * intensity)}:allf=t+u${enableStr}`);
+        break;
+      }
+      case 'blur': {
+        const val = (i * 0.4 * intensity).toFixed(2);
+        filters.push(`gblur=sigma=${val}${enableStr}`);
+        break;
+      }
+      case 'sharpen': {
+        const contrast = (1.1 + i * 0.03 * intensity).toFixed(3);
+        const saturate = (1.01 + i * 0.015 * intensity).toFixed(3);
+        const amount = (0.4 + i * 0.08 * intensity).toFixed(2);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        filters.push(`unsharp=5:5:${amount}:5:5:0.0${enableStr}`);
+        break;
+      }
+      case 'portrait': {
+        const brightnessFfmpeg = (0.01 + i * 0.008 * intensity).toFixed(3);
+        const contrast = (0.99 - i * 0.008 * intensity).toFixed(3);
+        const saturate = (1.04 + i * 0.015 * intensity).toFixed(3);
+        filters.push(`eq=brightness=${brightnessFfmpeg}:contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        break;
+      }
+      case 'beauty': {
+        const brightnessFfmpeg = (0.04 + i * 0.015 * intensity).toFixed(3);
+        const contrast = (0.97 - i * 0.008 * intensity).toFixed(3);
+        const saturate = (1.08 + i * 0.015 * intensity).toFixed(3);
+        filters.push(`eq=brightness=${brightnessFfmpeg}:contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        break;
+      }
+      case 'landscape': {
+        const contrast = (1.1 + i * 0.025 * intensity).toFixed(3);
+        const saturate = (1.15 + i * 0.04 * intensity).toFixed(3);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        break;
+      }
+      case 'nature': {
+        const contrast = (1.08 + i * 0.018 * intensity).toFixed(3);
+        const saturate = (1.12 + i * 0.035 * intensity).toFixed(3);
+        const hue = (i * 0.9 * intensity).toFixed(1);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        filters.push(`hue=h=${hue}${enableStr}`);
+        break;
+      }
+      case 'food': {
+        const saturate = (1.2 + i * 0.05 * intensity).toFixed(3);
+        const brightnessFfmpeg = (0.03 + i * 0.008 * intensity).toFixed(3);
+        const contrast = (1.04 + i * 0.015 * intensity).toFixed(3);
+        filters.push(`eq=saturation=${saturate}:brightness=${brightnessFfmpeg}:contrast=${contrast}${enableStr}`);
+        break;
+      }
+      case 'travel': {
+        const contrast = (1.08 + i * 0.025 * intensity).toFixed(3);
+        const saturate = (1.1 + i * 0.03 * intensity).toFixed(3);
+        const hue = (-i * 0.6 * intensity).toFixed(1);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        filters.push(`hue=h=${hue}${enableStr}`);
+        break;
+      }
+      case 'wedding': {
+        const brightnessFfmpeg = (0.04 + i * 0.01 * intensity).toFixed(3);
+        const contrast = (0.95 - i * 0.008 * intensity).toFixed(3);
+        const saturate = (1.01 + i * 0.008 * intensity).toFixed(3);
+        filters.push(`eq=brightness=${brightnessFfmpeg}:contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        filters.push(`colorchannelmixer=.393:.769:.189:.349:.686:.168:.272:.534:.131${enableStr}`);
+        break;
+      }
+      case 'fashion': {
+        const contrast = (1.2 + i * 0.04 * intensity).toFixed(3);
+        const saturate = (1.04 + i * 0.025 * intensity).toFixed(3);
+        const brightnessFfmpeg = (0.01 + i * 0.008 * intensity).toFixed(3);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}:brightness=${brightnessFfmpeg}${enableStr}`);
+        break;
+      }
+      case 'sports': {
+        const contrast = (1.12 + i * 0.035 * intensity).toFixed(3);
+        const saturate = (1.25 + i * 0.05 * intensity).toFixed(3);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        break;
+      }
+      case 'gaming': {
+        const contrast = (1.2 + i * 0.035 * intensity).toFixed(3);
+        const saturate = (1.3 + i * 0.04 * intensity).toFixed(3);
+        const hue = (-8 + i * 1.5 * intensity).toFixed(1);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        filters.push(`hue=h=${hue}${enableStr}`);
+        break;
+      }
+      case 'social': {
+        const brightnessFfmpeg = (0.05 + i * 0.015 * intensity).toFixed(3);
+        const contrast = (0.97 - i * 0.012 * intensity).toFixed(3);
+        const saturate = (1.1 + i * 0.025 * intensity).toFixed(3);
+        filters.push(`eq=brightness=${brightnessFfmpeg}:contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        break;
+      }
+      case 'artistic': {
+        const contrast = (1.12 + i * 0.04 * intensity).toFixed(3);
+        const saturate = (1.2 + i * 0.04 * intensity).toFixed(3);
+        const hue = (i * 4 * intensity).toFixed(1);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        filters.push(`hue=h=${hue}${enableStr}`);
+        break;
+      }
+      case '3d': {
+        const contrast = (1.08 + i * 0.025 * intensity).toFixed(3);
+        const saturate = (1.12 + i * 0.025 * intensity).toFixed(3);
+        filters.push(`eq=contrast=${contrast}:saturation=${saturate}${enableStr}`);
+        break;
+      }
+    }
+    return filters;
+  }
+
   // Normalize effectId
   let id = effectId.startsWith("pro-") ? effectId.substring(4) : effectId;
 
