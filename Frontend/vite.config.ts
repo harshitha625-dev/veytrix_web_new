@@ -49,7 +49,7 @@ export default defineConfig({
     port: process.env.PORT ? parseInt(process.env.PORT) : 5173,
     proxy: {
       "/api": {
-        target: "http://localhost:5000",
+        target: "http://127.0.0.1:5000",
         changeOrigin: true,
         proxyTimeout: 600000, // 10 minutes for large video file uploads
         timeout: 600000,      // 10 minutes

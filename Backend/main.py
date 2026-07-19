@@ -18,6 +18,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from developer_portal_api import router as developer_portal_router
+from command_agent_api import router as command_agent_router
+from transcribe_api import router as transcribe_api_router
 
 # ---------------------------------------------------------------------------
 # Load .env (same search order as the Node.js loadEnvFiles())
@@ -70,6 +72,8 @@ app.add_middleware(
 # Routes
 # ---------------------------------------------------------------------------
 app.include_router(developer_portal_router)
+app.include_router(command_agent_router)
+app.include_router(transcribe_api_router)
 
 
 @app.get("/")

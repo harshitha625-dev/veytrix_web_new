@@ -222,3 +222,13 @@ html:not(.dark) .premium-modal .ant-modal-content {
   border: none !important;
   box-shadow: none !important;
 }
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}

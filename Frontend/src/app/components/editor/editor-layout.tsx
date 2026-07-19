@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { VideoTimelineEditor } from "./video-timeline-editor";
+import { Timeline } from "../../../components/VideoEditor/Timeline";
 import { ToolboxPanel } from "./toolbox-panel";
 import { MediaPool } from "./media-pool";
 
@@ -53,8 +54,13 @@ export function EditorLayout() {
       <ToolboxPanel onSelectTool={setSelectedTool} />
 
       {/* Timeline - Center */}
-      <div className="flex-1 overflow-hidden">
-        <VideoTimelineEditor />
+      <div className="flex-1 overflow-hidden flex flex-col pb-8">
+        <div className="flex-1 min-h-0 bg-black flex items-center justify-center border-b border-white/10">
+           <PreviewPlayer />
+        </div>
+        <div className="h-72 shrink-0">
+          <Timeline />
+        </div>
       </div>
 
       {/* Media Pool - Right Sidebar */}

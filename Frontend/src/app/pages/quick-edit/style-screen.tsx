@@ -100,9 +100,11 @@ import { generateThumbnail } from "@/lib/thumbnail";
 import { CustomRatioModal } from "./components/CustomRatioModal";
 import { SlidersHorizontal } from "lucide-react";
 import { TimelineHub } from "./components/TimelineHub";
+import { CommandAgentPanel } from "./components/CommandAgentPanel";
 
 import { PremiumModal } from "@/components/premium-modal";
 import { MusicPickerModal } from "@/components/editor/music-picker-modal";
+import { TransitionEditorBottomPanel } from "./components/TransitionEditorBottomPanel";
 import { MusicStrip } from "@/components/editor/music-strip";
 import { useMusicContext } from "@/context/music-context";
 import {
@@ -351,19 +353,41 @@ const CAPTION_STYLE_PRESETS = [
 ];
 
 const QUICK_TOOLS = [
-    { id: 'effects', icon: Sparkle, label: 'Effects', color: 'text-amber-300' },
-    { id: 'transitions', icon: Layers, label: 'Transitions', color: 'text-purple-300' },
-    { id: 'filters', icon: Palette, label: 'Filters', color: 'text-pink-300' },
-    { id: 'speed', icon: Timer, label: 'Speed', color: 'text-purple-300' },
-    { id: 'trim', icon: Scissors, label: 'Trim', color: 'text-green-300' },
-    { id: 'copy', icon: Copy, label: 'Copy', color: 'text-blue-300' },
-    { id: 'text-tool', icon: Type, label: 'Text', color: 'text-fuchsia-300' },
-    { id: 'rotate', icon: RotateCw, label: 'Rotate', color: 'text-fuchsia-300' },
-    { id: 'volume', icon: Volume2, label: 'Volume', color: 'text-purple-300' },
-    { id: 'crop', icon: Crop, label: 'Crop', color: 'text-red-300' },
-    { id: 'zoom', icon: ZoomIn, label: 'Zoom', color: 'text-yellow-300' },
-    { id: 'keyframe', icon: MonitorPlay, label: 'Keyframe', color: 'text-emerald-300' },
-    { id: 'captions', icon: MessageSquare, label: 'Captions', color: 'text-green-300' },
+    { id: 'audio', icon: LucideIcons.Music, label: 'Audio' },
+    { id: 'titles', icon: LucideIcons.Type, label: 'Titles' },
+    { id: 'captions', icon: LucideIcons.Captions, label: 'Captions' },
+    { id: 'transitions', icon: LucideIcons.Layers, label: 'Transitions' },
+    { id: 'effects', icon: LucideIcons.Sparkle, label: 'Effects' },
+    { id: 'filters', icon: LucideIcons.Palette, label: 'Filters' },
+    { id: 'frames', icon: LucideIcons.Square, label: 'Frames' },
+    { id: 'tools', icon: LucideIcons.Zap, label: 'Tools' },
+];
+
+const CLIP_TOOLS = [
+    { id: 'replace', icon: LucideIcons.RefreshCw, label: 'Replace' },
+    { id: 'keyframe', icon: LucideIcons.Diamond, label: 'Keyframe' },
+    { id: 'split', icon: LucideIcons.Scissors, label: 'Split' },
+    { id: 'cutout', icon: LucideIcons.UserMinus, label: 'Cutout' },
+    { id: 'extract-audio', icon: LucideIcons.AudioWaveform, label: 'Extract Audio' },
+    { id: 'denoise', icon: LucideIcons.Activity, label: 'Denoise' },
+    { id: 'voice-effect', icon: LucideIcons.Mic, label: 'Voice Effect' },
+    { id: 'auto-captions', icon: LucideIcons.MessageSquareQuote, label: 'Auto Captions' },
+    { id: 'tts', icon: LucideIcons.MessageSquareText, label: 'TTS' },
+    { id: 'mosaic', icon: LucideIcons.Grid, label: 'Mosaic' },
+    { id: 'magnifier', icon: LucideIcons.ZoomIn, label: 'Magnifier' },
+    { id: 'stories', icon: LucideIcons.LayoutList, label: 'Stories' },
+    { id: 'reverse', icon: LucideIcons.RotateCcw, label: 'Reverse' },
+    { id: 'freeze', icon: LucideIcons.Snowflake, label: 'Freeze' },
+    { id: 'overlay-track', icon: LucideIcons.Layers, label: 'Overlay Track' },
+    { id: 'fade', icon: LucideIcons.Activity, label: 'Fade' },
+    { id: 'mirror', icon: LucideIcons.FlipHorizontal, label: 'Mirror' },
+    { id: 'flip', icon: LucideIcons.FlipVertical, label: 'Flip' },
+    { id: 'fill', icon: LucideIcons.Maximize, label: 'Fill' },
+    { id: 'bg', icon: LucideIcons.Square, label: 'BG' },
+    { id: 'border', icon: LucideIcons.SquareDashedBottom, label: 'Border' },
+    { id: 'blur', icon: LucideIcons.Droplet, label: 'Blur' },
+    { id: 'opacity', icon: LucideIcons.Eye, label: 'Opacity' },
+    { id: 'delete', icon: LucideIcons.Trash2, label: 'Delete' },
 ];
 
 const CANVAS_PREVIEW_EFFECTS = [
@@ -376,6 +400,7 @@ const CANVAS_PREVIEW_EFFECTS = [
     'shake',
     'rgb-split',
     'film-grain',
+    'smooth-zoom',
 ];
 
 const CANVAS_PREVIEW_FILTERS = [
@@ -415,6 +440,7 @@ const FilmoraLeftPanel = memo(({
     captionLanguage, setCaptionLanguage, captionStyle, setCaptionStyle,
     captionStylePreset, setCaptionStylePreset,
     isCaptionPlacementMode, setIsCaptionPlacementMode,
+    detectSpeakers, setDetectSpeakers,
     handleAutoCaption, isAutoCapturing, autoCaptionStatus,
     proParams, setProParams,
     /* smart features + tools grid */
@@ -422,8 +448,9 @@ const FilmoraLeftPanel = memo(({
     /* aspect ratio */
     aspectRatio, applyAspectRatio, setIsCustomFrameOpen,
     saveToUndo, mediaItems,
+    clipSettings, setClipSettings
 }: any) => {
-    const [leftTab, setLeftTab] = useState<'media' | 'titles' | 'transitions' | 'effects' | 'filters' | 'tools'>('transitions');
+    const [leftTab, setLeftTab] = useState<'media' | 'titles' | 'captions' | 'transitions' | 'effects' | 'filters' | 'tools'>('transitions');
 
     const leftTabs = [
         { id: 'media',       icon: Film,    label: 'Media'       },
@@ -535,9 +562,11 @@ const FilmoraLeftPanel = memo(({
                             key={tab.id}
                             onClick={() => {
                                 setLeftTab(tab.id as any);
-                                if (tab.id === 'titles') {
+                                if ((tab.id as string) === 'titles') {
                                     setActiveTool('text-tool');
-                                } else if (activeTool === 'text-tool') {
+                                } else if ((tab.id as string) === 'captions') {
+                                    setActiveTool('captions');
+                                } else if (activeTool === 'text-tool' || activeTool === 'captions') {
                                     setActiveTool(null);
                                 }
                             }}
@@ -567,6 +596,7 @@ const FilmoraLeftPanel = memo(({
                     <span className="text-[9.5px] font-black uppercase tracking-widest text-slate-200">
                         {leftTab === 'media'       && 'Media Library'}
                         {leftTab === 'titles'      && 'Titles & Text'}
+                        {leftTab === 'captions'    && 'Captions'}
                         {leftTab === 'transitions' && 'Transitions'}
                         {leftTab === 'effects'     && 'Visual Effects'}
                         {leftTab === 'filters'     && 'Color Filters'}
@@ -637,7 +667,7 @@ const FilmoraLeftPanel = memo(({
                 )}
 
                 {/* ── TITLES ── */}
-                {leftTab === 'titles' && (
+                {(leftTab === 'titles' || leftTab === 'captions') && (
                     <div className="flex-1 overflow-y-auto p-2.5 custom-scrollbar">
                         <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 shadow-inner">
                             <ToolInspector
@@ -650,7 +680,7 @@ const FilmoraLeftPanel = memo(({
                                 filmGrainOpacity={filmGrainOpacity} setFilmGrainOpacity={setFilmGrainOpacity}
                                 overlayTextStylePreset={overlayTextStylePreset} setOverlayTextStylePreset={setOverlayTextStylePreset}
                                 getOverlayTextEffectForPreset={getOverlayTextEffectForPreset}
-                                activeTool="text-tool" setActiveTool={setActiveTool}
+                                activeTool={activeTool || (leftTab === 'captions' ? 'captions' : 'text-tool')} setActiveTool={setActiveTool}
                                 selectedFilter={selectedFilter} setSelectedFilter={setSelectedFilter}
                                 selectedEffect={selectedEffect} setSelectedEffect={setSelectedEffect}
                                 blurAmount={blurAmount} setBlurAmount={setBlurAmount}
@@ -691,6 +721,7 @@ const FilmoraLeftPanel = memo(({
                                 captionStyle={captionStyle} setCaptionStyle={setCaptionStyle}
                                 captionStylePreset={captionStylePreset} setCaptionStylePreset={setCaptionStylePreset}
                                 isCaptionPlacementMode={isCaptionPlacementMode} setIsCaptionPlacementMode={setIsCaptionPlacementMode}
+                                detectSpeakers={detectSpeakers} setDetectSpeakers={setDetectSpeakers}
                                 handleAutoCaption={handleAutoCaption}
                                 isAutoCapturing={isAutoCapturing} autoCaptionStatus={autoCaptionStatus}
                                 proParams={proParams} setProParams={setProParams}
@@ -761,10 +792,12 @@ const FilmoraLeftPanel = memo(({
                                         captionStyle={captionStyle} setCaptionStyle={setCaptionStyle}
                                         captionStylePreset={captionStylePreset} setCaptionStylePreset={setCaptionStylePreset}
                                         isCaptionPlacementMode={isCaptionPlacementMode} setIsCaptionPlacementMode={setIsCaptionPlacementMode}
+                                        detectSpeakers={detectSpeakers} setDetectSpeakers={setDetectSpeakers}
                                         handleAutoCaption={handleAutoCaption}
                                         isAutoCapturing={isAutoCapturing} autoCaptionStatus={autoCaptionStatus}
                                         proParams={proParams} setProParams={setProParams}
                                         saveToUndo={saveToUndo} mediaItems={mediaItems}
+                                        clipSettings={clipSettings} setClipSettings={setClipSettings}
                                     />
                                 </div>
                             </div>
@@ -789,10 +822,7 @@ const FilmoraLeftPanel = memo(({
                                         ))}
                                     </div>
                                 </div>
-                                <div>
-                                    <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Creative Quick Tools</span>
-                                    <QuickToolsGrid QUICK_TOOLS={QUICK_TOOLS} activeTool={activeTool} setActiveTool={setActiveTool} copyActiveClip={copyActiveClip} setExpandedSections={setExpandedSections} />
-                                </div>
+
                                 <div>
                                     <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Canvas Format</span>
                                     <div className="grid grid-cols-1 gap-2">
@@ -811,47 +841,53 @@ const FilmoraLeftPanel = memo(({
     );
 });
 
-const QuickToolsGrid = memo(({ QUICK_TOOLS, activeTool, setActiveTool, copyActiveClip, setExpandedSections }: any) => (
+const ClipToolsGrid = memo(({ tools, onToolClick }: any) => (
+    <>
+        {tools.map((tool: any, index: number) => (
+            <button
+                key={index}
+                onClick={() => onToolClick(tool.id)}
+                className={`flex flex-col items-center justify-center gap-1.5 min-w-[48px] transition-all active:scale-95 group opacity-70 hover:opacity-100 shrink-0`}
+            >
+                <tool.icon className={`w-5 h-5 text-slate-200 group-hover:scale-110 transition-transform`} strokeWidth={2} />
+                <span className="text-[10px] font-medium text-slate-300 capitalize whitespace-nowrap tracking-wide">{tool.label}</span>
+            </button>
+        ))}
+    </>
+));
 
-    <div className="grid grid-cols-3 gap-2">
+const QuickToolsGrid = memo(({ QUICK_TOOLS, activeTool, setActiveTool, copyActiveClip, setExpandedSections, leftTab, setLeftTab }: any) => (
+    <>
         {QUICK_TOOLS.map((tool: any, index: number) => {
-            const isSelected = activeTool === tool.id;
+            const isSelected = leftTab === tool.id;
             return (
                 <button
                     key={index}
                     onClick={() => {
-                        if (tool.id === 'copy') {
-                            copyActiveClip();
+                        if (tool.id === 'split') {
+                            window.dispatchEvent(new CustomEvent('trigger-timeline-split'));
                             return;
                         }
-                        setActiveTool(tool.id);
-
-                        // Auto expand the corresponding Inspector accordion group
-                        if (['effects', 'transitions', 'filters'].includes(tool.id)) {
-                            setExpandedSections((prev: any) => ({ ...prev, fx: true }));
-                        } else if (['speed', 'trim'].includes(tool.id)) {
-                            setExpandedSections((prev: any) => ({ ...prev, speed: true }));
-                        } else if (['rotate', 'zoom', 'keyframe'].includes(tool.id)) {
-                            setExpandedSections((prev: any) => ({ ...prev, transform: true }));
-                        } else if (tool.id === 'crop') {
-                            setExpandedSections((prev: any) => ({ ...prev, cropping: true }));
-                        } else if (tool.id === 'volume') {
-                            setExpandedSections((prev: any) => ({ ...prev, audio: true }));
-                        } else if (tool.id === 'text-tool') {
-                            setExpandedSections((prev: any) => ({ ...prev, text: true }));
+                        setLeftTab(tool.id);
+                        if (tool.id === 'titles') {
+                            setActiveTool('text-tool');
+                        } else if (tool.id === 'captions') {
+                            setActiveTool('captions');
+                        } else if (activeTool === 'text-tool' || activeTool === 'captions') {
+                            setActiveTool(null);
                         }
                     }}
-                    className={`flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-xl border transition-all active:scale-[0.98] group ${isSelected
-                        ? 'bg-purple-500/20 border-purple-400 shadow-[0_0_10px_rgba(168, 85, 247,0.2)]'
-                        : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/15'
+                    className={`flex flex-col items-center justify-center gap-1.5 min-w-[48px] transition-all active:scale-95 shrink-0 group ${isSelected
+                        ? 'opacity-100'
+                        : 'opacity-70 hover:opacity-100'
                         }`}
                 >
-                    <tool.icon className={`w-4 h-4 ${tool.color} group-hover:scale-105 transition-transform`} />
-                    <span className="text-[8px] font-bold text-slate-300 uppercase tracking-wider text-center line-clamp-1">{tool.label}</span>
+                    <tool.icon className={`w-5 h-5 text-slate-200 group-hover:scale-110 transition-transform`} strokeWidth={2} />
+                    <span className="text-[10px] font-medium text-slate-300 capitalize whitespace-nowrap tracking-wide">{tool.label}</span>
                 </button>
             );
         })}
-    </div>
+    </>
 ));
 
 const KeyframeButton = ({ active, onClick }: { active: boolean; onClick: () => void }) => (
@@ -977,6 +1013,8 @@ const ToolInspector = memo(({
     setCaptionStylePreset,
     isCaptionPlacementMode,
     setIsCaptionPlacementMode,
+    detectSpeakers,
+    setDetectSpeakers,
     handleAutoCaption,
     isAutoCapturing,
     autoCaptionStatus,
@@ -984,8 +1022,10 @@ const ToolInspector = memo(({
     setProParams,
     saveToUndo,
     mediaItems,
+    clipSettings,
+    setClipSettings,
 }: any) => {
-    const [captionTab, setCaptionTab] = useState<'list' | 'style'>('list');
+    const [captionTab, setCaptionTab] = useState<'list' | 'style'>('style');
     const [newCaptionText, setNewCaptionText] = useState('');
     const [localCategory, setLocalCategory] = useState('all');
     const [newCaptionStart, setNewCaptionStart] = useState(0);
@@ -2121,6 +2161,25 @@ const ToolInspector = memo(({
                             </div>
 
                             {/* Auto-caption via Gemini */}
+                            <div className="space-y-1.5 p-2.5 rounded-lg bg-fuchsia-950/30 border border-fuchsia-500/20">
+                                <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-fuchsia-300">✨ AI Auto-Caption</span>
+                                    <span className="text-[7px] text-slate-500">Powered by Gemini</span>
+                                </div>
+                                {/* Detect Speakers toggle */}
+                                <div className="flex items-center justify-between">
+                                    <label className="text-[8px] font-bold uppercase tracking-widest text-slate-400">Detect Speakers</label>
+                                    <button
+                                        onClick={() => setDetectSpeakers((prev: boolean) => !prev)}
+                                        className={`px-2 py-0.5 rounded text-[7px] font-black uppercase border transition-all ${detectSpeakers
+                                            ? 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30'
+                                            : 'bg-white/5 text-slate-500 border-white/10'
+                                        }`}
+                                    >
+                                        {detectSpeakers ? 'ON' : 'OFF'}
+                                    </button>
+                                </div>
+                            </div>
                             {autoCaptionStatus ? (
                                 <div className="px-2 py-1.5 rounded-lg bg-black/30 border border-white/10 text-[8px] font-bold text-slate-300 text-center leading-relaxed">
                                     {autoCaptionStatus}
@@ -2341,6 +2400,110 @@ const ToolInspector = memo(({
                     )}
                 </div>
             );
+        case 'fade':
+            return (
+                <div className="flex flex-col gap-4">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-200">Fade (Seconds)</span>
+                    
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between text-[10px] text-slate-300">
+                            <span>Fade In</span>
+                            <span>{clipSettings[activePreviewId]?.fadeIn ?? 0}s</span>
+                        </div>
+                        <input
+                            type="range"
+                            min={0}
+                            max={5}
+                            step={0.1}
+                            value={clipSettings[activePreviewId]?.fadeIn ?? 0}
+                            onChange={(e) => setClipSettings((prev: any) => ({ ...prev, [activePreviewId]: { ...prev[activePreviewId], fadeIn: Number(e.target.value) } }))}
+                            className="w-full accent-purple-400"
+                        />
+                    </div>
+                    
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between text-[10px] text-slate-300">
+                            <span>Fade Out</span>
+                            <span>{clipSettings[activePreviewId]?.fadeOut ?? 0}s</span>
+                        </div>
+                        <input
+                            type="range"
+                            min={0}
+                            max={5}
+                            step={0.1}
+                            value={clipSettings[activePreviewId]?.fadeOut ?? 0}
+                            onChange={(e) => setClipSettings((prev: any) => ({ ...prev, [activePreviewId]: { ...prev[activePreviewId], fadeOut: Number(e.target.value) } }))}
+                            className="w-full accent-purple-400"
+                        />
+                    </div>
+                </div>
+            );
+        case 'opacity':
+            return (
+                <div className="flex flex-col gap-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-200">Opacity</span>
+                    <div className="flex items-center gap-2 text-[10px] text-slate-300">
+                        <span>{clipSettings[activePreviewId]?.opacity ?? 100}%</span>
+                    </div>
+                    <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={clipSettings[activePreviewId]?.opacity ?? 100}
+                        onChange={(e) => setClipSettings((prev: any) => ({ ...prev, [activePreviewId]: { ...prev[activePreviewId], opacity: Number(e.target.value) } }))}
+                        className="w-full accent-purple-400"
+                    />
+                </div>
+            );
+        case 'blur':
+            return (
+                <div className="flex flex-col gap-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-200">Blur</span>
+                    <div className="flex items-center gap-2 text-[10px] text-slate-300">
+                        <span>{clipSettings[activePreviewId]?.blur ?? 0}px</span>
+                    </div>
+                    <input
+                        type="range"
+                        min={0}
+                        max={20}
+                        value={clipSettings[activePreviewId]?.blur ?? 0}
+                        onChange={(e) => setClipSettings((prev: any) => ({ ...prev, [activePreviewId]: { ...prev[activePreviewId], blur: Number(e.target.value) } }))}
+                        className="w-full accent-purple-400"
+                    />
+                </div>
+            );
+        case 'border':
+            return (
+                <div className="flex flex-col gap-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-200">Border</span>
+                    <label className="flex items-center gap-2 cursor-pointer mt-2 text-[10px] font-bold text-slate-300">
+                        <input 
+                            type="checkbox" 
+                            checked={clipSettings[activePreviewId]?.border || false}
+                            onChange={(e) => setClipSettings((prev: any) => ({ ...prev, [activePreviewId]: { ...prev[activePreviewId], border: e.target.checked } }))}
+                            className="accent-purple-400"
+                        />
+                        Enable White Border
+                    </label>
+                </div>
+            );
+        case 'bg':
+            return (
+                <div className="flex flex-col gap-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-200">Background</span>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                        {['transparent', '#000000', '#ffffff', '#FF3B30', '#4CD964', '#007AFF', '#FF9500', '#5856D6'].map(color => (
+                            <button
+                                key={color}
+                                onClick={() => setClipSettings((prev: any) => ({ ...prev, [activePreviewId]: { ...prev[activePreviewId], bg: color } }))}
+                                className={`w-6 h-6 rounded-full border-2 ${(clipSettings[activePreviewId]?.bg || 'transparent') === color ? 'border-white' : 'border-transparent'} shadow-sm`}
+                                style={{ backgroundColor: color === 'transparent' ? '#111' : color, backgroundImage: color === 'transparent' ? 'linear-gradient(45deg, #222 25%, transparent 25%, transparent 75%, #222 75%, #222), linear-gradient(45deg, #222 25%, transparent 25%, transparent 75%, #222 75%, #222)' : 'none', backgroundSize: '8px 8px', backgroundPosition: '0 0, 4px 4px' }}
+                                title={color}
+                            />
+                        ))}
+                    </div>
+                </div>
+            );
         default:
             return null;
     }
@@ -2407,7 +2570,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const [mediaItems, setMediaItems] = useState<Array<{ id: string, file: File | null, preview: string, type: 'video' | 'image', duration: number }>>([]);
     const [libraryAssets, setLibraryAssets] = useState<Array<{ id: string, file: File | null, preview: string, type: 'video' | 'image' | 'audio', duration: number }>>([]);
     const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
-    const [leftTab, setLeftTab] = useState<'media' | 'stock' | 'audio' | 'titles' | 'transitions' | 'effects' | 'filters' | 'frames' | 'tools'>('media');
+    const [leftTab, setLeftTab] = useState<'media' | 'stock' | 'audio' | 'titles' | 'captions' | 'transitions' | 'effects' | 'filters' | 'frames' | 'tools'>('media');
     const [isMediaPoolVisible, setIsMediaPoolVisible] = useState(true);
     const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
     const [audioTracks, setAudioTracks] = useState<Array<{ id: string, name: string, type: 'extracted' | 'direct', file?: File }>>([]);
@@ -2497,6 +2660,10 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     });
     const [prompt, setPrompt] = useState("");
     const [activeTool, setActiveTool] = useState<string | null>(null);
+    const [pendingInsertTargetId, setPendingInsertTargetId] = useState<string | null>(null);
+    const [pendingInsertType, setPendingInsertType] = useState<string | null>(null);
+    const [activeTransitionTargetId, setActiveTransitionTargetId] = useState<string | null>(null);
+    const [activeTransitionNextId, setActiveTransitionNextId] = useState<string | null>(null);
     const [isTextPlacementMode, setIsTextPlacementMode] = useState(false);
     const [isCategoriesOpen, setIsCategoriesOpen] = useState(true);
     const [overlayText, setOverlayText] = useState('');
@@ -2567,10 +2734,14 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     }, [zoomToolAmount, isAspectLocked]);
 
     const getCombinedPreviewTransform = () => {
+        const activeClipSettings = activePreviewId ? clipSettings[activePreviewId] || {} : {};
+        const clipMirror = activeClipSettings.mirror ? -1 : 1;
+        const clipFlip = activeClipSettings.flip ? -1 : 1;
+        
         let base = '';
-        if (isTransformEnabled) {
-            const scaleX = zoomToolAmountX * (flipH ? -1 : 1);
-            const scaleY = zoomToolAmountY * (flipV ? -1 : 1);
+        if (isTransformEnabled || clipMirror === -1 || clipFlip === -1) {
+            const scaleX = (isTransformEnabled ? zoomToolAmountX : 1) * (flipH ? -1 : 1) * clipMirror;
+            const scaleY = (isTransformEnabled ? zoomToolAmountY : 1) * (flipV ? -1 : 1) * clipFlip;
             base = `translate(${posX}px, ${posY}px) scale(${scaleX}, ${scaleY}) rotate(${rotationDegrees}deg) `;
         }
         
@@ -2650,6 +2821,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const [captions, setCaptions] = useState<Array<{ id: string; text: string; startTime: number; endTime: number; clipId?: string }>>([]);
     const [currentCaption, setCurrentCaption] = useState<{ id: string; text: string; startTime: number; endTime: number; clipId?: string } | null>(null);
     const [captionLanguage, setCaptionLanguage] = useState('en');
+    const [detectSpeakers, setDetectSpeakers] = useState(false);
     const [captionStyle, setCaptionStyle] = useState({
         fontId: 'sans',
         fontSize: 32,
@@ -2906,8 +3078,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     // --- Auto-caption handler (Gemini via backend) ---
     const handleAutoCaption = useCallback(async () => {
         // Find the active video clip or the first video clip
-        const activeClip = mediaItems.find(item => item.id === activePreviewId && item.type === 'video')
-            || mediaItems.find(item => item.type === 'video');
+        const activeClip = mediaItems.find((item: any) => item.id === activePreviewId && item.type === 'video')
+            || mediaItems.find((item: any) => item.type === 'video');
 
         if (!activeClip || !activeClip.file) {
             setAutoCaptionStatus('❌ No video clip loaded to transcribe. Add a video clip first.');
@@ -2915,11 +3087,15 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         }
 
         setIsAutoCapturing(true);
-        setAutoCaptionStatus('🎙️ Sending video to Gemini for transcription…');
+        setAutoCaptionStatus('🎙️ Uploading to Gemini for transcription…');
 
         try {
             const formData = new FormData();
             formData.append('file', activeClip.file);
+            formData.append('language', captionLanguage);
+            formData.append('detect_speakers', String(detectSpeakers));
+
+            setAutoCaptionStatus('✨ Analyzing speech with Gemini AI…');
 
             const response = await fetch(buildApiUrl('/api/transcribe'), {
                 method: 'POST',
@@ -2927,44 +3103,69 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             });
 
             const data = await response.json();
-            if (!response.ok || !data.success) {
-                throw new Error(data.error || 'Failed to transcribe audio.');
+            if (!response.ok) {
+                throw new Error(data.detail || 'Failed to transcribe audio.');
             }
 
-            const geminiSegments = data.segments || [];
-            if (geminiSegments.length === 0) {
-                setAutoCaptionStatus('⚠️ Transcription completed, but no speech was detected.');
+            const segments = data.captions || [];
+            if (segments.length === 0) {
+                setAutoCaptionStatus('⚠️ No speech detected in the video.');
                 setIsAutoCapturing(false);
                 return;
             }
 
             // Convert Gemini segments into the required captions format
-            const newCaptions = geminiSegments.map((seg: any) => ({
+            const newCaptions = segments.map((seg: any) => ({
                 id: Math.random().toString(36).substr(2, 9),
                 text: (seg.text || '').trim(),
-                startTime: seg.start,
-                endTime: seg.end,
+                startTime: typeof seg.start === 'number' ? seg.start : 0,
+                endTime: typeof seg.end === 'number' ? seg.end : 3,
                 clipId: activePreviewId,
-            }));
+            })).filter((c: any) => c.text.length > 0);
 
-            // Set the captions state, preserving other clips
+            // Set the captions state, replacing existing captions for this clip
             setCaptions((prev: any) => [
                 ...prev.filter((c: any) => c.clipId !== activePreviewId),
                 ...newCaptions
             ]);
-            setAutoCaptionStatus('✅ Captions generated successfully using Gemini!');
+            setAutoCaptionStatus(`✅ ${newCaptions.length} captions generated successfully!`);
         } catch (error: any) {
             console.error('Gemini transcription failed:', error);
             setAutoCaptionStatus(`❌ Transcription failed: ${error.message || 'Unknown error'}`);
         } finally {
             setIsAutoCapturing(false);
         }
-    }, [mediaItems, activePreviewId, setCaptions, setIsAutoCapturing, setAutoCaptionStatus]);
+    }, [mediaItems, activePreviewId, captionLanguage, detectSpeakers, setCaptions, setIsAutoCapturing, setAutoCaptionStatus]);
 
     const greenScreenCanvasRef = useRef<HTMLCanvasElement>(null);
+    const replaceInputRef = useRef<HTMLInputElement>(null);
     const greenScreenAnimationRef = useRef<number | null>(null);
     const previousFrameRef = useRef<ImageData | null>(null);
     const audioRef = useRef<HTMLAudioElement>(null);
+
+    // --- Replace clip handler ---
+    const handleReplaceClip = useCallback((file: File) => {
+        if (!activePreviewId) return;
+        const type = file.type.startsWith('image') ? 'image' : 'video';
+        const preview = URL.createObjectURL(file);
+        getMediaDurationFromPreview(preview, type).then((duration) => {
+            setMediaItems((prev: any[]) => prev.map((item: any) => {
+                if (item.id !== activePreviewId) return item;
+                // Revoke old blob URL to free memory
+                if (item.preview && item.preview.startsWith('blob:')) {
+                    URL.revokeObjectURL(item.preview);
+                }
+                return { ...item, file, preview, type, duration };
+            }));
+            // Reset trim range for replaced clip
+            setClipTrimRanges((prev: any) => {
+                const updated = { ...prev };
+                delete updated[activePreviewId];
+                return updated;
+            });
+            saveToUndo([]);
+        });
+    }, [activePreviewId, getMediaDurationFromPreview, setMediaItems, setClipTrimRanges, saveToUndo]);
     const bgMusicRef = useRef<HTMLAudioElement>(null);
     const thumbnailVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
     const lastLoadedIdRef = useRef<string | null>(null);
@@ -4210,12 +4411,19 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     };
 
     const getCombinedPreviewFilterCss = () => {
+        let filters = [];
         const effectFilter = getPreviewCssFilter();
         const filterFilter = getPreviewFilterCss();
-        if (effectFilter !== 'none' && filterFilter !== 'none') return `${effectFilter} ${filterFilter}`;
-        if (effectFilter !== 'none') return effectFilter;
-        if (filterFilter !== 'none') return filterFilter;
-        return 'none';
+        
+        if (effectFilter !== 'none') filters.push(effectFilter);
+        if (filterFilter !== 'none') filters.push(filterFilter);
+
+        const activeClipSettings = activePreviewId ? clipSettings[activePreviewId] || {} : {};
+        if (activeClipSettings.blur) {
+            filters.push(`blur(${activeClipSettings.blur}px)`);
+        }
+        
+        return filters.length > 0 ? filters.join(' ') : 'none';
     };
 
     const getCropInsets = () => {
@@ -4321,6 +4529,38 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         });
     };
 
+    useEffect(() => {
+        const handleInsert = (e: any) => {
+            const { targetId, type } = e.detail;
+            setPendingInsertTargetId(targetId);
+            setPendingInsertType(type);
+            
+            if (type === 'video' || type === 'image' || type === 'audio') {
+                if (mediaInputRef.current) {
+                    mediaInputRef.current.accept = type === 'audio' ? 'audio/*' : 'video/*,image/*';
+                    mediaInputRef.current.click();
+                }
+            } else if (type === 'text') {
+                // Switch to titles panel to let user add text overlay
+                setActiveTool('text-tool');
+                setPendingInsertTargetId(null);
+                setPendingInsertType(null);
+            }
+        };
+
+        const handleTransition = (e: any) => {
+            setActiveTransitionTargetId(e.detail.targetId);
+            setActiveTransitionNextId(e.detail.nextId);
+        };
+
+        window.addEventListener('insert-media-at', handleInsert);
+        window.addEventListener('open-transition-editor', handleTransition);
+        return () => {
+            window.removeEventListener('insert-media-at', handleInsert);
+            window.removeEventListener('open-transition-editor', handleTransition);
+        };
+    }, []);
+
     const handleMediaImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
         if (files.length === 0) return;
@@ -4353,8 +4593,41 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         selectPreviewWithTransition(newItems[0].id);
         setIsPlaying(false);
 
-        // Put imported files into the Sidebar Media library, not the timeline!
+        // Put imported files into the Sidebar Media library
         setLibraryAssets(prev => [...prev, ...newItems]);
+
+        // If this was triggered by a timeline insert menu
+        if (pendingInsertTargetId) {
+            setMediaItems(prev => {
+                const updated = [...prev];
+                const timelineItems = newItems.map(item => ({
+                    id: Math.random().toString(36).substr(2, 9),
+                    file: item.file,
+                    preview: item.preview,
+                    type: item.type,
+                    duration: item.duration,
+                }));
+                
+                if (pendingInsertTargetId === '__START__') {
+                    updated.unshift(...timelineItems);
+                } else {
+                    const targetIndex = prev.findIndex(item => item.id === pendingInsertTargetId);
+                    if (targetIndex !== -1) {
+                        // Insert directly after the target
+                        updated.splice(targetIndex + 1, 0, ...timelineItems);
+                    }
+                }
+                
+                saveToUndo(updated);
+                
+                // Note: TimelineHub dynamically calculates startTimes based on sequential order.
+                // By inserting them into the array, they will naturally push subsequent clips to the right!
+                
+                return updated;
+            });
+            setPendingInsertTargetId(null);
+            setPendingInsertType(null);
+        }
 
         if (e.target) {
             e.target.value = '';
@@ -4481,6 +4754,203 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             return updated;
         });
     }, [activePreviewId, saveToUndo, clipTransitions, clipTrimRanges, clipStartOverrides, clipTrackOverrides, clipNameOverrides, clipLockedStates]);
+
+    // ── AI Command Agent action executor ──────────────────────────────────────
+    const handleCommandActions = useCallback((actions: any[]) => {
+        for (const action of actions) {
+            if (!action || action.type === 'unsupported') continue;
+
+            const { type, target, capabilityId, text } = action;
+
+            // Resolve clip indices from target string
+            const resolveClipIds = (): string[] => {
+                if (target === 'all') return mediaItems.map((m: any) => m.id);
+                if (target === 'selected') return activePreviewId ? [activePreviewId] : [];
+                const m = /clip\s+(\d+)/i.exec(target || '');
+                if (m) {
+                    const idx = parseInt(m[1], 10) - 1;
+                    if (mediaItems[idx]) return [mediaItems[idx].id];
+                }
+                return activePreviewId ? [activePreviewId] : [];
+            };
+
+            const clipIds = resolveClipIds();
+
+            switch (type) {
+                case 'applyEffect':
+                case 'removeEffect': {
+                    const effectId = type === 'removeEffect' ? 'none' : capabilityId;
+                    if (clipIds.length === 0) { setSelectedEffect(effectId as any); break; }
+                    clipIds.forEach((id: string) => {
+                        if (id === activePreviewId) {
+                            setSelectedEffect(effectId as any);
+                        } else {
+                            setClipSettings((prev: any) => ({
+                                ...prev,
+                                [id]: { ...(prev[id] || {}), selectedEffect: effectId }
+                            }));
+                        }
+                    });
+                    // For animated effects, also set their intensity/amount defaults
+                    // and start playback so the animation is immediately visible
+                    if (effectId === 'smooth-zoom') {
+                        setSmoothZoomAmount((prev: number) => prev > 0 ? prev : 0.35);
+                        setIsPlaying(true);
+                    } else if (effectId === 'shake') {
+                        setShakeStrength((prev: number) => prev > 0 ? prev : 5);
+                        setIsPlaying(true);
+                    } else if (effectId === 'motion-blur') {
+                        setMotionBlurAmount((prev: number) => prev > 0 ? prev : 4);
+                    } else if (effectId === 'glitch') {
+                        setIsPlaying(true);
+                    } else if (effectId === 'rgb-split') {
+                        setIsPlaying(true);
+                    }
+                    break;
+                }
+
+                case 'applyFilter':
+                case 'removeFilter': {
+                    const filterId = type === 'removeFilter' ? 'none' : capabilityId;
+                    if (clipIds.length === 0) { setSelectedFilter(filterId as any); break; }
+                    clipIds.forEach((id: string) => {
+                        if (id === activePreviewId) {
+                            setSelectedFilter(filterId as any);
+                        } else {
+                            setClipSettings((prev: any) => ({
+                                ...prev,
+                                [id]: { ...(prev[id] || {}), selectedFilter: filterId }
+                            }));
+                        }
+                    });
+                    break;
+                }
+
+                case 'addTransition': {
+                    const transitionClips = clipIds.length > 0 ? clipIds : (activePreviewId ? [activePreviewId] : []);
+                    transitionClips.forEach((id: string) => {
+                        setClipTransitions((prev: any) => ({
+                            ...prev,
+                            [id]: capabilityId as any
+                        }));
+                        if (id === activePreviewId) {
+                            const currentIndex = mediaItems.findIndex((item: any) => item.id === id);
+                            if (currentIndex !== -1 && currentIndex < mediaItems.length - 1) {
+                                const nextId = mediaItems[currentIndex + 1].id;
+                                setTransitionOverlay({
+                                    fromId: id,
+                                    toId: nextId,
+                                    type: capabilityId as any,
+                                    startAt: performance.now(),
+                                    durationMs: 1400,
+                                });
+                                setTransitionProgress(0);
+                            }
+                        }
+                    });
+                    break;
+                }
+
+                case 'addCaption': {
+                    if (!text) break;
+                    const captionClips = clipIds.length > 0 ? clipIds : (activePreviewId ? [activePreviewId] : []);
+                    if (captionClips.length === 0) break;
+                    const newCaptions = captionClips.map((id: string) => ({
+                        id: Math.random().toString(36).substr(2, 9),
+                        text: text as string,
+                        startTime: 0,
+                        endTime: 3,
+                        clipId: id,
+                    }));
+                    setCaptions((prev: any) => [...prev, ...newCaptions]);
+                    setActiveTool('captions');
+                    break;
+                }
+
+                case 'setOverlayText': {
+                    if (text) {
+                        setOverlayText(text as string);
+                        setActiveTool('text-tool');
+                    }
+                    break;
+                }
+
+                case 'applyTextStyle':
+                case 'removeTextStyle': {
+                    const styleId = type === 'removeTextStyle' ? null : capabilityId;
+                    setOverlayTextStylePreset(styleId);
+                    const matchedEffect = getOverlayTextEffectForPreset(styleId);
+                    setSelectedEffect(matchedEffect as any);
+                    setActiveTool('text-tool');
+                    break;
+                }
+
+                case 'applyCaptionStyle':
+                case 'removeCaptionStyle': {
+                    const captionStyleId = type === 'removeCaptionStyle' ? null : capabilityId;
+                    setCaptionStylePreset(captionStyleId);
+                    setActiveTool('captions');
+                    break;
+                }
+
+                case 'selectClip': {
+                    if (clipIds[0]) {
+                        setActivePreviewId(clipIds[0]);
+                    }
+                    break;
+                }
+
+                case 'applyTool': {
+                    if (capabilityId) {
+                        setActiveTool(capabilityId);
+                        if (['effects', 'filters'].includes(capabilityId)) {
+                            setInspectorTab('video');
+                        } else if (['speed', 'trim'].includes(capabilityId)) {
+                            setInspectorTab('speed');
+                        } else if (['rotate', 'zoom', 'keyframe'].includes(capabilityId)) {
+                            setInspectorTab('video');
+                            setInspectorSubTab('basic');
+                            setIsTransformExpanded(true);
+                        } else if (capabilityId === 'crop') {
+                            setInspectorTab('video');
+                            setInspectorSubTab('basic');
+                        } else if (capabilityId === 'volume') {
+                            setInspectorTab('audio');
+                        } else if (capabilityId === 'captions') {
+                            setInspectorTab('video');
+                        }
+                    }
+                    break;
+                }
+
+                default:
+                    console.warn('[CommandAgent] Unhandled action type:', type);
+            }
+        }
+    }, [
+        mediaItems,
+        activePreviewId,
+        setSelectedEffect,
+        setSelectedFilter,
+        setClipSettings,
+        setClipTransitions,
+        setTransitionOverlay,
+        setTransitionProgress,
+        setCaptions,
+        setActiveTool,
+        setActivePreviewId,
+        setInspectorTab,
+        setInspectorSubTab,
+        setIsTransformExpanded,
+        setOverlayText,
+        setOverlayTextStylePreset,
+        setCaptionStylePreset,
+        getOverlayTextEffectForPreset,
+        setSmoothZoomAmount,
+        setShakeStrength,
+        setMotionBlurAmount,
+        setIsPlaying,
+    ]);
 
     const handleAddAudio = (type: 'extracted' | 'direct', trackIndex = 0) => {
         const input = document.createElement('input');
@@ -5029,13 +5499,6 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                             const leftTabs = [
                                 { id: 'media',       icon: Film,         label: 'Media'       },
                                 { id: 'stock',       icon: Crown,        label: 'Stock Media' },
-                                { id: 'audio',       icon: Music,        label: 'Audio'       },
-                                { id: 'titles',      icon: Type,         label: 'Titles'      },
-                                { id: 'transitions', icon: Layers,       label: 'Transitions' },
-                                { id: 'effects',     icon: Sparkle,      label: 'Effects'     },
-                                { id: 'filters',     icon: Palette,      label: 'Filters'     },
-                                { id: 'frames',      icon: Square,       label: 'Frames'      },
-                                { id: 'tools',       icon: Zap,          label: 'Tools'       },
                             ] as const;
 
                             return (
@@ -5051,9 +5514,11 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                     key={tab.id}
                                                     onClick={() => {
                                                         setLeftTab(tab.id as any);
-                                                        if (tab.id === 'titles') {
+                                                        if ((tab.id as string) === 'titles') {
                                                             setActiveTool('text-tool');
-                                                        } else if (activeTool === 'text-tool') {
+                                                        } else if ((tab.id as string) === 'captions') {
+                                                            setActiveTool('captions');
+                                                        } else if (activeTool === 'text-tool' || activeTool === 'captions') {
                                                             setActiveTool(null);
                                                         }
                                                     }}
@@ -5084,6 +5549,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-200">
                                                 {leftTab === 'media'       && 'Media Library'}
                                                 {leftTab === 'titles'      && 'Titles & Text'}
+                                                {leftTab === 'captions'    && 'Captions'}
                                                 {leftTab === 'transitions' && 'Transitions'}
                                                 {leftTab === 'effects'     && 'Visual Effects'}
                                                 {leftTab === 'filters'     && 'Color Filters'}
@@ -5097,7 +5563,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                         </div>
 
                                         {/* ── TITLES panel ── */}
-                                        {leftTab === 'titles' && (
+                                        {(leftTab === 'titles' || leftTab === 'captions') && (
                                             <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
                                                 <div className="p-3 bg-black/40 rounded-xl border border-white/5 shadow-inner">
                                                     <ToolInspector
@@ -5110,7 +5576,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                         filmGrainOpacity={filmGrainOpacity} setFilmGrainOpacity={setFilmGrainOpacity}
                                                         overlayTextStylePreset={overlayTextStylePreset} setOverlayTextStylePreset={setOverlayTextStylePreset}
                                                         getOverlayTextEffectForPreset={getOverlayTextEffectForPreset}
-                                                        activeTool="text-tool" setActiveTool={setActiveTool}
+                                                        activeTool={activeTool || (leftTab === 'captions' ? 'captions' : 'text-tool')} setActiveTool={setActiveTool}
                                                         selectedFilter={selectedFilter} setSelectedFilter={setSelectedFilter}
                                                         selectedEffect={selectedEffect} setSelectedEffect={setSelectedEffect}
                                                         blurAmount={blurAmount} setBlurAmount={setBlurAmount}
@@ -5151,6 +5617,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                         captionStyle={captionStyle} setCaptionStyle={setCaptionStyle}
                                                         captionStylePreset={captionStylePreset} setCaptionStylePreset={setCaptionStylePreset}
                                                         isCaptionPlacementMode={isCaptionPlacementMode} setIsCaptionPlacementMode={setIsCaptionPlacementMode}
+                                                        detectSpeakers={detectSpeakers} setDetectSpeakers={setDetectSpeakers}
                                                         handleAutoCaption={handleAutoCaption}
                                                         isAutoCapturing={isAutoCapturing} autoCaptionStatus={autoCaptionStatus}
                                                         proParams={proParams} setProParams={setProParams}
@@ -5615,6 +6082,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                                 captionStyle={captionStyle} setCaptionStyle={setCaptionStyle}
                                                                 captionStylePreset={captionStylePreset} setCaptionStylePreset={setCaptionStylePreset}
                                                                 isCaptionPlacementMode={isCaptionPlacementMode} setIsCaptionPlacementMode={setIsCaptionPlacementMode}
+                                                                detectSpeakers={detectSpeakers} setDetectSpeakers={setDetectSpeakers}
                                                                 handleAutoCaption={handleAutoCaption}
                                                                 isAutoCapturing={isAutoCapturing} autoCaptionStatus={autoCaptionStatus}
                                                                 proParams={proParams} setProParams={setProParams}
@@ -5649,16 +6117,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                             </div>
                                                         </div>
                                                         {/* Quick Tools Grid */}
-                                                        <div>
-                                                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Creative Quick Tools</span>
-                                                            <QuickToolsGrid
-                                                                QUICK_TOOLS={QUICK_TOOLS}
-                                                                activeTool={activeTool}
-                                                                setActiveTool={(toolId: string) => { setActiveTool(toolId); }}
-                                                                copyActiveClip={copyActiveClip}
-                                                                setExpandedSections={setExpandedSections}
-                                                            />
-                                                        </div>
+
                                                         {/* Canvas Format */}
                                                         <div>
                                                             <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Canvas Format</span>
@@ -5786,14 +6245,16 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                                 console.error("📹 [PLAYBACK] Video error:", e);
                                                             }}
                                                             src={activePreviewItem.preview}
-                                                            className={showCanvas ? 'hidden' : 'w-full h-full object-contain'}
+                                                            className={showCanvas ? 'hidden' : `w-full h-full ${clipSettings[activePreviewId]?.fill ? 'object-cover' : 'object-contain'}`}
                                                             style={{
-                                                                opacity: selectedEffect === 'fade-in' ? previewOpacity : 1,
+                                                                opacity: selectedEffect === 'fade-in' ? previewOpacity : (clipSettings[activePreviewId]?.opacity ?? 100) / 100,
                                                                 filter: getCombinedPreviewFilterCss(),
                                                                 transform: getCombinedPreviewTransform(),
                                                                 clipPath: getPreviewClipPath(),
                                                                 transformOrigin: 'center center',
                                                                 borderRadius: `${cornerRadius}px`,
+                                                                border: clipSettings[activePreviewId]?.border ? `2px solid white` : 'none',
+                                                                backgroundColor: clipSettings[activePreviewId]?.bg || 'transparent'
                                                             }}
                                                             muted={isMuted}
                                                             playsInline
@@ -5801,13 +6262,16 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                         {showCanvas && (
                                                             <canvas
                                                                 ref={greenScreenCanvasRef}
-                                                                className="w-full h-full object-contain"
+                                                                className={`w-full h-full ${clipSettings[activePreviewId]?.fill ? 'object-cover' : 'object-contain'}`}
                                                                 style={{
+                                                                    opacity: selectedEffect === 'fade-in' ? previewOpacity : (clipSettings[activePreviewId]?.opacity ?? 100) / 100,
                                                                     filter: getCombinedPreviewFilterCss(),
                                                                     transform: getCombinedPreviewTransform(),
                                                                     clipPath: getPreviewClipPath(),
                                                                     transformOrigin: 'center center',
                                                                     borderRadius: `${cornerRadius}px`,
+                                                                    border: clipSettings[activePreviewId]?.border ? `2px solid white` : 'none',
+                                                                    backgroundColor: clipSettings[activePreviewId]?.bg || 'transparent'
                                                                 }}
                                                             />
                                                         )}
@@ -5817,14 +6281,16 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                 <>
                                                     <img
                                                         src={activePreviewItem.preview}
-                                                        className="w-full h-full object-contain"
+                                                        className={`w-full h-full ${clipSettings[activePreviewId]?.fill ? 'object-cover' : 'object-contain'}`}
                                                         style={{
-                                                            opacity: selectedEffect === 'fade-in' ? previewOpacity : 1,
+                                                            opacity: selectedEffect === 'fade-in' ? previewOpacity : (clipSettings[activePreviewId]?.opacity ?? 100) / 100,
                                                             filter: getCombinedPreviewFilterCss(),
                                                             transform: getCombinedPreviewTransform(),
                                                             clipPath: getPreviewClipPath(),
                                                             transformOrigin: 'center center',
                                                             borderRadius: `${cornerRadius}px`,
+                                                            border: clipSettings[activePreviewId]?.border ? `2px solid white` : 'none',
+                                                            backgroundColor: clipSettings[activePreviewId]?.bg || 'transparent'
                                                         }}
                                                         alt="Preview"
                                                     />
@@ -6582,10 +7048,18 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
                                 {/* ── VIDEO -> MASK & AI MATTE PLACEHOLDERS ── */}
                                 {inspectorTab === 'video' && inspectorSubTab !== 'basic' && (
-                                    <div className="flex flex-col items-center justify-center py-10 text-center gap-2">
-                                        <Wand2 className="w-8 h-8 text-purple-400 animate-pulse" />
-                                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-200">{inspectorSubTab} Controls</span>
-                                        <span className="text-[9px] text-slate-500 max-w-[200px]">Advanced AI tools are ready to analyze and map targets. Click generate to apply.</span>
+                                    <div className="flex flex-col h-full items-center justify-center py-2 text-center gap-2">
+                                        {inspectorSubTab === 'ai-matte' ? (
+                                            <div className="w-full h-[320px] bg-black/20 rounded-xl overflow-hidden p-2">
+                                                <CommandAgentPanel onExecuteActions={handleCommandActions} />
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <Wand2 className="w-8 h-8 text-purple-400 animate-pulse mt-8" />
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-200">{inspectorSubTab} Controls</span>
+                                                <span className="text-[9px] text-slate-500 max-w-[200px]">Advanced AI tools are ready to analyze and map targets. Click generate to apply.</span>
+                                            </>
+                                        )}
                                     </div>
                                 )}
 
@@ -6816,9 +7290,9 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 {/* Bottom Panel: Multitrack Timeline lanes and Audio Mixer */}
                 <div className={`${timelineSize === 'minimized' ? 'h-[120px]' :
                     timelineSize === 'maximized' ? 'h-[50vh]' : 'h-[38vh]'
-                    } flex-none border-t border-white/10 bg-black/25 backdrop-blur-3xl flex p-4 gap-4 overflow-hidden select-none transition-all duration-300`}>
+                    } flex-none border-t border-white/10 bg-black/25 backdrop-blur-3xl flex flex-col overflow-hidden select-none transition-all duration-300`}>
                     {/* Timeline hub container */}
-                    <div className="flex-1 overflow-hidden h-full">
+                    <div className="flex-1 overflow-hidden h-full px-4 pt-4">
                         <TimelineHub
                             session={session}
                             mediaItems={mediaItems}
@@ -6873,12 +7347,77 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                             setActiveTool={setActiveTool}
                         />
                     </div>
-
-
+                    {/* BOTTOM TOOLBAR */}
+                    <div className="w-full shrink-0 border-t border-white/5 flex items-center gap-6 overflow-x-auto px-4 py-3 no-scrollbar bg-[#140a24]">
+                        <QuickToolsGrid 
+                            QUICK_TOOLS={QUICK_TOOLS} 
+                            activeTool={activeTool} 
+                            setActiveTool={setActiveTool} 
+                            copyActiveClip={copyActiveClip} 
+                            setExpandedSections={setExpandedSections}
+                            leftTab={leftTab}
+                            setLeftTab={setLeftTab} 
+                        />
+                        {activePreviewId && (
+                            <>
+                                <div className="w-[1px] h-8 bg-white/10 shrink-0 mx-2" />
+                                <ClipToolsGrid 
+                                    tools={CLIP_TOOLS}
+                                    onToolClick={(toolId: string) => {
+                                        if (toolId === 'split') {
+                                            window.dispatchEvent(new CustomEvent('trigger-timeline-split'));
+                                        } else if (toolId === 'replace') {
+                                            replaceInputRef.current?.click();
+                                        } else if (toolId === 'delete') {
+                                            handleDeleteClip(activePreviewId);
+                                        } else if (toolId === 'mirror') {
+                                            setClipSettings(prev => ({
+                                                ...prev,
+                                                [activePreviewId]: { ...prev[activePreviewId], mirror: !prev[activePreviewId]?.mirror }
+                                            }));
+                                        } else if (toolId === 'flip') {
+                                            setClipSettings(prev => ({
+                                                ...prev,
+                                                [activePreviewId]: { ...prev[activePreviewId], flip: !prev[activePreviewId]?.flip }
+                                            }));
+                                        } else if (toolId === 'fill') {
+                                            setClipSettings(prev => ({
+                                                ...prev,
+                                                [activePreviewId]: { ...prev[activePreviewId], fill: !prev[activePreviewId]?.fill }
+                                            }));
+                                        } else if (toolId === 'auto-captions') {
+                                            setLeftTab('captions');
+                                            setActiveTool('captions');
+                                        } else if (['tts', 'denoise', 'voice-effect', 'reverse', 'freeze', 'stories', 'extract-audio'].includes(toolId)) {
+                                            alert(`${toolId} requires backend processing (Coming soon)`);
+                                        } else {
+                                            // Open Active Tool Panel for opacity, blur, border, bg, etc.
+                                            setLeftTab('tools');
+                                            setActiveTool(toolId);
+                                        }
+                                    }}
+                                />
+                            </>
+                        )}
+                    </div>
                 </div>
             </main>
 
 
+
+            {/* Hidden file input for Replace clip */}
+            <input
+                ref={replaceInputRef}
+                type="file"
+                accept="video/*,image/*"
+                className="hidden"
+                onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleReplaceClip(file);
+                    // Reset so same file can be re-selected
+                    e.target.value = '';
+                }}
+            />
 
             <PremiumModal
                 open={isPremiumModalOpen}
@@ -6899,6 +7438,20 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 onClose={() => setIsMusicPickerOpen(false)}
                 videoDuration={Math.max(...mediaItems.map(m => m.duration), 10)}
             />
+
+            {/* Transition Editor Bottom Panel (VN Style) */}
+            {activeTransitionTargetId && activeTransitionNextId && (
+                <TransitionEditorBottomPanel
+                    targetId={activeTransitionTargetId}
+                    nextId={activeTransitionNextId}
+                    onClose={() => {
+                        setActiveTransitionTargetId(null);
+                        setActiveTransitionNextId(null);
+                    }}
+                    clipTransitions={clipTransitions}
+                    setClipTransitions={setClipTransitions}
+                />
+            )}
 
 
 

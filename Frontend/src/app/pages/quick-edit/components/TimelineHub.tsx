@@ -5,7 +5,7 @@ import {
   Settings, Magnet, RotateCcw, ChevronDown, ChevronRight,
   Sparkles, MessageSquare, Maximize2, Minimize2, ZoomIn, ZoomOut,
   RefreshCw, MoreVertical, Play, Pause, Info, Tag, Check, Sliders,
-  Link, Link2, Link2Off, EyeClosed
+  Link, Link2, Link2Off, EyeClosed, Diamond, TrendingUp, Shuffle, Image as ImageIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -222,7 +222,12 @@ export const TimelineHub = memo(({
 
   // Tracks State
   const [tracks, setTracks] = useState<Track[]>([
-    { id: "video-1",   name: "Video 1",          type: "video",   isLocked: false, isHidden: false, isMuted: false, isCollapsed: false, height: 80 },
+    { id: "audio-1",   name: "Music",            type: "audio",   isLocked: false, isHidden: false, isMuted: false, isCollapsed: false, height: 60 },
+    { id: "text-1",    name: "Text / Subtitles", type: "text",    isLocked: false, isHidden: false, isMuted: false, isCollapsed: false, height: 48 },
+    { id: "image-1",   name: "Image / Sticker",  type: "overlay", isLocked: false, isHidden: false, isMuted: false, isCollapsed: false, height: 56 },
+    { id: "overlay-1", name: "Overlay 1",        type: "overlay", isLocked: false, isHidden: false, isMuted: false, isCollapsed: false, height: 56 },
+    { id: "video-1",   name: "Main Video",       type: "video",   isLocked: false, isHidden: false, isMuted: false, isCollapsed: false, height: 80 },
+    { id: "audio-2",   name: "Sound",            type: "audio",   isLocked: false, isHidden: false, isMuted: false, isCollapsed: false, height: 60 },
   ]);
 
   // Local clip overrides for highly production-ready interactive overrides
@@ -258,6 +263,14 @@ export const TimelineHub = memo(({
 
   const [snapGuideX, setSnapGuideX] = useState<number | null>(null);
   const [hoveredClipId, setHoveredClipId] = useState<string | null>(null);
+  const [insertMenuTargetId, setInsertMenuTargetId] = useState<string | null>(null);
+
+  // Close insertion menu if click outside
+  useEffect(() => {
+    const closeInsertMenu = () => setInsertMenuTargetId(null);
+    window.addEventListener("click", closeInsertMenu);
+    return () => window.removeEventListener("click", closeInsertMenu);
+  }, []);
 
   /* ── Refs ──────────────────────────────────────────────────── */
   const scrollRef   = useRef<HTMLDivElement>(null);
@@ -610,10 +623,18 @@ export const TimelineHub = memo(({
 
   /* ── Split Clip ────────────────────────────────────────────── */
   const handleSplitClip = useCallback(() => {
-    if (!selectedClip || !isPlayheadOverSelectedClip) return;
+    let targetClip = selectedClip;
+    if (!targetClip) {
+      const clipsUnderPlayhead = clips.filter(c => !c.isLocked && currentTime > c.startTime && currentTime < c.startTime + c.duration);
+      if (clipsUnderPlayhead.length > 0) {
+        targetClip = clipsUnderPlayhead.find(c => c.type === 'video') || clipsUnderPlayhead[0];
+      }
+    }
+
+    if (!targetClip) return;
     
-    const id = selectedClip.id;
-    const clip = selectedClip;
+    const id = targetClip.id;
+    const clip = targetClip;
 
     // Get effective clip duration
     const t = getTrimRangeForItem ? getTrimRangeForItem(clip.id, clip.originalDuration ?? clip.duration) : { start: 0, end: clip.duration };
@@ -720,7 +741,7 @@ export const TimelineHub = memo(({
 
   /* ── Clip Dragging Interactions ────────────────────────────── */
   const handleClipMouseDown = useCallback((e: React.MouseEvent, clip: Clip) => {
-    if (clip.isLocked || e.button !== 0) return;
+    if (e.button !== 0) return;
     
     // Ignore trigger clicks on trim handles
     const target = e.target as HTMLElement;
@@ -742,19 +763,21 @@ export const TimelineHub = memo(({
       setSelectedClipIds([clip.id]);
     }
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const startOffsetX = e.clientX - rect.left;
-    const startY = e.clientY;
-    
-    setDraggedClip({
-      id: clip.id,
-      offsetX: startOffsetX,
-      initialStartTime: clip.startTime,
-      initialTrackId: clip.trackId,
-      ghostStartTime: clip.startTime,
-      ghostTrackId: clip.trackId,
-      type: clip.type
-    });
+    if (!clip.isLocked) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const startOffsetX = e.clientX - rect.left;
+      const startY = e.clientY;
+      
+      setDraggedClip({
+        id: clip.id,
+        offsetX: startOffsetX,
+        initialStartTime: clip.startTime,
+        initialTrackId: clip.trackId,
+        ghostStartTime: clip.startTime,
+        ghostTrackId: clip.trackId,
+        type: clip.type
+      });
+    }
 
     const onMove = (ev: MouseEvent) => {
       const crec = canvasRef.current?.getBoundingClientRect();
@@ -835,7 +858,7 @@ export const TimelineHub = memo(({
   }, [clips, clipTrackOverrides]);
 
   /* ── Trim Edge Handles ─────────────────────────────────────── */
-  const handleTrimMouseDown = useCallback((e: React.MouseEvent, clipId: string, edge: "left" | "right", itemDuration: number) => {
+  const handleTrimMouseDown = useCallback((e: React.MouseEvent, clipId: string, edge: "left" | "right", itemDuration: number, initStartTime: number) => {
     e.stopPropagation();
     e.preventDefault();
     const initTrim = getTrimRangeForItem(clipId, itemDuration);
@@ -847,7 +870,9 @@ export const TimelineHub = memo(({
       
       if (edge === "left") {
         const v = Math.max(0, Math.min(initTrim.end - 0.2, initTrim.start + dt));
+        const actualDt = v - initTrim.start;
         setClipTrimRanges((prev: any) => ({ ...prev, [clipId]: { start: v, end: initTrim.end } }));
+        setClipStartOverrides((prev: any) => ({ ...prev, [clipId]: initStartTime + actualDt }));
       } else {
         const v = Math.max(initTrim.start + 0.2, Math.min(itemDuration, initTrim.end + dt));
         setClipTrimRanges((prev: any) => ({ ...prev, [clipId]: { start: initTrim.start, end: v } }));
@@ -867,7 +892,7 @@ export const TimelineHub = memo(({
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-  }, [pixelsPerSecond, getTrimRangeForItem, setClipTrimRanges, saveToUndo, mediaItems]);
+  }, [pixelsPerSecond, getTrimRangeForItem, setClipTrimRanges, setClipStartOverrides, saveToUndo, mediaItems]);
 
   /* ── Canvas Box Selection ──────────────────────────────────── */
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent) => {
@@ -1007,7 +1032,47 @@ export const TimelineHub = memo(({
     if (c.type === "video" || c.type === "image") {
       setMediaItems((prev: any) => [...prev, { ...c, id: newId }]);
     }
-  }, [clips, setMediaItems]);
+  }, [clips, setMediaItems, setClipStartOverrides, setClipTrackOverrides]);
+
+  const handleReplaceClip = useCallback((clipId: string) => {
+    if (!setMediaItems) return;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "video/*,image/*";
+    input.onchange = (e: any) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      const isVideo = file.type.startsWith("video");
+      
+      setMediaItems((prev: any) => prev.map((p: any) => {
+        if (p.id === clipId) {
+          return {
+            ...p,
+            name: file.name,
+            preview: url,
+            file: file,
+            type: isVideo ? "video" : "image"
+          };
+        }
+        return p;
+      }));
+      
+      if (isVideo) {
+        const video = document.createElement("video");
+        video.src = url;
+        video.onloadedmetadata = () => {
+          setMediaItems((prev: any) => prev.map((p: any) => {
+            if (p.id === clipId) {
+              return { ...p, duration: video.duration };
+            }
+            return p;
+          }));
+        };
+      }
+    };
+    input.click();
+  }, [setMediaItems]);
 
   /* ── Keyboard shortcuts ────────────────────────────────────── */
   useEffect(() => {
@@ -1048,6 +1113,12 @@ export const TimelineHub = memo(({
     return () => window.removeEventListener("keydown", onKey);
   }, [selectedClipIds, clipboard, handleCopy, handlePaste, handleDuplicate, handleSplitClip, handleAddMarker, handleDeleteClip]);
 
+  useEffect(() => {
+    const onSplit = () => handleSplitClip();
+    window.addEventListener("trigger-timeline-split", onSplit);
+    return () => window.removeEventListener("trigger-timeline-split", onSplit as EventListener);
+  }, [handleSplitClip]);
+
   const hasClipUnderPlayhead = useMemo(() => {
     return clips.some(clip => 
       !clip.isLocked && 
@@ -1079,7 +1150,6 @@ export const TimelineHub = memo(({
         <div className="flex items-center gap-1">
           <TBtn icon={Plus} label="Add Track" onClick={handleAddTrack} text="Add Track" />
           <Divider />
-          <TBtn icon={Scissors} label="Split (Ctrl+B)" onClick={handleSplitClip} disabled={!selectedClip || !isPlayheadOverSelectedClip} />
           <TBtn icon={Trash2} label="Delete (Del)" danger onClick={() => { selectedClipIds.forEach(id => handleDeleteClip(id)); setSelectedClipIds([]); }} disabled={selectedClipIds.length === 0} />
           <Divider />
           <TBtn icon={Copy} label="Copy (Ctrl+C)" onClick={handleCopy} disabled={selectedClipIds.length === 0} />
@@ -1370,8 +1440,8 @@ export const TimelineHub = memo(({
                         const isClipMuted = trackOfClip?.isMuted || false;
 
                         return (
+                          <React.Fragment key={clip.id}>
                           <div
-                            key={clip.id}
                             onMouseDown={e => handleClipMouseDown(e, clip)}
                             onDoubleClick={() => setShowPropertiesId(clip.id)}
                             onContextMenu={e => handleClipContextMenu(e, clip.id)}
@@ -1525,14 +1595,14 @@ export const TimelineHub = memo(({
                             {isSelected && !clip.isLocked && (
                               <>
                                 <div
-                                  onMouseDown={e => handleTrimMouseDown(e, clip.id, "left", clip.originalDuration ?? clip.duration)}
+                                  onMouseDown={e => handleTrimMouseDown(e, clip.id, "left", clip.originalDuration ?? clip.duration, clip.startTime)}
                                   className="trim-handle absolute left-0 top-0 bottom-0 w-2 bg-purple-500 cursor-ew-resize z-30 flex items-center justify-center hover:bg-purple-400 transition-colors"
                                   title="Trim Left"
                                 >
                                   <div className="w-0.5 h-3 bg-white/80 rounded" />
                                 </div>
                                 <div
-                                  onMouseDown={e => handleTrimMouseDown(e, clip.id, "right", clip.originalDuration ?? clip.duration)}
+                                  onMouseDown={e => handleTrimMouseDown(e, clip.id, "right", clip.originalDuration ?? clip.duration, clip.startTime)}
                                   className="trim-handle absolute right-0 top-0 bottom-0 w-2 bg-purple-500 cursor-ew-resize z-30 flex items-center justify-center hover:bg-purple-400 transition-colors"
                                   title="Trim Right"
                                 >
@@ -1550,6 +1620,68 @@ export const TimelineHub = memo(({
                               </div>
                             )}
                           </div>
+
+                          {/* Floating Context Menu */}
+                          {isSelected && (
+                            <div 
+                              className="absolute z-[100] flex items-center justify-center gap-1.5 px-3 py-2 bg-[#FACC15] text-[#140a24] shadow-xl rounded-xl whitespace-nowrap pointer-events-auto transform -translate-x-1/2"
+                              style={{
+                                left: leftPx + widthPx / 2,
+                                top: -60,
+                              }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                            >
+                              <button 
+                                className="flex flex-col items-center gap-1 px-1.5 hover:opacity-70 transition-opacity"
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  if (setActivePreviewId) setActivePreviewId(clip.id);
+                                  handleReplaceClip(clip.id); 
+                                }}
+                              >
+                                <RefreshCw className="w-4 h-4" strokeWidth={2.5} />
+                                <span className="text-[9px] font-bold tracking-tight uppercase">Replace</span>
+                              </button>
+                              <div className="w-px h-6 bg-[#140a24]/20" />
+                              <button className="flex flex-col items-center gap-1 px-1.5 hover:opacity-70 transition-opacity">
+                                <Diamond className="w-4 h-4" strokeWidth={2.5} />
+                                <span className="text-[9px] font-bold tracking-tight uppercase">Keyframe</span>
+                              </button>
+                              <div className="w-px h-6 bg-[#140a24]/20" />
+                              <button className="flex flex-col items-center gap-1 px-1.5 hover:opacity-70 transition-opacity">
+                                <TrendingUp className="w-4 h-4" strokeWidth={2.5} />
+                                <span className="text-[9px] font-bold tracking-tight uppercase">Curve</span>
+                              </button>
+                              <div className="w-px h-6 bg-[#140a24]/20" />
+                              <button 
+                                className="flex flex-col items-center gap-1 px-1.5 hover:opacity-70 transition-opacity"
+                                onClick={(e) => { 
+                                  e.stopPropagation(); 
+                                  if (setMediaItems) setMediaItems((prev: any) => prev.map((p: any) => p.id === clip.id ? { ...p, isLocked: !p.isLocked } : p)); 
+                                }}
+                              >
+                                {clip.isLocked ? <Lock className="w-4 h-4" strokeWidth={2.5} /> : <Unlock className="w-4 h-4" strokeWidth={2.5} />}
+                                <span className="text-[9px] font-bold tracking-tight uppercase">Lock</span>
+                              </button>
+                              <div className="w-px h-6 bg-[#140a24]/20" />
+                              <button 
+                                className="flex flex-col items-center gap-1 px-1.5 hover:opacity-70 transition-opacity"
+                                onClick={(e) => { e.stopPropagation(); handleDuplicate(clip.id); }}
+                              >
+                                <Copy className="w-4 h-4" strokeWidth={2.5} />
+                                <span className="text-[9px] font-bold tracking-tight uppercase">Duplicate</span>
+                              </button>
+                              <div className="w-px h-6 bg-[#140a24]/20" />
+                              <button 
+                                className="flex flex-col items-center gap-1 px-1.5 hover:opacity-70 transition-opacity"
+                                onClick={(e) => { e.stopPropagation(); handleDeleteClip(clip.id); }}
+                              >
+                                <Trash2 className="w-4 h-4" strokeWidth={2.5} />
+                                <span className="text-[9px] font-bold tracking-tight uppercase">Delete</span>
+                              </button>
+                            </div>
+                          )}
+                          </React.Fragment>
                         );
                       })}
 
@@ -1558,22 +1690,44 @@ export const TimelineHub = memo(({
                         const videoClipsSorted = [...trackClips]
                           .filter(c => c.type === "video" || c.type === "image")
                           .sort((a, b) => a.startTime - b.startTime);
+
+                        const insertionPoints: any[] = [];
+                        if (videoClipsSorted.length > 0) {
+                          insertionPoints.push({
+                            id: `start-point`,
+                            px: videoClipsSorted[0].startTime * pixelsPerSecond,
+                            type: 'start',
+                            targetId: '__START__',
+                            clip: null,
+                            nextClip: videoClipsSorted[0]
+                          });
+                          
+                          videoClipsSorted.forEach((clip, index) => {
+                            const nextClip = videoClipsSorted[index + 1];
+                            insertionPoints.push({
+                              id: `after-${clip.id}`,
+                              px: (clip.startTime + clip.duration) * pixelsPerSecond,
+                              type: nextClip ? 'junction' : 'end',
+                              targetId: clip.id,
+                              clip: clip,
+                              nextClip: nextClip
+                            });
+                          });
+                        }
                         
-                        return videoClipsSorted.map((clip, index) => {
-                          const nextClip = videoClipsSorted[index + 1];
-                          if (!nextClip) return null;
+                        return insertionPoints.map((point) => {
+                          const { id, px, type, targetId, clip, nextClip } = point;
                           
                           // Render transition + symbol exactly at the junction boundary
-                          const endPx = (clip.startTime + clip.duration) * pixelsPerSecond;
-                          const hasTransition = clipTransitions && clipTransitions[clip.id] && clipTransitions[clip.id] !== "none";
+                          const hasTransition = type === 'junction' && clip && clipTransitions && clipTransitions[clip.id] && clipTransitions[clip.id] !== "none";
                           const transitionName = hasTransition ? clipTransitions[clip.id] : "";
                           
                           return (
                             <div
-                              key={`trans-${clip.id}`}
+                              key={id}
                               className="absolute z-20 flex items-center justify-center pointer-events-auto"
                               style={{
-                                left: endPx,
+                                left: px,
                                 width: 24,
                                 top: 6,
                                 height: trackH - 12,
@@ -1584,11 +1738,19 @@ export const TimelineHub = memo(({
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  setActivePreviewId(clip.id);
-                                  if (setLeftTab) setLeftTab('transitions');
+                                  if (type === 'junction') {
+                                    if (hasTransition) {
+                                        window.dispatchEvent(new CustomEvent('open-transition-editor', { detail: { targetId: clip.id, nextId: nextClip.id } }));
+                                    } else {
+                                        setInsertMenuTargetId(prev => prev === id ? null : id);
+                                    }
+                                  } else {
+                                    // Start or End of track
+                                    setInsertMenuTargetId(prev => prev === id ? null : id);
+                                  }
                                 }}
                                 type="button"
-                                title={hasTransition ? `Transition: ${transitionName} (Click to edit)` : "Add Transition"}
+                                title={hasTransition ? `Transition: ${transitionName} (Click to edit)` : type === 'junction' ? "Add Transition" : "Add Media"}
                                 className={`w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg shadow-black/80 hover:scale-110 cursor-pointer
                                   ${hasTransition 
                                     ? "bg-teal-500 text-[#07080f] border-2 border-teal-300 font-extrabold shadow-[0_0_12px_rgba(20,184,166,0.6)]" 
@@ -1601,6 +1763,44 @@ export const TimelineHub = memo(({
                                   <Plus className="w-3.5 h-3.5 font-bold" />
                                 )}
                               </button>
+                              
+                              {/* Insertion Menu Popover */}
+                              {insertMenuTargetId === id && !hasTransition && (
+                                <div 
+                                  className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 bg-[#111322] border border-white/10 rounded-xl shadow-2xl p-2 w-[180px] z-[100] flex flex-col gap-1"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {/* Pointer triangle */}
+                                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] border-[6px] border-transparent border-t-[#111322] z-10" />
+                                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] border-[7px] border-transparent border-t-white/10 z-0" />
+
+                                  {type === 'junction' && clip && nextClip ? (
+                                      <button onClick={() => { setInsertMenuTargetId(null); window.dispatchEvent(new CustomEvent('open-transition-editor', { detail: { targetId: clip.id, nextId: nextClip.id } })); }} className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/5 hover:text-white rounded-lg transition-colors">
+                                        <Shuffle className="w-3.5 h-3.5 text-teal-400" />
+                                        Add Transition
+                                      </button>
+                                  ) : (
+                                      <>
+                                          <button onClick={() => { setInsertMenuTargetId(null); window.dispatchEvent(new CustomEvent('insert-media-at', { detail: { targetId: targetId, type: 'video' } })); }} className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/5 hover:text-white rounded-lg transition-colors">
+                                            <Film className="w-3.5 h-3.5 text-blue-400" />
+                                            Add Video
+                                          </button>
+                                          <button onClick={() => { setInsertMenuTargetId(null); window.dispatchEvent(new CustomEvent('insert-media-at', { detail: { targetId: targetId, type: 'image' } })); }} className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/5 hover:text-white rounded-lg transition-colors">
+                                            <ImageIcon className="w-3.5 h-3.5 text-green-400" />
+                                            Add Image
+                                          </button>
+                                          <button onClick={() => { setInsertMenuTargetId(null); window.dispatchEvent(new CustomEvent('insert-media-at', { detail: { targetId: targetId, type: 'audio' } })); }} className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/5 hover:text-white rounded-lg transition-colors">
+                                            <Music className="w-3.5 h-3.5 text-rose-400" />
+                                            Add Audio
+                                          </button>
+                                          <button onClick={() => { setInsertMenuTargetId(null); window.dispatchEvent(new CustomEvent('insert-media-at', { detail: { targetId: targetId, type: 'text' } })); }} className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/5 hover:text-white rounded-lg transition-colors">
+                                            <Type className="w-3.5 h-3.5 text-purple-400" />
+                                            Add Text
+                                          </button>
+                                      </>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
                         });
