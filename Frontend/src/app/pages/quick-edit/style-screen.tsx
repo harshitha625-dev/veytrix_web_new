@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, memo, useMemo } from "react";
+import React, { useState, useRef, useEffect, useCallback, memo, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Music2,
@@ -12,6 +12,8 @@ import {
     Music,
     Mic,
     Plus,
+    Search,
+    Filter,
     Monitor,
     Smartphone,
     Play,
@@ -46,6 +48,9 @@ import {
     Crown,
     Settings2,
     Check,
+    CheckCheck,
+    SkipBack,
+    SkipForward,
     Pause,
     Undo2,
     Redo2,
@@ -53,9 +58,18 @@ import {
     AlignLeft,
     AlignCenter,
     AlignRight,
+    Shuffle,
     Bold,
     Italic,
+    FlipHorizontal,
+    FlipVertical,
     MessageSquare,
+    ThumbsUp,
+    ThumbsDown,
+    Share2,
+    MoreHorizontal,
+    PictureInPicture2,
+    Subtitles,
     Edit2,
     Star,
     HelpCircle,
@@ -85,8 +99,31 @@ import {
     Lightbulb,
     Aperture,
     Rewind,
-    FastForward
+    FastForward,
+    ArrowDownUp, Folder
 } from "lucide-react";
+
+export const FreezeIcon = ({ className = "w-5 h-5", ...props }: React.SVGProps<SVGSVGElement>) => (
+    <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={className}
+        {...props}
+    >
+        <path d="M13 20H6.5A3.5 3.5 0 0 1 3 16.5v-9A3.5 3.5 0 0 1 6.5 4h11A3.5 3.5 0 0 1 21 7.5v5.5" />
+        <path d="M6.5 14.5l3.5-3.5 3.5 3.5" />
+        <path d="M8.5 7v3M7 8.5h3" />
+        <circle cx="15" cy="18" r="1.3" />
+        <circle cx="19" cy="18" r="1.3" />
+        <path d="M15 16.8l2.2-3" />
+        <path d="M19 16.8l-3.2-3.8" />
+    </svg>
+);
+
 import * as LucideIcons from "lucide-react";
 import { useNavigate, useLocation } from "react-router";
 import { Button } from "@/components/ui/button";
@@ -100,12 +137,13 @@ import { generateThumbnail } from "@/lib/thumbnail";
 import { CustomRatioModal } from "./components/CustomRatioModal";
 import { SlidersHorizontal } from "lucide-react";
 import { TimelineHub } from "./components/TimelineHub";
-import { CommandAgentPanel } from "./components/CommandAgentPanel";
 
 import { PremiumModal } from "@/components/premium-modal";
 import { MusicPickerModal } from "@/components/editor/music-picker-modal";
 import { TransitionEditorBottomPanel } from "./components/TransitionEditorBottomPanel";
 import { MusicStrip } from "@/components/editor/music-strip";
+import { CutoutPanel } from "./components/CutoutPanel";
+import { useCutoutMask } from "./hooks/useCutoutMask";
 import { useMusicContext } from "@/context/music-context";
 import {
     Dialog,
@@ -331,17 +369,17 @@ const textFontOptions = [
 
 const CAPTION_LANGUAGES = [
     { id: 'en', label: 'English', name: 'English' },
-    { id: 'es', label: 'Spanish', name: 'Español' },
-    { id: 'fr', label: 'French', name: 'Français' },
+    { id: 'es', label: 'Spanish', name: 'EspaÃƒÂ±ol' },
+    { id: 'fr', label: 'French', name: 'FranÃƒÂ§ais' },
     { id: 'de', label: 'German', name: 'Deutsch' },
     { id: 'it', label: 'Italian', name: 'Italiano' },
-    { id: 'pt', label: 'Portuguese', name: 'Português' },
-    { id: 'ja', label: 'Japanese', name: '日本語' },
-    { id: 'zh', label: 'Chinese', name: '中文' },
-    { id: 'ko', label: 'Korean', name: '한국어' },
-    { id: 'ru', label: 'Russian', name: 'Русский' },
-    { id: 'ar', label: 'Arabic', name: 'العربية' },
-    { id: 'hi', label: 'Hindi', name: 'हिंदी' },
+    { id: 'pt', label: 'Portuguese', name: 'PortuguÃƒÂªs' },
+    { id: 'ja', label: 'Japanese', name: 'Ã¦â€”Â¥Ã¦Å“Â¬Ã¨ÂªÅ¾' },
+    { id: 'zh', label: 'Chinese', name: 'Ã¤Â¸Â­Ã¦â€“â€¡' },
+    { id: 'ko', label: 'Korean', name: 'Ã­â€¢Å“ÃªÂµÂ­Ã¬â€“Â´' },
+    { id: 'ru', label: 'Russian', name: 'ÃÂ Ã‘Æ’Ã‘ÂÃ‘ÂÃÂºÃÂ¸ÃÂ¹' },
+    { id: 'ar', label: 'Arabic', name: 'Ã˜Â§Ã™â€žÃ˜Â¹Ã˜Â±Ã˜Â¨Ã™Å Ã˜Â©' },
+    { id: 'hi', label: 'Hindi', name: 'Ã Â¤Â¹Ã Â¤Â¿Ã Â¤â€šÃ Â¤Â¦Ã Â¥â‚¬' },
 ];
 
 const CAPTION_STYLE_PRESETS = [
@@ -354,40 +392,43 @@ const CAPTION_STYLE_PRESETS = [
 ];
 
 const QUICK_TOOLS = [
+    { id: 'media', icon: LucideIcons.Film, label: 'Media' },
     { id: 'audio', icon: LucideIcons.Music, label: 'Audio' },
-    { id: 'titles', icon: LucideIcons.Type, label: 'Titles' },
-    { id: 'captions', icon: LucideIcons.Captions, label: 'Captions' },
+    { id: 'titles', icon: LucideIcons.Type, label: 'Text' },
+    { id: 'captions', icon: LucideIcons.MessageSquare, label: 'Captions' },
     { id: 'transitions', icon: LucideIcons.Layers, label: 'Transitions' },
-    { id: 'effects', icon: LucideIcons.Sparkle, label: 'Effects' },
-    { id: 'filters', icon: LucideIcons.Palette, label: 'Filters' },
-    { id: 'frames', icon: LucideIcons.Square, label: 'Frames' },
-    { id: 'tools', icon: LucideIcons.Zap, label: 'Tools' },
+    { id: 'effects', icon: LucideIcons.Sparkles || LucideIcons.Star, label: 'Effects' },
+    { id: 'filters', icon: LucideIcons.SlidersHorizontal || LucideIcons.Palette, label: 'Filters' },
+    { id: 'canvas', icon: LucideIcons.RectangleHorizontal || LucideIcons.Square, label: 'Canvas' },
+    { id: 'overlay-track', icon: LucideIcons.Shuffle || LucideIcons.Layers, label: 'Overlay' },
+    { id: 'split', icon: LucideIcons.Scissors, label: 'Split' },
+    { id: 'freeze', icon: FreezeIcon, label: 'Freeze' },
+    { id: 'crop', icon: LucideIcons.Crop, label: 'Crop' },
+    { id: 'rotate', icon: LucideIcons.RotateCw, label: 'Rotate' },
+    { id: 'mirror', icon: LucideIcons.FlipHorizontal, label: 'Mirror' },
+    { id: 'flip', icon: LucideIcons.FlipVertical, label: 'Flip' },
+    { id: 'bg', icon: LucideIcons.Palette, label: 'Background' },
+    { id: 'cutout', icon: LucideIcons.Wand2, label: 'Cutout' },
+    { id: 'speed', icon: LucideIcons.Gauge || LucideIcons.Zap, label: 'Speed' },
 ];
 
 const CLIP_TOOLS = [
-    { id: 'replace', icon: LucideIcons.RefreshCw, label: 'Replace' },
-    { id: 'keyframe', icon: LucideIcons.Diamond, label: 'Keyframe' },
     { id: 'split', icon: LucideIcons.Scissors, label: 'Split' },
-    { id: 'cutout', icon: LucideIcons.UserMinus, label: 'Cutout' },
-    { id: 'extract-audio', icon: LucideIcons.AudioWaveform, label: 'Extract Audio' },
-    { id: 'denoise', icon: LucideIcons.Activity, label: 'Denoise' },
-    { id: 'voice-effect', icon: LucideIcons.Mic, label: 'Voice Effect' },
-    { id: 'auto-captions', icon: LucideIcons.MessageSquareQuote, label: 'Auto Captions' },
-    { id: 'tts', icon: LucideIcons.MessageSquareText, label: 'TTS' },
-    { id: 'mosaic', icon: LucideIcons.Grid, label: 'Mosaic' },
-    { id: 'magnifier', icon: LucideIcons.ZoomIn, label: 'Magnifier' },
-    { id: 'stories', icon: LucideIcons.LayoutList, label: 'Stories' },
-    { id: 'reverse', icon: LucideIcons.RotateCcw, label: 'Reverse' },
-    { id: 'freeze', icon: LucideIcons.Snowflake, label: 'Freeze' },
-    { id: 'overlay-track', icon: LucideIcons.Layers, label: 'Overlay Track' },
-    { id: 'fade', icon: LucideIcons.Activity, label: 'Fade' },
+    { id: 'freeze', icon: FreezeIcon, label: 'Freeze' },
+    { id: 'cutout', icon: LucideIcons.Wand2 || LucideIcons.UserMinus, label: 'Cutout' },
+    { id: 'speed', icon: LucideIcons.Gauge || LucideIcons.Zap, label: 'Speed' },
+    { id: 'crop', icon: LucideIcons.Crop, label: 'Crop' },
+    { id: 'rotate', icon: LucideIcons.RotateCw, label: 'Rotate' },
     { id: 'mirror', icon: LucideIcons.FlipHorizontal, label: 'Mirror' },
     { id: 'flip', icon: LucideIcons.FlipVertical, label: 'Flip' },
-    { id: 'fill', icon: LucideIcons.Maximize, label: 'Fill' },
-    { id: 'bg', icon: LucideIcons.Square, label: 'BG' },
-    { id: 'border', icon: LucideIcons.SquareDashedBottom, label: 'Border' },
-    { id: 'blur', icon: LucideIcons.Droplet, label: 'Blur' },
-    { id: 'opacity', icon: LucideIcons.Eye, label: 'Opacity' },
+    { id: 'filters', icon: LucideIcons.SlidersHorizontal || LucideIcons.Sliders, label: 'Filter' },
+    { id: 'effects', icon: LucideIcons.Star || LucideIcons.Sparkle, label: 'FX' },
+    { id: 'keyframe', icon: LucideIcons.Diamond, label: 'Keyframe' },
+    { id: 'replace', icon: LucideIcons.RefreshCw, label: 'Replace' },
+    { id: 'extract-audio', icon: LucideIcons.AudioWaveform, label: 'Extract Audio' },
+    { id: 'denoise', icon: LucideIcons.Activity, label: 'Denoise' },
+    { id: 'auto-captions', icon: LucideIcons.MessageSquareQuote, label: 'Auto Captions' },
+    { id: 'reverse', icon: LucideIcons.RotateCcw, label: 'Reverse' },
     { id: 'delete', icon: LucideIcons.Trash2, label: 'Delete' },
 ];
 
@@ -409,543 +450,6 @@ const CANVAS_PREVIEW_FILTERS = [
 ];
 
 // TimelineHub is now imported from "./components/TimelineHub"
-
-
-/* ─────────────────── Filmora-Style Left Panel ─────────────────── */
-const FilmoraLeftPanel = memo(({
-    activePreviewId, clipTransitions, applyTransitionForActiveClip,
-    selectedEffect, setSelectedEffect, selectedFilter, setSelectedFilter,
-    activeTool, setActiveTool,
-    /* tools panel props */
-    velocitySpeed, setVelocitySpeed, motionBlurAmount, setMotionBlurAmount,
-    shakeStrength, setShakeStrength, flashIntensity, setFlashIntensity,
-    rgbSplitAmount, setRgbSplitAmount, smoothZoomAmount, setSmoothZoomAmount,
-    filmGrainOpacity, setFilmGrainOpacity,
-    overlayTextStylePreset, setOverlayTextStylePreset, getOverlayTextEffectForPreset,
-    blurAmount, setBlurAmount, brightness, setBrightness, contrast, setContrast,
-    saturation, setSaturation, slowMotionSpeed, setSlowMotionSpeed,
-    glitchIntensity, setGlitchIntensity, animatedText, setAnimatedText,
-    overlayText, setOverlayText, overlayFontId, setOverlayFontId,
-    overlayFontSize, setOverlayFontSize, overlayColor, setOverlayColor,
-    overlayPosX, setOverlayPosX, overlayPosY, setOverlayPosY,
-    overlayBgEnabled, setOverlayBgEnabled, overlayBgColorHex, setOverlayBgColorHex,
-    isTextPlacementMode, setIsTextPlacementMode,
-    speedValue, setSpeedValue, activePreviewItem, getTrimRangeForItem,
-    clipTrimRanges, setClipTrimRanges, rotationDegrees, setRotationDegrees,
-    volumeLevel, setVolumeLevel, isMuted, setIsMuted,
-    cropWidthPct, setCropWidthPct, cropHeightPct, setCropHeightPct,
-    cropCenterX, setCropCenterX, cropCenterY, setCropCenterY,
-    zoomToolAmount, setZoomToolAmount, keyframeMode, setKeyframeMode,
-    keyframeAmount, setKeyframeAmount, videoRef,
-    captions, setCaptions, currentCaption, setCurrentCaption,
-    captionLanguage, setCaptionLanguage, captionStyle, setCaptionStyle,
-    captionStylePreset, setCaptionStylePreset,
-    isCaptionPlacementMode, setIsCaptionPlacementMode,
-    detectSpeakers, setDetectSpeakers,
-    handleAutoCaption, isAutoCapturing, autoCaptionStatus,
-    proParams, setProParams,
-    /* smart features + tools grid */
-    aiOptions, toggleOption, copyActiveClip, setExpandedSections,
-    /* aspect ratio */
-    aspectRatio, applyAspectRatio, setIsCustomFrameOpen,
-    saveToUndo, mediaItems,
-    clipSettings, setClipSettings
-}: any) => {
-    const [leftTab, setLeftTab] = useState<'media' | 'titles' | 'captions' | 'transitions' | 'effects' | 'filters' | 'tools'>('transitions');
-    const [localFilterCategory, setLocalFilterCategory] = useState('all');
-
-    const leftTabs = [
-        { id: 'media',       icon: Film,    label: 'Media'       },
-        { id: 'titles',      icon: Type,    label: 'Titles'      },
-        { id: 'transitions', icon: Layers,  label: 'Trans.'      },
-        { id: 'effects',     icon: Sparkle, label: 'Effects'     },
-        { id: 'filters',     icon: Palette, label: 'Filters'     },
-        { id: 'tools',       icon: Zap,     label: 'Tools'       },
-    ] as const;
-
-    const transitionItems = [
-        { id: 'none',                    label: 'None',       icon: CircleOff,      color: '#94a3b8' },
-        { id: 'fade-transition',         label: 'Fade',       icon: Droplets,       color: '#38bdf8' },
-        { id: 'zoom-transition',         label: 'Zoom',       icon: ZoomIn,         color: '#a78bfa' },
-        { id: 'blur-transition',         label: 'Blur',       icon: Wind,           color: '#c084fc' },
-        { id: 'swipe-transition',        label: 'Swipe',      icon: MoveHorizontal, color: '#34d399' },
-        { id: 'spin-transition',         label: 'Spin',       icon: RotateCw,       color: '#fb923c' },
-        { id: 'whip-pan-transition',     label: 'Whip Pan',   icon: MoveRight,      color: '#f472b6' },
-        { id: 'glitch-transition',       label: 'Glitch',     icon: ScanLine,       color: '#f87171' },
-        { id: 'mask-transition',         label: 'Mask',       icon: Square,         color: '#facc15' },
-        { id: 'flash-transition',        label: 'Flash',      icon: Zap,            color: '#fbbf24' },
-        { id: 'camera-shake-transition', label: 'Shake',      icon: Vibrate,        color: '#60a5fa' },
-        { id: 'match-cut-transition',    label: 'Match Cut',  icon: Scissors,       color: '#4ade80' },
-        { id: 'speed-ramp-transition',   label: 'Speed Ramp', icon: Gauge,          color: '#e879f9' },
-        { id: 'wipe-transition',         label: 'Wipe',       icon: ChevronRight,   color: '#22d3ee' },
-        { id: 'dissolve-transition',     label: 'Dissolve',   icon: Droplets,       color: '#a3e635' },
-    ];
-
-    const effectItems = [
-        { id: 'none',            label: 'No Effect',   icon: Ban,       color: '#94a3b8' },
-        { id: 'fade-in',         label: 'Fade In',     icon: Sunrise,   color: '#fbbf24' },
-        { id: 'velocity',        label: 'Velocity',    icon: Zap,       color: '#f59e0b' },
-        { id: 'motion-blur',     label: 'Motion Blur', icon: Wind,      color: '#c084fc' },
-        { id: 'shake',           label: 'Shake',       icon: Vibrate,   color: '#60a5fa' },
-        { id: 'flash-effect',    label: 'Flash',       icon: Zap,       color: '#facc15' },
-        { id: 'rgb-split',       label: 'RGB Split',   icon: Palette,   color: '#f472b6' },
-        { id: 'film-grain',      label: 'Film Grain',  icon: Film,      color: '#a78bfa' },
-        { id: 'soft-glow',       label: 'Soft Glow',   icon: Sparkles,  color: '#e879f9' },
-        { id: 'old-tv',          label: 'Old TV',      icon: Tv,        color: '#34d399' },
-        { id: 'slow-motion',     label: 'Slow Mo',     icon: Clock3,    color: '#38bdf8' },
-        { id: 'smooth-zoom',     label: 'Smooth Zoom', icon: ZoomIn,    color: '#fb923c' },
-        { id: 'glitch',          label: 'Glitch',      icon: ScanLine,  color: '#f87171' },
-        { id: 'motion-tracking', label: 'Tracking',    icon: Crosshair, color: '#4ade80' },
-    ];
-
-    const filterItems = [
-        { id: 'none',        label: 'No Filter',   icon: CircleOff,    color: '#94a3b8' },
-        { id: 'cinematic',   label: 'Cinematic',   icon: Clapperboard, color: '#a78bfa' },
-        { id: 'moody',       label: 'Moody',       icon: MoonStar,     color: '#6366f1' },
-        { id: 'warm-tone',   label: 'Warm',        icon: Sun,          color: '#f59e0b' },
-        { id: 'cool-tone',   label: 'Cool',        icon: Snowflake,    color: '#38bdf8' },
-        { id: 'vintage',     label: 'Vintage',     icon: Clock3,       color: '#fb923c' },
-        { id: 'black-white', label: 'B&W',         icon: Contrast,     color: '#94a3b8' },
-        { id: 'teal-orange', label: 'Teal+Orange', icon: Palette,      color: '#2dd4bf' },
-        { id: 'dreamy-glow', label: 'Dreamy',      icon: Sparkles,     color: '#e879f9' },
-        { id: 'film-look',   label: 'Film Look',   icon: Film,         color: '#c084fc' },
-        { id: 'vhs',         label: 'VHS',         icon: Tv,           color: '#4ade80' },
-        { id: 'soft-skin',   label: 'Soft Skin',   icon: Smile,        color: '#f9a8d4' },
-        { id: 'neon-glow',   label: 'Neon',        icon: Lightbulb,    color: '#facc15' },
-        { id: 'hdr-pop',     label: 'HDR Pop',     icon: Aperture,     color: '#f87171' },
-    ];
-
-    const renderGrid = (
-        items: { id: string; label: string; icon: any; color: string }[],
-        activeId: string | undefined,
-        onSelect: (id: string) => void,
-        activeColor: string,
-        activeDot: string,
-    ) => (
-        <div className="grid grid-cols-3 gap-2">
-            {items.map((item) => {
-                const isActive = activeId === item.id;
-                const Icon = item.icon;
-                return (
-                    <button
-                        key={item.id}
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSelect(item.id); }}
-                        type="button"
-                        title={item.label}
-                        className={`relative flex flex-col items-center justify-center gap-2 h-[76px] rounded-xl border transition-all duration-200 group overflow-hidden ${
-                            isActive
-                                ? `border-opacity-60 scale-[1.02] ${activeColor}`
-                                : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/20 hover:-translate-y-0.5'
-                        }`}
-                    >
-                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                            style={{ background: `radial-gradient(circle at 50% 40%, ${item.color}20 0%, transparent 70%)` }} />
-                        <Icon size={19} className="relative z-10 transition-transform duration-200 group-hover:scale-110"
-                            style={{ color: isActive ? '#fff' : item.color }} />
-                        <span className={`relative z-10 text-[7.5px] font-bold uppercase tracking-wider text-center leading-tight px-1 line-clamp-2 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`}>
-                            {item.label}
-                        </span>
-                        {isActive && <div className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ${activeDot}`} />}
-                    </button>
-                );
-            })}
-        </div>
-    );
-
-    return (
-        <div className="flex h-full w-full">
-            {/* ── Narrow icon tab strip ── */}
-            <div className="flex-none w-[68px] flex flex-col items-center gap-0.5 py-2 bg-[#07080f] border-r border-white/[0.05]">
-                {leftTabs.map((tab) => {
-                    const Icon = tab.icon;
-                    const isActive = leftTab === tab.id;
-                    return (
-                        <button
-                            key={tab.id}
-                            onClick={() => {
-                                setLeftTab(tab.id as any);
-                                if ((tab.id as string) === 'titles') {
-                                    setActiveTool('text-tool');
-                                } else if ((tab.id as string) === 'captions') {
-                                    setActiveTool('captions');
-                                } else if (activeTool === 'text-tool' || activeTool === 'captions') {
-                                    setActiveTool(null);
-                                }
-                            }}
-                            title={tab.label}
-                            className={`relative flex flex-col items-center justify-center gap-1 w-[56px] h-[54px] rounded-xl transition-all duration-200 group ${
-                                isActive
-                                    ? 'bg-purple-500/[0.12] text-purple-300'
-                                    : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]'
-                            }`}
-                        >
-                            {isActive && (
-                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-purple-400 rounded-r-full" />
-                            )}
-                            <Icon className={`w-[15px] h-[15px] transition-colors ${isActive ? 'text-purple-300' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                            <span className={`text-[7.5px] font-bold uppercase tracking-wide leading-none text-center ${isActive ? 'text-purple-300' : 'text-slate-600 group-hover:text-slate-400'}`}>
-                                {tab.label}
-                            </span>
-                        </button>
-                    );
-                })}
-            </div>
-
-            {/* ── Content panel ── */}
-            <div className="flex-1 flex flex-col min-w-0 bg-[#0b0d26]">
-                {/* Panel header */}
-                <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.05] shrink-0">
-                    <span className="text-[9.5px] font-black uppercase tracking-widest text-slate-200">
-                        {leftTab === 'media'       && 'Media Library'}
-                        {leftTab === 'titles'      && 'Titles & Text'}
-                        {leftTab === 'captions'    && 'Captions'}
-                        {leftTab === 'transitions' && 'Transitions'}
-                        {leftTab === 'effects'     && 'Visual Effects'}
-                        {leftTab === 'filters'     && 'Color Filters'}
-                        {leftTab === 'tools'       && 'Toolbox'}
-                    </span>
-                    {leftTab === 'transitions' && activePreviewId && (
-                        <span className="text-[7.5px] font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 rounded px-1.5 py-0.5 truncate max-w-[110px]">
-                            {clipTransitions[activePreviewId] || 'none'}
-                        </span>
-                    )}
-                </div>
-
-                {/* ── TRANSITIONS ── */}
-                {leftTab === 'transitions' && (
-                    <div className="flex-1 overflow-y-auto p-2.5 custom-scrollbar">
-                        <div className={`mb-2.5 px-2.5 py-1.5 rounded-lg text-[7.5px] font-bold uppercase tracking-wider text-center border ${
-                            activePreviewId
-                                ? 'bg-purple-500/10 border-purple-500/20 text-purple-300'
-                                : 'bg-white/[0.03] border-white/5 text-slate-500'
-                        }`}>
-                            {activePreviewId ? 'Clip selected — click to apply' : 'Select a clip from the timeline'}
-                        </div>
-                        {renderGrid(
-                            transitionItems,
-                            activePreviewId ? clipTransitions[activePreviewId] : undefined,
-                            (id) => applyTransitionForActiveClip(id),
-                            'bg-purple-500/15 border-purple-400/60 shadow-[0_0_14px_rgba(168,85,247,0.22)]',
-                            'bg-purple-400',
-                        )}
-                    </div>
-                )}
-
-                {/* ── EFFECTS ── */}
-                {leftTab === 'effects' && (
-                    <div className="flex-1 overflow-y-auto p-2.5 custom-scrollbar">
-                        {renderGrid(
-                            effectItems,
-                            selectedEffect,
-                            setSelectedEffect,
-                            'bg-purple-500/15 border-purple-400/60 shadow-[0_0_14px_rgba(168,85,247,0.22)]',
-                            'bg-purple-400',
-                        )}
-                    </div>
-                )}
-
-                {/* ── FILTERS ── */}
-                {leftTab === 'filters' && (() => {
-                    const proEffects = getAllProEffects();
-                    const proFilters = proEffects.filter(eff => eff.id.startsWith('pro-filter-'));
-                    const filteredFilters = localFilterCategory === 'all'
-                        ? proFilters
-                        : proFilters.filter(eff => eff.name.startsWith(localFilterCategory + ' v'));
-                    return (
-                        <div className="flex-1 flex flex-col min-h-0 p-2.5">
-                            {/* Filter Category Selector Chips */}
-                            <div className="flex gap-1.5 overflow-x-auto pb-2 shrink-0 scrollbar-none mb-2">
-                                {['all', 'Basic', 'Cinematic', 'Vintage', 'Retro', 'Film', 'HDR', 'LUT', 'Black & White', 'Sepia', 'Neon', 'Cyberpunk', 'Dream', 'Glow', 'Matte', 'Moody', 'Warm', 'Cool', 'Teal & Orange', 'Golden Hour', 'Sunset', 'Night', 'RGB', 'VHS', 'CRT', 'Glitch', 'Grain', 'Blur', 'Sharpen', 'Portrait', 'Beauty', 'Landscape', 'Nature', 'Food', 'Travel', 'Wedding', 'Fashion', 'Sports', 'Gaming', 'Social', 'Artistic', '3D', 'Hollywood', 'IMAX', 'Netflix', 'Kodak', 'Fujifilm', 'ARRI', 'RED', 'Sony Cinema', 'Blackmagic', 'Seasons', 'Ocean', 'Forest', 'Desert', 'Aurora', 'Galaxy', 'Space', 'Synthwave', 'Vaporwave', 'Luxury', 'Diamond', 'Gold', 'Crystal', 'Anime', 'Comic', 'Oil Painting', 'Watercolor', 'Sketch', 'Documentary', 'Analog', 'Sci-Fi'].map((cat) => (
-                                    <button
-                                        key={cat}
-                                        onClick={() => setLocalFilterCategory(cat)}
-                                        type="button"
-                                        className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider transition-all border shrink-0 ${
-                                            localFilterCategory === cat
-                                                ? 'bg-pink-500/20 border-pink-500/60 text-pink-200'
-                                                : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200'
-                                        }`}
-                                    >
-                                        {cat}
-                                    </button>
-                                ))}
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                <div className="grid grid-cols-3 gap-2 pb-4">
-                                    {localFilterCategory === 'all' && (
-                                        <button
-                                            onClick={() => {
-                                                setSelectedFilter('none');
-                                                setSelectedEffect('none');
-                                            }}
-                                            type="button"
-                                            className={`relative flex flex-col items-center justify-center gap-2 h-[80px] rounded-xl border transition-all duration-200 group overflow-hidden ${
-                                                selectedFilter === 'none' && selectedEffect === 'none'
-                                                    ? 'bg-pink-500/15 border-pink-400/60 shadow-[0_0_16px_rgba(236,72,153,0.25)] scale-[1.02]'
-                                                    : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/20 hover:-translate-y-0.5'
-                                            }`}
-                                        >
-                                            <CircleOff size={20} className="text-[#94a3b8]" />
-                                            <span className="text-[8px] font-bold uppercase tracking-wider text-center text-slate-400">No Filter</span>
-                                        </button>
-                                    )}
-                                    {filteredFilters.map((eff) => {
-                                        const isActive = selectedFilter === eff.id || selectedEffect === eff.id;
-                                        const Icon = eff.icon || Sparkles;
-                                        return (
-                                            <button
-                                                key={eff.id}
-                                                onClick={() => {
-                                                    setSelectedFilter(eff.id as any);
-                                                    setSelectedEffect(eff.id);
-                                                    setProParams(eff.defaultParameters || {});
-                                                }}
-                                                type="button"
-                                                className={`relative flex flex-col items-center justify-center gap-2 h-[80px] rounded-xl border transition-all duration-200 group overflow-hidden ${
-                                                    isActive
-                                                        ? 'bg-pink-500/15 border-pink-400/60 shadow-[0_0_16px_rgba(236,72,153,0.25)] scale-[1.02]'
-                                                        : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/20 hover:-translate-y-0.5'
-                                                }`}
-                                            >
-                                                {eff.thumbnail && (
-                                                    <div className="absolute inset-0 w-full h-full pointer-events-none">
-                                                        <img src={eff.thumbnail} className="w-full h-full object-cover opacity-20 group-hover:opacity-35 transition-opacity duration-300" alt="" />
-                                                        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/85" />
-                                                    </div>
-                                                )}
-                                                <Icon size={20} className="relative z-10 transition-transform duration-200 group-hover:scale-110 text-purple-300" />
-                                                <span className="relative z-10 text-[8px] font-bold uppercase tracking-wider text-center leading-tight px-1 line-clamp-2 text-slate-400 group-hover:text-slate-200">{eff.name}</span>
-                                                {isActive && <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-pink-400" />}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            {selectedEffect && selectedEffect.startsWith('pro-filter-') && (() => {
-                                const effectModule = getEffectModule(selectedEffect);
-                                if (!effectModule) return null;
-                                return (
-                                    <div className="mt-2 p-2.5 rounded-lg bg-white/5 border border-white/10 space-y-2.5 shrink-0">
-                                        {effectModule.adjustableParameters.map((param: any) => {
-                                            const paramValue = proParams[param.key] ?? effectModule.defaultParameters[param.key];
-                                            return (
-                                                <div key={param.key}>
-                                                    <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-widest text-slate-300 mb-0.5">
-                                                        <span>{param.name}</span>
-                                                        <span>{typeof paramValue === 'number' ? paramValue.toFixed(param.step && param.step < 1 ? 2 : 0) : String(paramValue)}</span>
-                                                    </div>
-                                                    {param.type === 'number' && (
-                                                        <input
-                                                            type="range"
-                                                            min={param.min ?? 0}
-                                                            max={param.max ?? 100}
-                                                            step={param.step ?? 1}
-                                                            value={paramValue}
-                                                            onChange={(e) => {
-                                                                const val = Number(e.target.value);
-                                                                setProParams((prev: any) => ({
-                                                                    ...prev,
-                                                                    [param.key]: val
-                                                                }));
-                                                            }}
-                                                            className="w-full accent-purple-400"
-                                                        />
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                );
-                            })()}
-                        </div>
-                    );
-                })()}{/* ── MEDIA ── */}
-                {leftTab === 'media' && (
-                    <div className="flex-1 overflow-y-auto p-2.5 custom-scrollbar flex flex-col gap-3">
-                        <div className="text-[7.5px] font-bold uppercase tracking-widest text-slate-500">Project Media</div>
-                        <div className="flex-1 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-white/10 rounded-xl min-h-[120px]">
-                            <Film className="w-8 h-8 text-slate-600" />
-                            <span className="text-[8.5px] text-slate-500 font-bold text-center">Drag & drop media here<br /><span className="text-slate-600 font-normal">or use Add Video button</span></span>
-                        </div>
-                    </div>
-                )}
-
-                {/* ── TITLES ── */}
-                {(leftTab === 'titles' || leftTab === 'captions') && (
-                    <div className="flex-1 overflow-y-auto p-2.5 custom-scrollbar">
-                        <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 shadow-inner">
-                            <ToolInspector
-                                velocitySpeed={velocitySpeed} setVelocitySpeed={setVelocitySpeed}
-                                motionBlurAmount={motionBlurAmount} setMotionBlurAmount={setMotionBlurAmount}
-                                shakeStrength={shakeStrength} setShakeStrength={setShakeStrength}
-                                flashIntensity={flashIntensity} setFlashIntensity={setFlashIntensity}
-                                rgbSplitAmount={rgbSplitAmount} setRgbSplitAmount={setRgbSplitAmount}
-                                smoothZoomAmount={smoothZoomAmount} setSmoothZoomAmount={setSmoothZoomAmount}
-                                filmGrainOpacity={filmGrainOpacity} setFilmGrainOpacity={setFilmGrainOpacity}
-                                overlayTextStylePreset={overlayTextStylePreset} setOverlayTextStylePreset={setOverlayTextStylePreset}
-                                getOverlayTextEffectForPreset={getOverlayTextEffectForPreset}
-                                activeTool={activeTool || (leftTab === 'captions' ? 'captions' : 'text-tool')} setActiveTool={setActiveTool}
-                                selectedFilter={selectedFilter} setSelectedFilter={setSelectedFilter}
-                                selectedEffect={selectedEffect} setSelectedEffect={setSelectedEffect}
-                                blurAmount={blurAmount} setBlurAmount={setBlurAmount}
-                                brightness={brightness} setBrightness={setBrightness}
-                                contrast={contrast} setContrast={setContrast}
-                                saturation={saturation} setSaturation={setSaturation}
-                                slowMotionSpeed={slowMotionSpeed} setSlowMotionSpeed={setSlowMotionSpeed}
-                                glitchIntensity={glitchIntensity} setGlitchIntensity={setGlitchIntensity}
-                                animatedText={animatedText} setAnimatedText={setAnimatedText}
-                                overlayText={overlayText} setOverlayText={setOverlayText}
-                                overlayFontId={overlayFontId} setOverlayFontId={setOverlayFontId}
-                                overlayFontSize={overlayFontSize} setOverlayFontSize={setOverlayFontSize}
-                                overlayColor={overlayColor} setOverlayColor={setOverlayColor}
-                                overlayPosX={overlayPosX} setOverlayPosX={setOverlayPosX}
-                                overlayPosY={overlayPosY} setOverlayPosY={setOverlayPosY}
-                                overlayBgEnabled={overlayBgEnabled} setOverlayBgEnabled={setOverlayBgEnabled}
-                                overlayBgColorHex={overlayBgColorHex} setOverlayBgColorHex={setOverlayBgColorHex}
-                                isTextPlacementMode={isTextPlacementMode} setIsTextPlacementMode={setIsTextPlacementMode}
-                                clipTransitions={clipTransitions} applyTransitionForActiveClip={applyTransitionForActiveClip}
-                                speedValue={speedValue} setSpeedValue={setSpeedValue}
-                                activePreviewId={activePreviewId} activePreviewItem={activePreviewItem}
-                                getTrimRangeForItem={getTrimRangeForItem}
-                                clipTrimRanges={clipTrimRanges} setClipTrimRanges={setClipTrimRanges}
-                                rotationDegrees={rotationDegrees} setRotationDegrees={setRotationDegrees}
-                                volumeLevel={volumeLevel} setVolumeLevel={setVolumeLevel}
-                                isMuted={isMuted} setIsMuted={setIsMuted}
-                                cropWidthPct={cropWidthPct} setCropWidthPct={setCropWidthPct}
-                                cropHeightPct={cropHeightPct} setCropHeightPct={setCropHeightPct}
-                                cropCenterX={cropCenterX} setCropCenterX={setCropCenterX}
-                                cropCenterY={cropCenterY} setCropCenterY={setCropCenterY}
-                                zoomToolAmount={zoomToolAmount} setZoomToolAmount={setZoomToolAmount}
-                                keyframeMode={keyframeMode} setKeyframeMode={setKeyframeMode}
-                                keyframeAmount={keyframeAmount} setKeyframeAmount={setKeyframeAmount}
-                                videoRef={videoRef}
-                                captions={captions} setCaptions={setCaptions}
-                                currentCaption={currentCaption} setCurrentCaption={setCurrentCaption}
-                                captionLanguage={captionLanguage} setCaptionLanguage={setCaptionLanguage}
-                                captionStyle={captionStyle} setCaptionStyle={setCaptionStyle}
-                                captionStylePreset={captionStylePreset} setCaptionStylePreset={setCaptionStylePreset}
-                                isCaptionPlacementMode={isCaptionPlacementMode} setIsCaptionPlacementMode={setIsCaptionPlacementMode}
-                                detectSpeakers={detectSpeakers} setDetectSpeakers={setDetectSpeakers}
-                                handleAutoCaption={handleAutoCaption}
-                                isAutoCapturing={isAutoCapturing} autoCaptionStatus={autoCaptionStatus}
-                                proParams={proParams} setProParams={setProParams}
-                                saveToUndo={saveToUndo} mediaItems={mediaItems}
-                            />
-                        </div>
-                    </div>
-                )}
-
-                {/* ── TOOLS ── */}
-                {leftTab === 'tools' && (
-                    <div className="flex-1 overflow-y-auto p-2.5 space-y-3 custom-scrollbar">
-                        {activeTool ? (
-                            <div className="space-y-3">
-                                <button onClick={() => setActiveTool(null)}
-                                    className="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-[8px] font-black uppercase tracking-wider text-slate-300 transition-all flex items-center gap-1 cursor-pointer">
-                                    ← Back to Tools
-                                </button>
-                                <div className="p-2.5 bg-black/40 rounded-xl border border-white/5 shadow-inner">
-                                    <ToolInspector
-                                        velocitySpeed={velocitySpeed} setVelocitySpeed={setVelocitySpeed}
-                                        motionBlurAmount={motionBlurAmount} setMotionBlurAmount={setMotionBlurAmount}
-                                        shakeStrength={shakeStrength} setShakeStrength={setShakeStrength}
-                                        flashIntensity={flashIntensity} setFlashIntensity={setFlashIntensity}
-                                        rgbSplitAmount={rgbSplitAmount} setRgbSplitAmount={setRgbSplitAmount}
-                                        smoothZoomAmount={smoothZoomAmount} setSmoothZoomAmount={setSmoothZoomAmount}
-                                        filmGrainOpacity={filmGrainOpacity} setFilmGrainOpacity={setFilmGrainOpacity}
-                                        overlayTextStylePreset={overlayTextStylePreset} setOverlayTextStylePreset={setOverlayTextStylePreset}
-                                        getOverlayTextEffectForPreset={getOverlayTextEffectForPreset}
-                                        activeTool={activeTool} setActiveTool={setActiveTool}
-                                        selectedFilter={selectedFilter} setSelectedFilter={setSelectedFilter}
-                                        selectedEffect={selectedEffect} setSelectedEffect={setSelectedEffect}
-                                        blurAmount={blurAmount} setBlurAmount={setBlurAmount}
-                                        brightness={brightness} setBrightness={setBrightness}
-                                        contrast={contrast} setContrast={setContrast}
-                                        saturation={saturation} setSaturation={setSaturation}
-                                        slowMotionSpeed={slowMotionSpeed} setSlowMotionSpeed={setSlowMotionSpeed}
-                                        glitchIntensity={glitchIntensity} setGlitchIntensity={setGlitchIntensity}
-                                        animatedText={animatedText} setAnimatedText={setAnimatedText}
-                                        overlayText={overlayText} setOverlayText={setOverlayText}
-                                        overlayFontId={overlayFontId} setOverlayFontId={setOverlayFontId}
-                                        overlayFontSize={overlayFontSize} setOverlayFontSize={setOverlayFontSize}
-                                        overlayColor={overlayColor} setOverlayColor={setOverlayColor}
-                                        overlayPosX={overlayPosX} setOverlayPosX={setOverlayPosX}
-                                        overlayPosY={overlayPosY} setOverlayPosY={setOverlayPosY}
-                                        overlayBgEnabled={overlayBgEnabled} setOverlayBgEnabled={setOverlayBgEnabled}
-                                        overlayBgColorHex={overlayBgColorHex} setOverlayBgColorHex={setOverlayBgColorHex}
-                                        isTextPlacementMode={isTextPlacementMode} setIsTextPlacementMode={setIsTextPlacementMode}
-                                        clipTransitions={clipTransitions} applyTransitionForActiveClip={applyTransitionForActiveClip}
-                                        speedValue={speedValue} setSpeedValue={setSpeedValue}
-                                        activePreviewId={activePreviewId} activePreviewItem={activePreviewItem}
-                                        getTrimRangeForItem={getTrimRangeForItem}
-                                        clipTrimRanges={clipTrimRanges} setClipTrimRanges={setClipTrimRanges}
-                                        rotationDegrees={rotationDegrees} setRotationDegrees={setRotationDegrees}
-                                        volumeLevel={volumeLevel} setVolumeLevel={setVolumeLevel}
-                                        isMuted={isMuted} setIsMuted={setIsMuted}
-                                        cropWidthPct={cropWidthPct} setCropWidthPct={setCropWidthPct}
-                                        cropHeightPct={cropHeightPct} setCropHeightPct={setCropHeightPct}
-                                        cropCenterX={cropCenterX} setCropCenterX={setCropCenterX}
-                                        cropCenterY={cropCenterY} setCropCenterY={setCropCenterY}
-                                        zoomToolAmount={zoomToolAmount} setZoomToolAmount={setZoomToolAmount}
-                                        keyframeMode={keyframeMode} setKeyframeMode={setKeyframeMode}
-                                        keyframeAmount={keyframeAmount} setKeyframeAmount={setKeyframeAmount}
-                                        videoRef={videoRef}
-                                        captions={captions} setCaptions={setCaptions}
-                                        currentCaption={currentCaption} setCurrentCaption={setCurrentCaption}
-                                        captionLanguage={captionLanguage} setCaptionLanguage={setCaptionLanguage}
-                                        captionStyle={captionStyle} setCaptionStyle={setCaptionStyle}
-                                        captionStylePreset={captionStylePreset} setCaptionStylePreset={setCaptionStylePreset}
-                                        isCaptionPlacementMode={isCaptionPlacementMode} setIsCaptionPlacementMode={setIsCaptionPlacementMode}
-                                        detectSpeakers={detectSpeakers} setDetectSpeakers={setDetectSpeakers}
-                                        handleAutoCaption={handleAutoCaption}
-                                        isAutoCapturing={isAutoCapturing} autoCaptionStatus={autoCaptionStatus}
-                                        proParams={proParams} setProParams={setProParams}
-                                        saveToUndo={saveToUndo} mediaItems={mediaItems}
-                                        clipSettings={clipSettings} setClipSettings={setClipSettings}
-                                    />
-                                </div>
-                            </div>
-                        ) : (
-                            <>
-                                <div>
-                                    <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Smart Auto Features</span>
-                                    <div className="grid grid-cols-2 gap-1.5">
-                                        {[
-                                            { id: 'subtitles', label: 'Subtitles', icon: Layers, color: 'text-fuchsia-400' },
-                                            { id: 'autoCuts', label: 'Auto-Cuts', icon: Trash2, color: 'text-red-400' },
-                                            { id: 'backgroundMusic', label: 'Music', icon: Music, color: 'text-amber-400' },
-                                            { id: 'faceTracking', label: 'Tracking', icon: Monitor, color: 'text-emerald-400' },
-                                        ].map((opt) => (
-                                            <div key={opt.id} className="flex items-center justify-between p-1.5 rounded bg-white/[0.03] border border-white/5 hover:bg-white/5 transition-all">
-                                                <div className="flex items-center gap-1.5">
-                                                    <opt.icon className={`w-3 h-3 ${opt.color}`} />
-                                                    <span className="text-[7.5px] font-bold text-slate-300">{opt.label}</span>
-                                                </div>
-                                                <Switch checked={aiOptions[opt.id]} onCheckedChange={() => toggleOption(opt.id)} className="scale-50 data-[state=checked]:bg-purple-500" />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Canvas Format</span>
-                                    <div className="grid grid-cols-1 gap-2">
-                                        <AspectRatioCard label="YouTube" ratio="16:9" icon={MonitorPlay} description="Best for YouTube & Desktop" isSelected={aspectRatio.name === 'YouTube'} onClick={() => applyAspectRatio(16, 9, 'YouTube')} />
-                                        <AspectRatioCard label="Instagram" ratio="9:16" icon={Smartphone} description="Reels, Shorts & TikTok" isSelected={aspectRatio.name === 'Instagram'} onClick={() => applyAspectRatio(9, 16, 'Instagram')} />
-                                        <AspectRatioCard label="Square" ratio="1:1" icon={Square} description="Instagram Posts" isSelected={aspectRatio.name === 'Square'} onClick={() => applyAspectRatio(1, 1, 'Square')} />
-                                        <AspectRatioCard label="Custom" ratio="Custom" icon={SlidersHorizontal} description={aspectRatio.name === 'Custom' ? `${aspectRatio.width} × ${aspectRatio.height}` : 'Width × Height'} isSelected={aspectRatio.name === 'Custom'} onClick={() => setIsCustomFrameOpen(true)} />
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-});
 
 const ClipToolsGrid = memo(({ tools, onToolClick }: any) => (
     <>
@@ -972,6 +476,10 @@ const QuickToolsGrid = memo(({ QUICK_TOOLS, activeTool, setActiveTool, copyActiv
                     onClick={() => {
                         if (tool.id === 'split') {
                             window.dispatchEvent(new CustomEvent('trigger-timeline-split'));
+                            return;
+                        }
+                        if (tool.id === 'freeze') {
+                            window.dispatchEvent(new CustomEvent('trigger-timeline-freeze'));
                             return;
                         }
                         setLeftTab(tool.id);
@@ -1075,6 +583,32 @@ const ToolInspector = memo(({
     setOverlayBgEnabled,
     overlayBgColorHex,
     setOverlayBgColorHex,
+    overlayOpacity, setOverlayOpacity,
+    overlayStrokeEnabled, setOverlayStrokeEnabled,
+    overlayStrokeColor, setOverlayStrokeColor,
+    overlayStrokeOpacity, setOverlayStrokeOpacity,
+    overlayShadowEnabled, setOverlayShadowEnabled,
+    overlayShadowColor, setOverlayShadowColor,
+    overlayShadowOpacity, setOverlayShadowOpacity,
+    overlayShadowBlur, setOverlayShadowBlur,
+    overlayBgRadius, setOverlayBgRadius,
+    overlayBgPaddingX, setOverlayBgPaddingX,
+    overlayBgPaddingY, setOverlayBgPaddingY,
+    overlayBgOffsetX, setOverlayBgOffsetX,
+    overlayBgOffsetY, setOverlayBgOffsetY,
+    overlayTextStyleBold, setOverlayTextStyleBold,
+    overlayTextStyleItalic, setOverlayTextStyleItalic,
+    overlayTextStyleUnderline, setOverlayTextStyleUnderline,
+    overlayAlignment, setOverlayAlignment,
+    overlayListStyle, setOverlayListStyle,
+    overlayCase, setOverlayCase,
+    overlayAnchor, setOverlayAnchor,
+    overlayTextBoxSetting, setOverlayTextBoxSetting,
+    overlayLetterSpacing, setOverlayLetterSpacing,
+    overlayLineSpacing, setOverlayLineSpacing,
+    overlayAnimationIn, setOverlayAnimationIn,
+    overlayAnimationOut, setOverlayAnimationOut,
+    overlayAnimationLoop, setOverlayAnimationLoop,
     isTextPlacementMode,
     setIsTextPlacementMode,
     clipTransitions,
@@ -1092,6 +626,9 @@ const ToolInspector = memo(({
     setVolumeLevel,
     isMuted,
     setIsMuted,
+    isDenoiseEnabled,
+    setIsDenoiseEnabled,
+    onApplyToAllVolume,
     cropWidthPct,
     setCropWidthPct,
     cropHeightPct,
@@ -1137,7 +674,7 @@ const ToolInspector = memo(({
     const [localFilterCategory, setLocalFilterCategory] = useState('all');
     const [newCaptionStart, setNewCaptionStart] = useState(0);
     const [newCaptionEnd, setNewCaptionEnd] = useState(3);
-    const [textSubTab, setTextSubTab] = useState<'fonts' | 'styles'>('fonts');
+    const [textSubTab, setTextSubTab] = useState<'content' | 'fonts' | 'styles' | 'color' | 'align' | 'spacing' | 'transform' | 'animation'>('content');
 
     switch (activeTool) {
         case 'filters': {
@@ -1633,7 +1170,7 @@ const ToolInspector = memo(({
                     </div>
                     <div className="rounded border border-white/5 bg-white/[0.02] px-2 py-1 text-[8px] font-bold uppercase tracking-wider text-slate-400 text-center">
                         {activePreviewId
-                            ? `Clip: ${activePreviewId.slice(0, 8)} • ${clipTransitions[activePreviewId] || 'none'}`
+                            ? `Clip: ${activePreviewId.slice(0, 8)} Ã¢â‚¬Â¢ ${clipTransitions[activePreviewId] || 'none'}`
                             : 'Select clip from Timeline first'}
                     </div>
                     <div className="grid grid-cols-3 gap-[16px] max-h-[350px] overflow-y-auto pr-2 pb-4 [&::-webkit-scrollbar]:w-[5px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gradient-to-b [&::-webkit-scrollbar-thumb]:from-[#7C3AED] [&::-webkit-scrollbar-thumb]:to-[#A855F7] [&::-webkit-scrollbar-thumb]:rounded-full">
@@ -1729,17 +1266,17 @@ const ToolInspector = memo(({
                             <div>
                                 <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-widest text-slate-300 mb-0.5">
                                     <span>Start</span>
-                                    <span>{getTrimRangeForItem(activePreviewItem.id, activePreviewItem.duration).start.toFixed(2)}s</span>
+                                    <span>{getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0).start.toFixed(2)}s</span>
                                 </div>
                                 <input
                                     type="range"
                                     min={0}
                                     max={Math.max(0, activePreviewItem.duration - 0.01)}
                                     step={0.01}
-                                    value={getTrimRangeForItem(activePreviewItem.id, activePreviewItem.duration).start}
+                                    value={getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0).start}
                                     onChange={(e) => {
                                         const nextStart = Number(e.target.value);
-                                        const current = getTrimRangeForItem(activePreviewItem.id, activePreviewItem.duration);
+                                        const current = getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0);
                                         const safeEnd = Math.max(nextStart + 0.01, current.end);
                                         setClipTrimRanges((prev: any) => ({
                                             ...prev,
@@ -1762,17 +1299,17 @@ const ToolInspector = memo(({
                             <div>
                                 <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-widest text-slate-300 mb-0.5">
                                     <span>End</span>
-                                    <span>{getTrimRangeForItem(activePreviewItem.id, activePreviewItem.duration).end.toFixed(2)}s</span>
+                                    <span>{getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0).end.toFixed(2)}s</span>
                                 </div>
                                 <input
                                     type="range"
                                     min={0.01}
                                     max={activePreviewItem.duration}
                                     step={0.01}
-                                    value={getTrimRangeForItem(activePreviewItem.id, activePreviewItem.duration).end}
+                                    value={getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0).end}
                                     onChange={(e) => {
                                         const nextEnd = Number(e.target.value);
-                                        const current = getTrimRangeForItem(activePreviewItem.id, activePreviewItem.duration);
+                                        const current = getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0);
                                         setClipTrimRanges((prev: any) => ({
                                             ...prev,
                                             [activePreviewItem.id]: {
@@ -1820,7 +1357,7 @@ const ToolInspector = memo(({
                     <div className="space-y-2.5">
                         <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-widest text-slate-300">
                             <span>Degrees</span>
-                            <span>{rotationDegrees}°</span>
+                            <span>{rotationDegrees}Ã‚Â°</span>
                         </div>
                         <div className="grid grid-cols-4 gap-1">
                             {[0, 90, 180, 270].map((deg) => (
@@ -1829,7 +1366,7 @@ const ToolInspector = memo(({
                                     onClick={() => setRotationDegrees(deg)}
                                     className={`py-1.5 rounded text-[8px] font-black uppercase border transition-colors ${rotationDegrees === deg ? 'bg-purple-500/20 text-purple-300 border-purple-500/40' : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10'}`}
                                 >
-                                    {deg}°
+                                    {deg}Ã‚Â°
                                 </button>
                             ))}
                         </div>
@@ -1838,46 +1375,167 @@ const ToolInspector = memo(({
             );
         case 'volume':
             return (
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between border-b border-white/5 pb-1.5">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">Volume</span>
-                        <span className="text-[8px] text-slate-500 font-bold uppercase">Audio Level</span>
+                <div className="flex flex-col h-full bg-[#1b1c28] -m-2.5 overflow-y-auto custom-scrollbar rounded-xl">
+                    {/* Top Bar */}
+                    <div className="flex items-center justify-center border-b border-white/5 py-3 shrink-0">
+                        <span className="text-[13px] font-bold text-white">Volume</span>
                     </div>
-                    <div className="space-y-2.5">
-                        <button
-                            onClick={() => setIsMuted((prev: any) => !prev)}
-                            className={`w-full py-2 rounded-lg text-[8px] font-black uppercase border transition-colors ${isMuted ? 'bg-red-500/20 text-red-300 border-red-500/40' : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/15'}`}
-                        >
-                            {isMuted ? 'Unmute' : 'Mute'}
-                        </button>
-                        <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-widest text-slate-300">
-                            <span>Volume</span>
-                            <span>{Math.round(volumeLevel * 100)}%</span>
+                    
+                    {/* Content Body */}
+                    <div className="flex-1 p-5 space-y-6">
+                        
+                        {/* Volume Level Row */}
+                        <div className="flex items-center justify-between">
+                            <span className="text-[12px] font-medium text-slate-300">Volume</span>
+                            <div className="flex items-center bg-[#13141c] rounded-md px-3 py-1.5 border border-white/5">
+                                <input 
+                                    type="number" 
+                                    value={Math.round(volumeLevel * 100)} 
+                                    onChange={(e) => {
+                                        let next = parseFloat(e.target.value);
+                                        if (isNaN(next)) next = 0;
+                                        setVolumeLevel(next / 100);
+                                        if (next > 0 && isMuted) setIsMuted(false);
+                                    }}
+                                    className="bg-transparent text-slate-200 text-[11px] font-medium w-10 text-right focus:outline-none appearance-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                />
+                            </div>
                         </div>
-                        <input
-                            type="range"
-                            min={0}
-                            max={1}
-                            step={0.01}
-                            value={volumeLevel}
-                            onChange={(e) => {
-                                const next = Number(e.target.value);
-                                setVolumeLevel(next);
-                                if (next > 0 && isMuted) {
-                                    setIsMuted(false);
-                                }
-                            }}
-                            className="w-full accent-purple-400"
-                        />
+                        
+                        {/* Slider Row */}
+                        <div className="flex items-center gap-4">
+                            <button 
+                                onClick={() => setIsMuted((prev: any) => !prev)}
+                                className="w-8 h-8 rounded-md bg-[#252632] flex items-center justify-center hover:bg-[#2d2f3d] transition-colors shrink-0"
+                            >
+                                {isMuted ? (
+                                    <LucideIcons.VolumeX className="w-4 h-4 text-slate-300" />
+                                ) : (
+                                    <LucideIcons.Volume2 className="w-4 h-4 text-slate-300" />
+                                )}
+                            </button>
+                            <input
+                                type="range"
+                                min={0}
+                                max={5}
+                                step={0.01}
+                                value={volumeLevel}
+                                onChange={(e) => {
+                                    const next = Number(e.target.value);
+                                    setVolumeLevel(next);
+                                    if (next > 0 && isMuted) {
+                                        setIsMuted(false);
+                                    }
+                                }}
+                                className="flex-1 h-1 bg-[#252632] rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full cursor-pointer"
+                                style={{
+                                    background: `linear-gradient(to right, #ffc83d ${(volumeLevel / 5) * 100}%, #252632 ${(volumeLevel / 5) * 100}%)`
+                                }}
+                            />
+                        </div>
+                        
+                        {/* Denoise Row */}
+                        <div className="flex items-center justify-between">
+                            <span className="text-[12px] font-medium text-slate-300">Denoise</span>
+                            <div className="flex items-center gap-3">
+                                <span className="text-[11px] text-slate-500">{isDenoiseEnabled ? 'On' : 'Off'}</span>
+                                <button
+                                    onClick={() => setIsDenoiseEnabled((prev: any) => !prev)}
+                                    className={`w-9 h-5 rounded-full relative transition-colors ${isDenoiseEnabled ? 'bg-slate-600' : 'bg-[#252632]'}`}
+                                >
+                                    <div className={`absolute top-[2px] w-4 h-4 bg-white rounded-full transition-transform ${isDenoiseEnabled ? 'left-[18px]' : 'left-[2px]'}`} />
+                                </button>
+                            </div>
+                        </div>
+                        
+                    </div>
+                    
+                    {/* Apply to All Button */}
+                    <div className="p-4 mt-auto border-t border-white/5 shrink-0">
+                        <button
+                            onClick={onApplyToAllVolume}
+                            className="flex items-center gap-2 px-3 py-2 bg-[#252632] hover:bg-[#2d2f3d] rounded-md transition-colors text-[11px] font-bold text-slate-200"
+                        >
+                            <LucideIcons.CheckCheck className="w-4 h-4" />
+                            Apply to all
+                        </button>
                     </div>
                 </div>
             );
-        case 'crop':
+        case 'crop_deprecated': {
+            const CROP_RATIOS = [
+                { id: 'Original', label: 'Original', icon: Square, ratio: 0 },
+                { id: 'Free', label: 'Free', icon: Crop, ratio: 0 },
+                { id: '9:16', label: '9:16', icon: Smartphone, ratio: 9/16 },
+                { id: '1:1', label: '1:1', icon: Square, ratio: 1 },
+                { id: '16:9', label: '16:9', icon: MonitorPlay, ratio: 16/9 },
+                { id: '4:5', label: '4:5', icon: Smartphone, ratio: 4/5 },
+                { id: '2:3', label: '2:3', ratio: 2/3 },
+                { id: '3:4', label: '3:4', ratio: 3/4 },
+                { id: '4:3', label: '4:3', ratio: 4/3 },
+                { id: '3:2', label: '3:2', ratio: 3/2 },
+                { id: '21:9', label: '21:9', ratio: 21/9 },
+                { id: '42:9', label: '42:9', ratio: 42/9 },
+                { id: '1.85:1', label: '1.85:1', ratio: 1.85/1 },
+                { id: '2.35:1', label: '2.35:1', ratio: 2.35/1 },
+                { id: '2:1', label: '2:1', ratio: 2/1 },
+                { id: '1:2', label: '1:2', ratio: 1/2 },
+            ];
+
+            const handleCropRatioClick = (preset: any) => {
+                if (preset.id === 'Original' || preset.id === 'Free') {
+                    setCropWidthPct(100);
+                    setCropHeightPct(100);
+                    setCropCenterX(50);
+                    setCropCenterY(50);
+                    return;
+                }
+
+                if (!videoRef.current) return;
+                const vw = videoRef.current.videoWidth || 16;
+                const vh = videoRef.current.videoHeight || 9;
+                const videoRatio = vw / vh;
+                
+                const targetRatio = preset.ratio;
+                let wPct = 100;
+                let hPct = 100;
+                
+                if (targetRatio > videoRatio) {
+                    hPct = (videoRatio / targetRatio) * 100;
+                } else if (targetRatio < videoRatio) {
+                    wPct = (targetRatio / videoRatio) * 100;
+                }
+                
+                setCropWidthPct(wPct);
+                setCropHeightPct(hPct);
+                setCropCenterX(50);
+                setCropCenterY(50);
+            };
+
             return (
                 <div className="space-y-3">
                     <div className="flex items-center justify-between border-b border-white/5 pb-1.5">
                         <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">Cropping</span>
                         <span className="text-[8px] text-slate-500 font-bold uppercase">Dimensions</span>
+                    </div>
+
+                    <div className="flex overflow-x-auto gap-2 pb-2 custom-scrollbar items-center">
+                        {CROP_RATIOS.map((preset) => (
+                            <button
+                                key={preset.id}
+                                onClick={() => handleCropRatioClick(preset)}
+                                className="flex flex-col items-center justify-center min-w-[54px] h-[54px] rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 shrink-0 transition-colors"
+                            >
+                                {preset.icon ? (
+                                    <>
+                                        <preset.icon className="w-4 h-4 text-slate-300 mb-1" />
+                                        <span className="text-[8px] font-medium text-slate-300">{preset.label}</span>
+                                    </>
+                                ) : (
+                                    <span className="text-[10px] font-bold text-slate-300">{preset.label}</span>
+                                )}
+                            </button>
+                        ))}
                     </div>
                     <div className="space-y-2">
                         <div>
@@ -1922,6 +1580,7 @@ const ToolInspector = memo(({
                     </div>
                 </div>
             );
+        }
         case 'zoom':
             return (
                 <div className="space-y-3">
@@ -1997,221 +1656,539 @@ const ToolInspector = memo(({
             );
         case 'text-tool':
             return (
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between border-b border-white/5 pb-1.5">
+                <div className="flex flex-col h-[600px] space-y-3">
+                    <div className="flex items-center justify-between border-b border-white/5 pb-1.5 shrink-0">
                         <span className="text-[9px] font-black uppercase tracking-widest text-slate-300">Text overlay</span>
                         <span className="text-[8px] text-slate-500 font-bold uppercase">Titles</span>
                     </div>
-                    <div className="space-y-4">
-                        <div>
-                            <label className="text-[10px] font-extrabold uppercase tracking-wider text-[#6A7B95] block mb-2">Content</label>
-                            <Textarea
-                                value={overlayText}
-                                onChange={(e) => {
-                                    setOverlayText(e.target.value);
-                                    setAnimatedText(e.target.value);
-                                }}
-                                placeholder="Overlay text"
-                                className="mt-1 w-full bg-[#08090d] border border-white/[0.08] hover:border-white/15 focus:border-purple-500/50 text-slate-200 text-[13px] font-medium min-h-[85px] rounded-lg p-3 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-purple-500/30 transition-all resize-none shadow-inner"
-                            />
-                        </div>
-                        {/* Category Selector Chips */}
-                        <div className="flex gap-1.5 pb-1 shrink-0 scrollbar-none">
+                    
+                    <div className="flex flex-1 min-h-0 gap-3 flex-row-reverse">
+                        {/* Vertical Toolbar Sidebar (Moved to Right) */}
+                        <div className="w-10 bg-[#12141c] rounded-xl border border-white/5 flex flex-col items-center py-2 space-y-1.5 shrink-0 h-fit">
                             {[
-                                { id: 'fonts', label: 'Project Fonts' },
-                                { id: 'styles', label: 'Text Style' }
+                                { id: 'content', icon: <LucideIcons.Keyboard className="w-4 h-4" strokeWidth={1.5} /> },
+                                { id: 'fonts', icon: <span className="font-serif italic text-lg leading-none">Ff</span> },
+                                { id: 'styles', icon: <span className="font-sans font-medium text-lg leading-none">Aa</span> },
+                                { id: 'color', icon: <LucideIcons.Palette className="w-4 h-4" strokeWidth={1.5} /> },
+                                { id: 'align', icon: <LucideIcons.AlignLeft className="w-4 h-4" strokeWidth={1.5} /> },
+                                { id: 'spacing', icon: <LucideIcons.ArrowUpDown className="w-4 h-4" strokeWidth={1.5} /> },
+                                { id: 'transform', icon: <LucideIcons.Move className="w-4 h-4" strokeWidth={1.5} /> },
+                                { id: 'animation', icon: <LucideIcons.Play className="w-4 h-4" strokeWidth={1.5} /> }
                             ].map((tab) => (
                                 <button
                                     key={tab.id}
                                     onClick={() => setTextSubTab(tab.id as any)}
-                                    type="button"
-                                    className={`px-3 py-1.5 rounded-full text-[8.5px] font-black uppercase tracking-wider transition-all border shrink-0 cursor-pointer ${
+                                    className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${
                                         textSubTab === tab.id
-                                            ? 'bg-purple-500/20 border-purple-500/60 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
-                                            : 'bg-[#12141c]/50 border-white/[0.06] text-slate-400 hover:bg-[#12141c] hover:text-slate-200'
+                                            ? 'bg-white/10 text-white'
+                                            : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
                                     }`}
                                 >
-                                    {tab.label}
+                                    {tab.icon}
                                 </button>
                             ))}
                         </div>
 
-                        {/* Switch Content based on textSubTab */}
-                        {textSubTab === 'fonts' ? (
-                            <div className="flex-1 min-h-0 flex flex-col">
-                                <div className="bg-[#12141c] border border-white/[0.06] rounded-xl overflow-hidden shadow-inner select-none flex flex-col flex-1 min-h-0">
-                                    <div className="px-3.5 py-1.5 bg-[#0e1017] text-[8.5px] font-extrabold uppercase tracking-widest text-[#5c6e8e] border-b border-white/[0.02] shrink-0">
-                                        My Fonts
+                        {/* Content Area */}
+                        <div className="flex-1 overflow-y-auto pr-2 flex flex-col min-h-0 relative scrollbar-thin scrollbar-thumb-white/10">
+                            {textSubTab === 'content' && (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-[10px] font-extrabold uppercase tracking-wider text-[#6A7B95] block mb-2">Content</label>
+                                        <Textarea
+                                            value={overlayText}
+                                            onChange={(e) => {
+                                                setOverlayText(e.target.value);
+                                                setAnimatedText(e.target.value);
+                                            }}
+                                            placeholder="Overlay text"
+                                            className="w-full bg-[#08090d] border border-white/[0.08] hover:border-white/15 focus:border-purple-500/50 text-slate-200 text-[13px] font-medium min-h-[150px] rounded-lg p-3 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-purple-500/30 transition-all resize-none shadow-inner"
+                                        />
                                     </div>
-                                    <div className="flex-1 min-h-[220px] overflow-y-auto divide-y divide-white/[0.02] pr-0.5 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/[0.08] [&::-webkit-scrollbar-thumb]:rounded-full">
-                                        {textFontOptions.map((font) => {
-                                            const isActive = overlayFontId === font.id;
-                                            
-                                            // Specific icons from the user's mockup image
-                                            const showUpload = ['rubik', 'abril', 'adderley', 'adelia', 'akira'].includes(font.id);
-                                            const showChevron = ['rubik', 'abeezee', 'adderley', 'advent'].includes(font.id);
-
-                                            return (
-                                                <button
-                                                    key={font.id}
-                                                    onClick={() => setOverlayFontId(font.id)}
-                                                    className={`w-full flex items-center justify-between py-2.5 px-3.5 text-left border-l-2 transition-all duration-150 active:scale-[0.99] cursor-pointer ${
-                                                        isActive
-                                                            ? 'bg-[#1e172a] border-[#D946EF] text-[#e879f9]'
-                                                            : 'border-transparent text-slate-300 hover:bg-white/[0.02] hover:text-white'
-                                                    }`}
-                                                >
-                                                    <span 
-                                                        className="text-[12.5px] font-medium leading-none"
-                                                        style={{ 
-                                                            fontFamily: font.family,
-                                                            letterSpacing: font.letterSpacing || 'normal',
-                                                            fontWeight: font.fontWeight || 'normal'
-                                                        }}
-                                                    >
-                                                        {font.label}
-                                                    </span>
-                                                    
-                                                    <div className="flex items-center gap-2.5 text-slate-500 group-hover:text-slate-400 shrink-0">
-                                                        {showUpload && (
-                                                            <Upload className={`w-3 h-3 transition-colors ${isActive ? 'text-[#D946EF]/70' : 'text-slate-500 hover:text-slate-300'}`} />
-                                                        )}
-                                                        {showChevron && (
-                                                            <ChevronDown className={`w-3.5 h-3.5 transition-colors ${isActive ? 'text-[#D946EF]/70' : 'text-slate-500'}`} />
-                                                        )}
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => window.dispatchEvent(new CustomEvent('add-text-clip'))}
+                                            className="flex-1 py-2 rounded text-[10px] font-bold transition-colors bg-purple-500 text-white hover:bg-purple-600"
+                                        >
+                                            Add to Timeline
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setOverlayText('');
+                                                setAnimatedText('');
+                                                window.dispatchEvent(new CustomEvent('trigger-add-text'));
+                                            }}
+                                            className="px-3 py-2 rounded bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center transition-colors"
+                                            title="Delete Text"
+                                        >
+                                            <LucideIcons.Trash2 className="w-4 h-4" />
+                                        </button>
                                     </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <div className="flex-1 min-h-[220px] overflow-y-auto pr-1 scrollbar-thin">
-                                <div className="grid grid-cols-2 gap-2.5 pb-2">
-                                    {[
-                                        { id: 'cinematic-title', label: 'Cinematic Title' },
-                                        { id: 'animated-captions', label: 'Animated Captions' },
-                                        { id: 'kinetic-typography', label: 'Kinetic Typography' },
-                                        { id: 'neon-glow-text', label: 'Neon Glow Text' },
-                                        { id: 'glitch-text', label: 'Glitch Text' },
-                                        { id: 'typewriter-text', label: 'Typewriter Text' },
-                                        { id: 'bold-hype-text', label: 'Bold Hype Text' },
-                                        { id: 'lyrics-text', label: 'Lyrics Text' },
-                                        { id: 'minimal-clean-text', label: 'Minimal Clean Text' },
-                                        { id: '3d-text', label: '3D Text' },
-                                        { id: 'subtitle-style-text', label: 'Subtitle Style Text' },
-                                        { id: 'motion-tracking-text', label: 'Motion Tracking Text' },
-                                    ].map((style) => {
-                                        const isActive = overlayTextStylePreset === style.id;
+                            )}
+
+                            {textSubTab === 'styles' && (
+                                <div className="bg-[#12141c] border border-white/[0.06] rounded-xl overflow-hidden shadow-inner select-none flex flex-col flex-1 min-h-0">
+                                    <div className="px-3.5 py-2 bg-[#0e1017] text-[10px] font-bold text-slate-300 border-b border-white/[0.02] shrink-0">
+                                        Font Family
+                                    </div>
+                                    <div className="flex-1 min-h-[220px] overflow-y-auto divide-y divide-white/[0.02] pr-0.5 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/[0.08] [&::-webkit-scrollbar-thumb]:rounded-full">
+                                    {textFontOptions.map((font) => {
+                                        const isActive = overlayFontId === font.id;
                                         return (
                                             <button
-                                                key={style.id}
-                                                onClick={() => {
-                                                    setOverlayTextStylePreset(style.id);
-                                                    setSelectedEffect(getOverlayTextEffectForPreset(style.id));
-                                                    if (style.id === 'animated-captions') {
-                                                        setAnimatedText(overlayText);
-                                                    }
-                                                }}
-                                                className={`h-10 px-3 flex items-center justify-center text-[9px] font-bold uppercase tracking-wider border rounded-lg transition-all duration-200 active:scale-[0.98] cursor-pointer ${
+                                                key={font.id}
+                                                onClick={() => setOverlayFontId(font.id)}
+                                                className={`w-full flex items-center justify-between py-3 px-3.5 text-left border-l-2 transition-all duration-150 active:scale-[0.99] cursor-pointer ${
                                                     isActive
-                                                        ? 'bg-[#181125] text-[#D946EF] border-[#A855F7] shadow-[0_0_12px_rgba(168,85,247,0.2)]'
-                                                        : 'bg-[#0e111a]/60 text-slate-200 border-white/[0.05] hover:bg-white/[0.04] hover:border-white/10 hover:text-white'
+                                                        ? 'bg-[#1e172a] border-[#D946EF] text-[#e879f9]'
+                                                        : 'border-transparent text-slate-300 hover:bg-white/[0.02] hover:text-white'
                                                 }`}
                                             >
-                                                {style.label}
+                                                <span 
+                                                    className="text-[13px]"
+                                                    style={{ 
+                                                        fontFamily: font.family,
+                                                        letterSpacing: font.letterSpacing || 'normal',
+                                                        fontWeight: font.fontWeight || 'normal'
+                                                    }}
+                                                >
+                                                    {font.label}
+                                                </span>
                                             </button>
                                         );
                                     })}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                        <div className="grid grid-cols-2 gap-2">
-                            <div>
-                                <label className="text-[8px] font-bold uppercase tracking-widest text-slate-400">Size</label>
-                                <input
-                                    type="range"
-                                    min={18}
-                                    max={96}
-                                    value={overlayFontSize}
-                                    onChange={(e) => setOverlayFontSize(Number(e.target.value))}
-                                    className="w-full accent-purple-400"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-[8px] font-bold uppercase tracking-widest text-slate-400">Color</label>
-                                <input
-                                    type="color"
-                                    value={overlayColor}
-                                    onChange={(e) => setOverlayColor(e.target.value)}
-                                    className="w-full h-6 rounded bg-transparent border border-white/10 cursor-pointer"
-                                />
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <div>
-                                <label className="text-[8px] font-bold uppercase tracking-widest text-slate-400 block mb-0.5">Background</label>
-                                <button
-                                    type="button"
-                                    onClick={() => setOverlayBgEnabled(!overlayBgEnabled)}
-                                    className={`w-full py-1.5 rounded text-[8px] font-black uppercase border transition-all ${overlayBgEnabled ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 ring-2 ring-purple-500/30' : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10'}`}
-                                >
-                                    {overlayBgEnabled ? 'ON' : 'OFF'}
-                                </button>
-                            </div>
-                            {overlayBgEnabled && (
-                                <div>
-                                    <label className="text-[8px] font-bold uppercase tracking-widest text-slate-400">BG Color</label>
-                                    <input
-                                        type="color"
-                                        value={overlayBgColorHex}
-                                        onChange={(e) => setOverlayBgColorHex(e.target.value)}
-                                        className="w-full h-6 rounded bg-transparent border border-white/10 cursor-pointer"
-                                    />
+                            )}
+
+                            {textSubTab === 'fonts' && (
+                                <div className="space-y-6">
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[11px] text-slate-300">Font Size</label>
+                                            <div className="bg-[#12141c] border border-white/10 rounded px-2 py-0.5 text-[10px] text-slate-300 w-12 text-center">
+                                                {overlayFontSize}
+                                            </div>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min={10}
+                                            max={120}
+                                            value={overlayFontSize}
+                                            onChange={(e) => setOverlayFontSize(Number(e.target.value))}
+                                            className="w-full h-1 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                                        />
+                                    </div>
+                                    <div className="space-y-3">
+                                        <label className="text-[11px] text-slate-400">Suitable Font Size for Design</label>
+                                        <div className="space-y-1">
+                                            {[
+                                                { label: 'Title', size: 36, weight: 'font-bold', textClass: 'text-2xl' },
+                                                { label: 'Subtitle', size: 24, weight: 'font-bold', textClass: 'text-xl' },
+                                                { label: 'Content', size: 17, weight: 'font-bold', textClass: 'text-base' }
+                                            ].map((preset) => (
+                                                <button
+                                                    key={preset.label}
+                                                    onClick={() => setOverlayFontSize(preset.size)}
+                                                    className="w-full flex items-center justify-between py-2 px-1 hover:bg-white/5 rounded transition-colors group"
+                                                >
+                                                    <div className="flex items-baseline gap-2">
+                                                        <span className={`${preset.weight} ${preset.textClass} text-white`}>{preset.label}</span>
+                                                        <span className="text-[10px] text-slate-500">/ {preset.size}</span>
+                                                    </div>
+                                                    {overlayFontSize === preset.size && (
+                                                        <LucideIcons.Check className="w-4 h-4 text-yellow-500" />
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {textSubTab === 'color' && (
+                                <div className="space-y-6 pb-12">
+                                    <div className="text-center font-bold text-sm text-white mb-4 border-b border-white/10 pb-2">Color</div>
+                                    
+                                    <div className="space-y-2">
+                                        <label className="text-[11px] text-slate-300">Styles</label>
+                                        <div className="grid grid-cols-7 gap-1">
+                                            {Array.from({ length: 21 }).map((_, i) => (
+                                                <button key={i} className="aspect-square rounded border border-white/10 flex items-center justify-center hover:bg-white/10 bg-[#12141c]">
+                                                    <span className="font-serif text-[14px] font-bold text-white">T</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <label className="text-[11px] text-slate-300">Text</label>
+                                        <div className="flex items-center gap-2 bg-[#12141c] border border-white/10 rounded p-1">
+                                            <input
+                                                type="color"
+                                                value={overlayColor}
+                                                onChange={(e) => setOverlayColor(e.target.value)}
+                                                className="w-6 h-6 rounded cursor-pointer border-0 p-0"
+                                            />
+                                            <span className="text-[11px] text-slate-300 uppercase flex-1">{overlayColor.replace('#', '')}</span>
+                                            <LucideIcons.ChevronDown className="w-4 h-4 text-slate-500 mr-1" />
+                                        </div>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <label className="text-[11px] text-slate-400 w-14">Opacity</label>
+                                            <input
+                                                type="range"
+                                                min={0}
+                                                max={100}
+                                                value={overlayOpacity}
+                                                onChange={(e) => setOverlayOpacity(Number(e.target.value))}
+                                                className="flex-1 h-0.5 bg-yellow-500/30 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                                            />
+                                            <div className="bg-[#12141c] border border-white/10 rounded px-2 text-[10px] text-slate-300 w-10 text-center">
+                                                {overlayOpacity}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3 pt-3 border-t border-white/5">
+                                        <div className="flex items-center justify-between">
+                                            <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
+                                                <input type="checkbox" checked={overlayStrokeEnabled} onChange={(e) => setOverlayStrokeEnabled(e.target.checked)} className="rounded border-white/20 bg-transparent text-purple-500 focus:ring-0" />
+                                                Stroke
+                                            </label>
+                                            <LucideIcons.RotateCcw className="w-3 h-3 text-slate-500 cursor-pointer hover:text-slate-300" />
+                                        </div>
+                                        {overlayStrokeEnabled && (
+                                            <>
+                                                <div className="flex items-center gap-2 bg-[#12141c] border border-white/10 rounded p-1">
+                                                    <input type="color" value={overlayStrokeColor} onChange={(e) => setOverlayStrokeColor(e.target.value)} className="w-6 h-6 rounded cursor-pointer border-0 p-0" />
+                                                    <span className="text-[11px] text-slate-300 uppercase flex-1">{overlayStrokeColor.replace('#', '')}</span>
+                                                    <LucideIcons.ChevronDown className="w-4 h-4 text-slate-500 mr-1" />
+                                                </div>
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <label className="text-[11px] text-slate-400 w-14">Opacity</label>
+                                                    <input type="range" min={0} max={100} value={overlayStrokeOpacity} onChange={(e) => setOverlayStrokeOpacity(Number(e.target.value))} className="flex-1 h-0.5 bg-yellow-500/30 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-slate-400" />
+                                                    <div className="bg-[#12141c] border border-white/10 rounded px-2 text-[10px] text-slate-300 w-10 text-center">{overlayStrokeOpacity}</div>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-3 pt-3 border-t border-white/5">
+                                        <div className="flex items-center justify-between">
+                                            <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
+                                                <input type="checkbox" checked={overlayShadowEnabled} onChange={(e) => setOverlayShadowEnabled(e.target.checked)} className="rounded border-white/20 bg-transparent text-purple-500 focus:ring-0" />
+                                                Shadow
+                                            </label>
+                                            <LucideIcons.RotateCcw className="w-3 h-3 text-slate-500 cursor-pointer hover:text-slate-300" />
+                                        </div>
+                                        {overlayShadowEnabled && (
+                                            <>
+                                                <div className="flex items-center gap-2 bg-[#12141c] border border-white/10 rounded p-1">
+                                                    <input type="color" value={overlayShadowColor} onChange={(e) => setOverlayShadowColor(e.target.value)} className="w-6 h-6 rounded cursor-pointer border-0 p-0" />
+                                                    <span className="text-[11px] text-slate-300 uppercase flex-1">{overlayShadowColor.replace('#', '')}</span>
+                                                    <LucideIcons.ChevronDown className="w-4 h-4 text-slate-500 mr-1" />
+                                                </div>
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <label className="text-[11px] text-slate-400 w-14">Opacity</label>
+                                                    <input type="range" min={0} max={100} value={overlayShadowOpacity} onChange={(e) => setOverlayShadowOpacity(Number(e.target.value))} className="flex-1 h-0.5 bg-yellow-500/30 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-slate-400" />
+                                                    <div className="bg-[#12141c] border border-white/10 rounded px-2 text-[10px] text-slate-300 w-10 text-center">{overlayShadowOpacity}</div>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <label className="text-[11px] text-slate-400 w-14">Blur</label>
+                                                    <input type="range" min={0} max={100} value={overlayShadowBlur} onChange={(e) => setOverlayShadowBlur(Number(e.target.value))} className="flex-1 h-0.5 bg-yellow-500/30 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-slate-400" />
+                                                    <div className="bg-[#12141c] border border-white/10 rounded px-2 text-[10px] text-slate-300 w-10 text-center">{overlayShadowBlur}</div>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-3 pt-3 border-t border-white/5">
+                                        <div className="flex items-center justify-between">
+                                            <label className="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer">
+                                                <input type="checkbox" checked={overlayBgEnabled} onChange={(e) => setOverlayBgEnabled(e.target.checked)} className="rounded border-white/20 bg-transparent text-purple-500 focus:ring-0" />
+                                                Background
+                                            </label>
+                                            <LucideIcons.RotateCcw className="w-3 h-3 text-slate-500 cursor-pointer hover:text-slate-300" />
+                                        </div>
+                                        {overlayBgEnabled && (
+                                            <>
+                                                <div className="flex items-center gap-2 bg-[#12141c] border border-white/10 rounded p-1">
+                                                    <input type="color" value={overlayBgColorHex} onChange={(e) => setOverlayBgColorHex(e.target.value)} className="w-6 h-6 rounded cursor-pointer border-0 p-0" />
+                                                    <span className="text-[11px] text-slate-300 uppercase flex-1">{overlayBgColorHex.replace('#', '')}</span>
+                                                    <LucideIcons.ChevronDown className="w-4 h-4 text-slate-500 mr-1" />
+                                                </div>
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <label className="text-[11px] text-slate-400 w-14">Radius</label>
+                                                    <input type="range" min={0} max={100} value={overlayBgRadius} onChange={(e) => setOverlayBgRadius(Number(e.target.value))} className="flex-1 h-0.5 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-slate-400" />
+                                                    <div className="bg-[#12141c] border border-white/10 rounded px-2 text-[10px] text-slate-300 w-10 text-center">{overlayBgRadius}</div>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <label className="text-[11px] text-slate-400 w-14">X Padding</label>
+                                                    <input type="range" min={0} max={200} value={overlayBgPaddingX * 100} onChange={(e) => setOverlayBgPaddingX(Number(e.target.value) / 100)} className="flex-1 h-0.5 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-slate-400" />
+                                                    <div className="bg-[#12141c] border border-white/10 rounded px-2 text-[10px] text-slate-300 w-10 text-center">{overlayBgPaddingX.toFixed(1)}</div>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <label className="text-[11px] text-slate-400 w-14">Y Padding</label>
+                                                    <input type="range" min={0} max={200} value={overlayBgPaddingY * 100} onChange={(e) => setOverlayBgPaddingY(Number(e.target.value) / 100)} className="flex-1 h-0.5 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-slate-400" />
+                                                    <div className="bg-[#12141c] border border-white/10 rounded px-2 text-[10px] text-slate-300 w-10 text-center">{overlayBgPaddingY.toFixed(1)}</div>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {textSubTab === 'align' && (
+                                <div className="space-y-6 pb-12">
+                                    <div className="text-center font-bold text-sm text-white mb-4 border-b border-white/10 pb-2">Format</div>
+                                    
+                                    <div className="space-y-2">
+                                        <label className="text-[11px] text-slate-300">Text Style</label>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setOverlayTextStyleBold(!overlayTextStyleBold)} className={`w-8 h-8 rounded border flex items-center justify-center font-serif font-bold text-sm ${overlayTextStyleBold ? 'bg-white/20 border-white/30 text-white' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>B</button>
+                                            <button onClick={() => setOverlayTextStyleItalic(!overlayTextStyleItalic)} className={`w-8 h-8 rounded border flex items-center justify-center font-serif italic text-sm ${overlayTextStyleItalic ? 'bg-white/20 border-white/30 text-white' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>I</button>
+                                            <button onClick={() => setOverlayTextStyleUnderline(!overlayTextStyleUnderline)} className={`w-8 h-8 rounded border flex items-center justify-center font-serif underline text-sm ${overlayTextStyleUnderline ? 'bg-white/20 border-white/30 text-white' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>U</button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[11px] text-slate-300">Alignment</label>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setOverlayAlignment('left')} className={`w-10 h-8 rounded border flex items-center justify-center ${overlayAlignment === 'left' ? 'bg-white/20 border-white/30 text-white' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>
+                                                <LucideIcons.AlignLeft className="w-4 h-4" />
+                                            </button>
+                                            <button onClick={() => setOverlayAlignment('center')} className={`w-10 h-8 rounded border flex items-center justify-center ${overlayAlignment === 'center' ? 'bg-white/20 border-yellow-500/50 text-yellow-500' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>
+                                                <LucideIcons.AlignCenter className="w-4 h-4" />
+                                            </button>
+                                            <button onClick={() => setOverlayAlignment('right')} className={`w-10 h-8 rounded border flex items-center justify-center ${overlayAlignment === 'right' ? 'bg-white/20 border-white/30 text-white' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>
+                                                <LucideIcons.AlignRight className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[11px] text-slate-300">List Style</label>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setOverlayListStyle('none')} className={`w-10 h-8 rounded border flex items-center justify-center ${overlayListStyle === 'none' ? 'bg-white/20 border-yellow-500/50 text-yellow-500' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>
+                                                <span className="text-lg leading-none mb-1">-</span>
+                                            </button>
+                                            <button onClick={() => setOverlayListStyle('bullet')} className={`w-10 h-8 rounded border flex items-center justify-center ${overlayListStyle === 'bullet' ? 'bg-white/20 border-white/30 text-white' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>
+                                                <LucideIcons.List className="w-4 h-4" />
+                                            </button>
+                                            <button onClick={() => setOverlayListStyle('number')} className={`w-10 h-8 rounded border flex items-center justify-center ${overlayListStyle === 'number' ? 'bg-white/20 border-white/30 text-white' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>
+                                                <LucideIcons.ListOrdered className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[11px] text-slate-300">Case</label>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setOverlayCase('none')} className={`w-10 h-8 rounded border flex items-center justify-center ${overlayCase === 'none' ? 'bg-white/20 border-yellow-500/50 text-yellow-500' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>
+                                                <span className="text-lg leading-none mb-1">-</span>
+                                            </button>
+                                            <button onClick={() => setOverlayCase('upper')} className={`w-10 h-8 rounded border flex items-center justify-center text-xs font-bold ${overlayCase === 'upper' ? 'bg-white/20 border-white/30 text-white' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>
+                                                AG
+                                            </button>
+                                            <button onClick={() => setOverlayCase('lower')} className={`w-10 h-8 rounded border flex items-center justify-center text-xs font-bold ${overlayCase === 'lower' ? 'bg-white/20 border-white/30 text-white' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>
+                                                ag
+                                            </button>
+                                            <button onClick={() => setOverlayCase('title')} className={`w-10 h-8 rounded border flex items-center justify-center text-xs font-bold ${overlayCase === 'title' ? 'bg-white/20 border-white/30 text-white' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>
+                                                Ag
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[11px] text-slate-300">Position</label>
+                                        <div className="grid grid-cols-3 gap-1 w-40">
+                                            {Array.from({ length: 9 }).map((_, i) => (
+                                                <button key={i} className="h-6 bg-[#2a2c35] hover:bg-white/20 rounded border border-transparent"></button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {textSubTab === 'spacing' && (
+                                <div className="space-y-6 pb-12">
+                                    <div className="text-center font-bold text-sm text-white mb-4 border-b border-white/10 pb-2">Spacing</div>
+                                    
+                                    <div className="space-y-2">
+                                        <label className="text-[11px] text-slate-300">Anchor Text Box</label>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setOverlayAnchor('top')} className={`w-9 h-8 rounded border flex items-center justify-center ${overlayAnchor === 'top' ? 'bg-white/20 border-yellow-500/50 text-yellow-500' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>
+                                                <LucideIcons.ArrowUpToLine className="w-4 h-4" />
+                                            </button>
+                                            <button onClick={() => setOverlayAnchor('center')} className={`w-9 h-8 rounded border flex items-center justify-center ${overlayAnchor === 'center' ? 'bg-white/20 border-yellow-500/50 text-yellow-500' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>
+                                                <LucideIcons.AlignVerticalSpaceAround className="w-4 h-4" />
+                                            </button>
+                                            <button onClick={() => setOverlayAnchor('bottom')} className={`w-9 h-8 rounded border flex items-center justify-center ${overlayAnchor === 'bottom' ? 'bg-white/20 border-white/30 text-white' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>
+                                                <LucideIcons.ArrowDownToLine className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2 pt-2">
+                                        <label className="text-[11px] text-slate-300">Text Box Settings</label>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setOverlayTextBoxSetting('auto')} className={`w-9 h-8 rounded border flex items-center justify-center ${overlayTextBoxSetting === 'auto' ? 'bg-white/20 border-yellow-500/50 text-yellow-500' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>
+                                                <LucideIcons.MoveHorizontal className="w-4 h-4" />
+                                            </button>
+                                            <button onClick={() => setOverlayTextBoxSetting('fixed')} className={`w-9 h-8 rounded border flex items-center justify-center ${overlayTextBoxSetting === 'fixed' ? 'bg-white/20 border-white/30 text-white' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>
+                                                <LucideIcons.AlignJustify className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3 pt-3 border-t border-white/5">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[11px] text-slate-300">Letter Spacing</label>
+                                            <div className="bg-[#12141c] border border-white/10 rounded px-2 text-[10px] text-slate-300 w-12 text-center py-0.5">
+                                                {overlayLetterSpacing}
+                                            </div>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min={-50}
+                                            max={100}
+                                            value={overlayLetterSpacing}
+                                            onChange={(e) => setOverlayLetterSpacing(Number(e.target.value))}
+                                            className="w-full h-0.5 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-3 pt-3">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[11px] text-slate-300">Line Spacing</label>
+                                            <div className="bg-[#12141c] border border-white/10 rounded px-2 text-[10px] text-slate-300 w-12 text-center py-0.5">
+                                                {overlayLineSpacing}%
+                                            </div>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min={-50}
+                                            max={100}
+                                            value={overlayLineSpacing}
+                                            onChange={(e) => setOverlayLineSpacing(Number(e.target.value))}
+                                            className="w-full h-0.5 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {textSubTab === 'animation' && (
+                                <div className="space-y-6 pb-12">
+                                    <div className="text-center font-bold text-sm text-white mb-4 border-b border-white/10 pb-2">Animations</div>
+                                    
+                                    <div className="space-y-2">
+                                        <label className="text-[11px] text-slate-300">In Animation</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {['none', 'fade', 'slide-left', 'zoom-in'].map(anim => (
+                                                <button key={anim} onClick={() => setOverlayAnimationIn(anim)} className={`py-1.5 px-2 rounded border text-xs capitalize ${overlayAnimationIn === anim ? 'bg-white/20 border-white/30 text-white' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>
+                                                    {anim.replace('-', ' ')}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="space-y-2">
+                                        <label className="text-[11px] text-slate-300">Out Animation</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {['none', 'fade', 'slide-right', 'zoom-out'].map(anim => (
+                                                <button key={anim} onClick={() => setOverlayAnimationOut(anim)} className={`py-1.5 px-2 rounded border text-xs capitalize ${overlayAnimationOut === anim ? 'bg-white/20 border-white/30 text-white' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>
+                                                    {anim.replace('-', ' ')}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="space-y-2">
+                                        <label className="text-[11px] text-slate-300">Loop Animation</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {['none', 'pulse', 'shake', 'float', 'wobble', 'blink', 'typewriter'].map(anim => (
+                                                <button key={anim} onClick={() => setOverlayAnimationLoop(anim)} className={`py-1.5 px-2 rounded border text-xs capitalize ${overlayAnimationLoop === anim ? 'bg-white/20 border-white/30 text-white' : 'bg-[#2a2c35] border-transparent text-slate-300'}`}>
+                                                    {anim}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            {textSubTab === 'transform' && (
+                                <div className="space-y-6 pb-12">
+                                    <div className="text-center font-bold text-sm text-white mb-4 border-b border-white/10 pb-2">Position</div>
+                                    
+                                    <div className="space-y-2">
+                                        <label className="text-[11px] text-slate-300">Nudge</label>
+                                        <div className="flex gap-4">
+                                            <div className="flex items-center gap-2 flex-1">
+                                                <span className="text-[11px] text-slate-400">X</span>
+                                                <div className="flex items-center bg-[#1e2029] border border-white/10 rounded overflow-hidden w-full h-8 px-2 justify-between">
+                                                    <input 
+                                                        type="number" 
+                                                        value={overlayPosX} 
+                                                        onChange={(e) => setOverlayPosX(Number(e.target.value))}
+                                                        className="bg-transparent text-white text-xs w-full focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                    />
+                                                    <div className="flex flex-col -space-y-1">
+                                                        <LucideIcons.ChevronUp className="w-3 h-3 text-slate-400 cursor-pointer hover:text-white" onClick={() => setOverlayPosX(overlayPosX + 1)} />
+                                                        <LucideIcons.ChevronDown className="w-3 h-3 text-slate-400 cursor-pointer hover:text-white" onClick={() => setOverlayPosX(overlayPosX - 1)} />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 flex-1">
+                                                <span className="text-[11px] text-slate-400">Y</span>
+                                                <div className="flex items-center bg-[#1e2029] border border-white/10 rounded overflow-hidden w-full h-8 px-2 justify-between">
+                                                    <input 
+                                                        type="number" 
+                                                        value={overlayPosY} 
+                                                        onChange={(e) => setOverlayPosY(Number(e.target.value))}
+                                                        className="bg-transparent text-white text-xs w-full focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                    />
+                                                    <div className="flex flex-col -space-y-1">
+                                                        <LucideIcons.ChevronUp className="w-3 h-3 text-slate-400 cursor-pointer hover:text-white" onClick={() => setOverlayPosY(overlayPosY + 1)} />
+                                                        <LucideIcons.ChevronDown className="w-3 h-3 text-slate-400 cursor-pointer hover:text-white" onClick={() => setOverlayPosY(overlayPosY - 1)} />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2 pt-2">
+                                        <label className="text-[11px] text-slate-300">Align</label>
+                                        <div className="flex bg-[#2a2c35] rounded border border-transparent overflow-hidden w-fit">
+                                            <button onClick={() => setOverlayPosX(0)} className="w-8 h-8 flex items-center justify-center hover:bg-white/10 text-slate-400 hover:text-white border-r border-white/5"><LucideIcons.AlignLeft className="w-3.5 h-3.5" /></button>
+                                            <button onClick={() => setOverlayPosX(50)} className="w-8 h-8 flex items-center justify-center hover:bg-white/10 text-slate-400 hover:text-white border-r border-white/5"><LucideIcons.AlignCenter className="w-3.5 h-3.5" /></button>
+                                            <button onClick={() => setOverlayPosX(100)} className="w-8 h-8 flex items-center justify-center hover:bg-white/10 text-slate-400 hover:text-white border-r border-white/5"><LucideIcons.AlignRight className="w-3.5 h-3.5" /></button>
+                                            <button onClick={() => setOverlayPosY(0)} className="w-8 h-8 flex items-center justify-center hover:bg-white/10 text-slate-400 hover:text-white border-r border-white/5"><LucideIcons.AlignStartVertical className="w-3.5 h-3.5" /></button>
+                                            <button onClick={() => setOverlayPosY(50)} className="w-8 h-8 flex items-center justify-center hover:bg-white/10 text-slate-400 hover:text-white border-r border-white/5"><LucideIcons.AlignCenterVertical className="w-3.5 h-3.5" /></button>
+                                            <button onClick={() => setOverlayPosY(100)} className="w-8 h-8 flex items-center justify-center hover:bg-white/10 text-slate-400 hover:text-white"><LucideIcons.AlignEndVertical className="w-3.5 h-3.5" /></button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="pt-4">
+                                        <button
+                                            onClick={() => setIsTextPlacementMode(!isTextPlacementMode)}
+                                            className={`w-full py-2 rounded text-[10px] font-bold uppercase transition-colors ${isTextPlacementMode ? 'bg-purple-500 text-[#0B1020]' : 'bg-white/5 text-slate-300 hover:bg-white/15'}`}
+                                        >
+                                            {isTextPlacementMode ? 'Click Preview' : 'Place on Preview'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Sticky Apply Button */}
+                            {textSubTab !== 'content' && (
+                                <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-[#0B1020] via-[#0B1020] to-transparent">
+                                    <button className="flex items-center gap-2 px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold transition-colors">
+                                        <LucideIcons.Check className="w-3.5 h-3.5" />
+                                        Apply to all
+                                    </button>
                                 </div>
                             )}
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <div>
-                                <label className="text-[8px] font-bold uppercase tracking-widest text-slate-400">Position X</label>
-                                <input
-                                    type="range"
-                                    min={0}
-                                    max={100}
-                                    value={overlayPosX}
-                                    onChange={(e) => setOverlayPosX(Number(e.target.value))}
-                                    className="w-full accent-purple-400"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-[8px] font-bold uppercase tracking-widest text-slate-400">Position Y</label>
-                                <input
-                                    type="range"
-                                    min={0}
-                                    max={100}
-                                    value={overlayPosY}
-                                    onChange={(e) => setOverlayPosY(Number(e.target.value))}
-                                    className="w-full accent-purple-400"
-                                />
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => setIsTextPlacementMode(!isTextPlacementMode)}
-                            className={`w-full py-1.5 rounded text-[8px] font-black uppercase border transition-colors ${isTextPlacementMode ? 'bg-purple-500 text-[#0B1020] border-purple-400' : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/15'}`}
-                        >
-                            {isTextPlacementMode ? 'Click Preview' : 'Place on Preview'}
-                        </button>
-                        <button
-                            onClick={() => {
-                                setOverlayText('');
-                                setAnimatedText('');
-                                setIsTextPlacementMode(false);
-                            }}
-                            className="w-full py-1.5 rounded bg-red-500/15 border border-red-500/40 text-red-300 text-[8px] font-black uppercase hover:bg-red-500/25"
-                        >
-                            Delete Text
-                        </button>
                     </div>
                 </div>
             );
@@ -2275,7 +2252,7 @@ const ToolInspector = memo(({
                                             >
                                                 <div className="flex-1 min-w-0">
                                                     <div className="text-[9px] font-bold text-slate-200 truncate">{cap.text}</div>
-                                                    <div className="text-[7px] text-slate-500 font-mono mt-0.5">{cap.startTime.toFixed(1)}s → {cap.endTime.toFixed(1)}s</div>
+                                                    <div className="text-[7px] text-slate-500 font-mono mt-0.5">{cap.startTime.toFixed(1)}s Ã¢â€ â€™ {cap.endTime.toFixed(1)}s</div>
                                                 </div>
                                                 <button
                                                     onClick={(e) => {
@@ -2350,7 +2327,7 @@ const ToolInspector = memo(({
                             {/* Auto-caption via Gemini */}
                             <div className="space-y-1.5 p-2.5 rounded-lg bg-fuchsia-950/30 border border-fuchsia-500/20">
                                 <div className="flex items-center justify-between mb-1">
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-fuchsia-300">✨ AI Auto-Caption</span>
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-fuchsia-300">Ã¢Å“Â¨ AI Auto-Caption</span>
                                     <span className="text-[7px] text-slate-500">Powered by Gemini</span>
                                 </div>
                                 {/* Detect Speakers toggle */}
@@ -2383,7 +2360,7 @@ const ToolInspector = memo(({
                                 {isAutoCapturing ? (
                                     <>
                                         <span className="inline-block w-2 h-2 rounded-full bg-red-400 animate-ping mr-1" />
-                                        Transcribing…
+                                        TranscribingÃ¢â‚¬Â¦
                                     </>
                                 ) : (
                                     <>
@@ -2397,7 +2374,7 @@ const ToolInspector = memo(({
                         <div className="space-y-2.5">
                             {/* Style Presets */}
                             <div>
-                                <label className="text-[8px] font-bold uppercase tracking-widest text-slate-400 block mb-1">🎨 Presets</label>
+                                <label className="text-[8px] font-bold uppercase tracking-widest text-slate-400 block mb-1">Ã°Å¸Å½Â¨ Presets</label>
                                 <div className="grid grid-cols-2 gap-1 max-h-[92px] overflow-y-auto custom-scrollbar">
                                     {CAPTION_STYLE_PRESETS.map((preset) => (
                                         <button
@@ -2696,6 +2673,204 @@ const ToolInspector = memo(({
     }
 });
 
+// Cache for cutout mask Image elements to keep canvas loops extremely fast
+const maskImageCache: Record<string, HTMLImageElement> = {};
+const getCachedMaskImage = (url: string) => {
+    if (!maskImageCache[url]) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = url;
+        maskImageCache[url] = img;
+    }
+    return maskImageCache[url];
+};
+
+// Main cutout compositing and stroke rendering helper
+const applyCutout = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, source: HTMLVideoElement | HTMLImageElement, cutout: any) => {
+    if (!cutout || !cutout.enabled || !cutout.maskDataUrl) {
+        ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+        return;
+    }
+
+    const maskImg = getCachedMaskImage(cutout.maskDataUrl);
+    if (!maskImg || !maskImg.complete) {
+        // Fallback to normal drawing while mask is loading
+        ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+        return;
+    }
+
+    // Draw the main video/image frame first
+    ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+
+    // Create a temporary offscreen canvas to process the mask (feathering & expand)
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
+    const tempCtx = tempCanvas.getContext('2d');
+    if (!tempCtx) return;
+
+    const expand = cutout.expand ?? 0;
+    const feather = cutout.feather ?? 0;
+
+    tempCtx.save();
+    if (feather > 0) {
+        tempCtx.filter = `blur(${feather}px)`;
+    }
+
+    if (expand !== 0) {
+        if (expand > 0) {
+            // Dilate mask by drawing in circular offsets
+            const steps = Math.min(8, Math.abs(expand));
+            for (let i = 0; i < 360; i += 360 / steps) {
+                const rad = (i * Math.PI) / 180;
+                const ox = Math.cos(rad) * expand;
+                const oy = Math.sin(rad) * expand;
+                tempCtx.drawImage(maskImg, ox, oy, tempCanvas.width, tempCanvas.height);
+            }
+            tempCtx.drawImage(maskImg, 0, 0, tempCanvas.width, tempCanvas.height);
+        } else {
+            // Erode mask by subtracting circular offsets
+            tempCtx.drawImage(maskImg, 0, 0, tempCanvas.width, tempCanvas.height);
+            tempCtx.globalCompositeOperation = 'destination-out';
+            const erode = Math.abs(expand);
+            const steps = Math.min(8, erode);
+            for (let i = 0; i < 360; i += 360 / steps) {
+                const rad = (i * Math.PI) / 180;
+                const ox = Math.cos(rad) * erode;
+                const oy = Math.sin(rad) * erode;
+                tempCtx.drawImage(maskImg, ox, oy, tempCanvas.width, tempCanvas.height);
+            }
+        }
+    } else {
+        tempCtx.drawImage(maskImg, 0, 0, tempCanvas.width, tempCanvas.height);
+    }
+    tempCtx.restore();
+
+    // Composite mask onto the main frame
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
+
+    // Draw stroke/glow outlines if requested
+    const stroke = cutout.stroke;
+    if (stroke && stroke.preset !== 'none' && stroke.size > 0) {
+        const strokeSize = stroke.size;
+        const strokeColor = stroke.color || '#ffffff';
+        const strokeOpacity = (stroke.opacity ?? 100) / 100;
+
+        // Capture cutout shape
+        const cutoutCanvas = document.createElement('canvas');
+        cutoutCanvas.width = canvas.width;
+        cutoutCanvas.height = canvas.height;
+        const cutoutCtx = cutoutCanvas.getContext('2d');
+        if (cutoutCtx) {
+            cutoutCtx.drawImage(canvas, 0, 0);
+
+            ctx.save();
+            ctx.globalAlpha = strokeOpacity;
+
+            if (stroke.preset === 'solid') {
+                const strokeTemp = document.createElement('canvas');
+                strokeTemp.width = canvas.width;
+                strokeTemp.height = canvas.height;
+                const sCtx = strokeTemp.getContext('2d');
+                if (sCtx) {
+                    sCtx.drawImage(cutoutCanvas, 0, 0);
+                    sCtx.globalCompositeOperation = 'source-in';
+                    sCtx.fillStyle = strokeColor;
+                    sCtx.fillRect(0, 0, strokeTemp.width, strokeTemp.height);
+
+                    const numOffsets = 16;
+                    for (let i = 0; i < 360; i += 360 / numOffsets) {
+                        const rad = (i * Math.PI) / 180;
+                        const ox = Math.cos(rad) * strokeSize;
+                        const oy = Math.sin(rad) * strokeSize;
+                        ctx.drawImage(strokeTemp, ox, oy);
+                    }
+                }
+            } else if (stroke.preset === 'glow' || stroke.preset === 'shadow') {
+                ctx.shadowColor = strokeColor;
+                ctx.shadowBlur = strokeSize;
+                if (stroke.preset === 'shadow') {
+                    ctx.shadowOffsetX = 5;
+                    ctx.shadowOffsetY = 5;
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+                } else {
+                    ctx.shadowOffsetX = 0;
+                    ctx.shadowOffsetY = 0;
+                }
+                ctx.drawImage(cutoutCanvas, 0, 0);
+            } else if (stroke.preset === 'neon') {
+                ctx.shadowColor = strokeColor;
+                ctx.shadowBlur = strokeSize * 1.5;
+                ctx.drawImage(cutoutCanvas, 0, 0);
+                ctx.shadowColor = '#ffffff';
+                ctx.shadowBlur = strokeSize * 0.5;
+                ctx.drawImage(cutoutCanvas, 0, 0);
+            } else if (stroke.preset === 'double') {
+                const strokeTemp1 = document.createElement('canvas');
+                const strokeTemp2 = document.createElement('canvas');
+                strokeTemp1.width = canvas.width; strokeTemp1.height = canvas.height;
+                strokeTemp2.width = canvas.width; strokeTemp2.height = canvas.height;
+                const sCtx1 = strokeTemp1.getContext('2d');
+                const sCtx2 = strokeTemp2.getContext('2d');
+                if (sCtx1 && sCtx2) {
+                    sCtx1.drawImage(cutoutCanvas, 0, 0);
+                    sCtx1.globalCompositeOperation = 'source-in';
+                    sCtx1.fillStyle = '#000000';
+                    sCtx1.fillRect(0, 0, strokeTemp1.width, strokeTemp1.height);
+
+                    sCtx2.drawImage(cutoutCanvas, 0, 0);
+                    sCtx2.globalCompositeOperation = 'source-in';
+                    sCtx2.fillStyle = strokeColor;
+                    sCtx2.fillRect(0, 0, strokeTemp2.width, strokeTemp2.height);
+
+                    const outerSize = strokeSize * 1.5;
+                    for (let i = 0; i < 360; i += 360 / 16) {
+                        const rad = (i * Math.PI) / 180;
+                        const ox = Math.cos(rad) * outerSize;
+                        const oy = Math.sin(rad) * outerSize;
+                        ctx.drawImage(strokeTemp1, ox, oy);
+                    }
+                    for (let i = 0; i < 360; i += 360 / 16) {
+                        const rad = (i * Math.PI) / 180;
+                        const ox = Math.cos(rad) * strokeSize;
+                        const oy = Math.sin(rad) * strokeSize;
+                        ctx.drawImage(strokeTemp2, ox, oy);
+                    }
+                }
+            }
+
+            ctx.restore();
+            ctx.drawImage(cutoutCanvas, 0, 0);
+        }
+    }
+};
+
+// Canvas-based image cutout preview component
+const ImageCutoutCanvas = ({ src, cutout, className, style }: any) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = src;
+        img.onload = () => {
+            canvas.width = img.naturalWidth || 800;
+            canvas.height = img.naturalHeight || 600;
+            applyCutout(ctx, canvas, img, cutout);
+        };
+    }, [src, cutout]);
+
+    return <canvas ref={canvasRef} className={className} style={style} />;
+};
+
 export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const { profile, session } = useAuth();
 
@@ -2726,6 +2901,27 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const location = useLocation();
     const mediaInputRef = useRef<HTMLInputElement>(null);
 
+    // -- AI Cutout Hooks & Callbacks --
+    const { generateMask, isProcessing: isCutoutProcessing, error: cutoutError } = useCutoutMask();
+    const handleTriggerCutoutSegmentation = async (clipId: string) => {
+        const item = mediaItems.find((i: any) => i.id === clipId);
+        if (!item) return;
+        const maskUrl = await generateMask(clipId, item.type as any, item.preview || '', item.file || null);
+        if (maskUrl) {
+            setClipSettings(prev => ({
+                ...prev,
+                [clipId]: {
+                    ...prev[clipId],
+                    cutout: {
+                        ...(prev[clipId]?.cutout || {}),
+                        enabled: true,
+                        maskDataUrl: maskUrl
+                    }
+                }
+            }));
+        }
+    };
+
     // -- State Management --
     const [selectedStyle, setSelectedStyle] = useState("youtube");
     const [localFilterCategory, setLocalFilterCategory] = useState('all');
@@ -2755,10 +2951,13 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     };
 
 
-    const [mediaItems, setMediaItems] = useState<Array<{ id: string, file: File | null, preview: string, type: 'video' | 'image', duration: number }>>([]);
-    const [libraryAssets, setLibraryAssets] = useState<Array<{ id: string, file: File | null, preview: string, type: 'video' | 'image' | 'audio', duration: number }>>([]);
+    const [mediaItems, setMediaItems] = useState<Array<{ id: string, file?: File | null, preview?: string, type: string, duration: number, startTime?: number, [key: string]: any }>>([]);
+    const [libraryAssets, setLibraryAssets] = useState<Array<{ id: string, file?: File | null, preview?: string, type: string, duration: number, startTime?: number, [key: string]: any }>>([]);
     const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
     const [leftTab, setLeftTab] = useState<'media' | 'stock' | 'audio' | 'titles' | 'captions' | 'transitions' | 'effects' | 'filters' | 'frames' | 'tools'>('media');
+    const [audioCategory, setAudioCategory] = useState('favorites');
+    const [audioMusicExpanded, setAudioMusicExpanded] = useState(true);
+    const [audioSfxExpanded, setAudioSfxExpanded] = useState(true);
     const [isMediaPoolVisible, setIsMediaPoolVisible] = useState(true);
     const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
     const [audioTracks, setAudioTracks] = useState<Array<{ id: string, name: string, type: 'extracted' | 'direct', file?: File }>>([]);
@@ -2863,9 +3062,42 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const [overlayPosY, setOverlayPosY] = useState(50);
     const [overlayBgEnabled, setOverlayBgEnabled] = useState(false);
     const [overlayBgColorHex, setOverlayBgColorHex] = useState('#000000');
+    
+    // New Text Properties State
+    const [overlayOpacity, setOverlayOpacity] = useState(100);
+    const [overlayStrokeEnabled, setOverlayStrokeEnabled] = useState(false);
+    const [overlayStrokeColor, setOverlayStrokeColor] = useState('#000000');
+    const [overlayStrokeOpacity, setOverlayStrokeOpacity] = useState(100);
+    const [overlayShadowEnabled, setOverlayShadowEnabled] = useState(false);
+    const [overlayShadowColor, setOverlayShadowColor] = useState('#000000');
+    const [overlayShadowOpacity, setOverlayShadowOpacity] = useState(100);
+    const [overlayShadowBlur, setOverlayShadowBlur] = useState(50);
+    const [overlayBgRadius, setOverlayBgRadius] = useState(0);
+    const [overlayBgPaddingX, setOverlayBgPaddingX] = useState(0.6);
+    const [overlayBgPaddingY, setOverlayBgPaddingY] = useState(0.6);
+    const [overlayBgOffsetX, setOverlayBgOffsetX] = useState(0);
+    const [overlayBgOffsetY, setOverlayBgOffsetY] = useState(0);
+    
+    const [overlayTextStyleBold, setOverlayTextStyleBold] = useState(false);
+    const [overlayTextStyleItalic, setOverlayTextStyleItalic] = useState(false);
+    const [overlayTextStyleUnderline, setOverlayTextStyleUnderline] = useState(false);
+    const [overlayAlignment, setOverlayAlignment] = useState<'left' | 'center' | 'right'>('left');
+    const [overlayListStyle, setOverlayListStyle] = useState<'none' | 'bullet' | 'number'>('none');
+    const [overlayCase, setOverlayCase] = useState<'none' | 'upper' | 'lower' | 'title'>('none');
+    
+    // Spacing & Position States
+    const [overlayAnchor, setOverlayAnchor] = useState<'top' | 'center' | 'bottom'>('top');
+    const [overlayTextBoxSetting, setOverlayTextBoxSetting] = useState<'auto' | 'fixed'>('auto');
+    const [overlayLetterSpacing, setOverlayLetterSpacing] = useState(0);
+    const [overlayLineSpacing, setOverlayLineSpacing] = useState(0);
+    const [overlayAnimationIn, setOverlayAnimationIn] = useState<'none' | 'fade' | 'slide-left' | 'zoom-in'>('none');
+    const [overlayAnimationOut, setOverlayAnimationOut] = useState<'none' | 'fade' | 'slide-right' | 'zoom-out'>('none');
+    const [overlayAnimationLoop, setOverlayAnimationLoop] = useState<'none' | 'pulse' | 'shake' | 'float' | 'wobble' | 'blink' | 'typewriter'>('none');
     const [speedValue, setSpeedValue] = useState(1);
     const [rotationDegrees, setRotationDegrees] = useState(0);
     const [volumeLevel, setVolumeLevel] = useState(1);
+    const [isDenoiseEnabled, setIsDenoiseEnabled] = useState(false);
+
     const [zoomToolAmount, setZoomToolAmount] = useState(1);
     const [zoomToolAmountX, setZoomToolAmountX] = useState(1);
     const [zoomToolAmountY, setZoomToolAmountY] = useState(1);
@@ -2884,12 +3116,63 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const [compositingRefocus, setCompositingRefocus] = useState(false);
     const [compositingRelight, setCompositingRelight] = useState(false);
 
-    const [inspectorTab, setInspectorTab] = useState<'video' | 'audio' | 'speed' | 'animation' | 'color'>('video');
+    const [inspectorTab, setInspectorTab] = useState<'video' | 'audio' | 'speed' | 'animation' | 'color' | 'bg' | 'opacity'>('video');
+    const [isDurationOpen, setIsDurationOpen] = useState(false);
+    const [isFadeOpen, setIsFadeOpen] = useState(false);
+    const [fadeInVal, setFadeInVal] = useState<number>(0.0);
+    const [fadeOutVal, setFadeOutVal] = useState<number>(0.0);
+    // Track original settings so Cancel works
+    const fadeOriginalSettingsRef = useRef({ fadeIn: 0, fadeOut: 0 });
+
+    const openFadeEditor = (clipId: string) => {
+        const settings = clipSettings[clipId] || {};
+        const fi = settings.fadeIn || 0;
+        const fo = settings.fadeOut || 0;
+        setFadeInVal(fi);
+        setFadeOutVal(fo);
+        fadeOriginalSettingsRef.current = { fadeIn: fi, fadeOut: fo };
+        setIsFadeOpen(true);
+    };
+    const [isAutoCaptionOpen, setIsAutoCaptionOpen] = useState(false);
+    const [autoCaptionLang, setAutoCaptionLang] = useState("Auto");
+    const [autoCaptionMode, setAutoCaptionMode] = useState("Tiny");
+    const [isConvertingCaption, setIsConvertingCaption] = useState(false);
+    const [durationPreset, setDurationPreset] = useState<string>('Original');
+    const [durationActiveClipIdx, setDurationActiveClipIdx] = useState<number>(0);
+    const [colorSubTab, setColorSubTab] = useState<'filters' | 'adjust'>('filters');
+    const [filterIntensity, setFilterIntensity] = useState<number>(100);
+    const [selectedFilterPreset, setSelectedFilterPreset] = useState<string>('Original');
+    // Adjust panel sliders
+    const [adjVibrance, setAdjVibrance] = useState(0);
+    const [adjTemperature, setAdjTemperature] = useState(0);
+    const [adjVignette, setAdjVignette] = useState(0);
+    const [adjSharpen, setAdjSharpen] = useState(0);
+    const [adjHue, setAdjHue] = useState(0);
+    const [adjHighlights, setAdjHighlights] = useState(0);
+    const [adjShadows, setAdjShadows] = useState(0);
+    const [adjNoiseReduction, setAdjNoiseReduction] = useState(0);
+    const [selectedColorWheel, setSelectedColorWheel] = useState(0); // 0=red,1=orange,...
+    const [hslHue, setHslHue] = useState(0);
+    const [hslSaturation, setHslSaturation] = useState(0);
+    const [hslLightness, setHslLightness] = useState(0);
+    // BG Tab state
+    const [bgSubTab, setBgSubTab] = useState<'blur' | 'color'>('blur');
+    const [bgBlur, setBgBlur] = useState(30);
+    const [bgBlurStyle, setBgBlurStyle] = useState('none');
+    const [bgColorHex, setBgColorHex] = useState('#000000');
+    const [bgHue, setBgHue] = useState(0); // 0-360 for hue slider
+    const [bgSatPos, setBgSatPos] = useState({ x: 100, y: 0 }); // saturation/value picker pos %
     const [inspectorSubTab, setInspectorSubTab] = useState<'basic' | 'mask' | 'ai-matte'>('basic');
     const [isTransformExpanded, setIsTransformExpanded] = useState(true);
     const [isCompositingExpanded, setIsCompositingExpanded] = useState(true);
     const [isTransformEnabled, setIsTransformEnabled] = useState(true);
     const [isCompositingEnabled, setIsCompositingEnabled] = useState(true);
+
+    // Border Tab state
+    const [borderWidth, setBorderWidth] = useState(0);
+    const [borderColorHex, setBorderColorHex] = useState('#ffffff');
+    const [borderHue, setBorderHue] = useState(0);
+    const [borderSatPos, setBgBorderSatPos] = useState({ x: 0, y: 0 }); // top-left is white (#ffffff)
 
     const [hasTransformKeyframe, setHasTransformKeyframe] = useState(false);
     const [hasWidthKeyframe, setHasWidthKeyframe] = useState(false);
@@ -2928,8 +3211,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         
         let base = '';
         if (isTransformEnabled || clipMirror === -1 || clipFlip === -1) {
-            const scaleX = (isTransformEnabled ? zoomToolAmountX : 1) * (flipH ? -1 : 1) * clipMirror;
-            const scaleY = (isTransformEnabled ? zoomToolAmountY : 1) * (flipV ? -1 : 1) * clipFlip;
+            const scaleX = (isTransformEnabled ? zoomToolAmountX : 1) * clipMirror;
+            const scaleY = (isTransformEnabled ? zoomToolAmountY : 1) * clipFlip;
             base = `translate(${posX}px, ${posY}px) scale(${scaleX}, ${scaleY}) rotate(${rotationDegrees}deg) `;
         }
         
@@ -3200,12 +3483,61 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const [timelineSize, setTimelineSize] = useState<'minimized' | 'normal' | 'maximized'>('normal');
 
     const videoRef = useRef<HTMLVideoElement>(null);
+    const bgVideoRef = useRef<HTMLVideoElement>(null);
+
+    const [isCropMode, setIsCropMode] = useState(false);
+    const CROP_RATIOS = [
+        { id: 'Original', label: 'Original', icon: Square, ratio: 0 },
+        { id: 'Free', label: 'Free', icon: Crop, ratio: 0 },
+        { id: '9:16', label: '9:16', icon: Smartphone, ratio: 9/16 },
+        { id: '1:1', label: '1:1', icon: Square, ratio: 1 },
+        { id: '16:9', label: '16:9', icon: MonitorPlay, ratio: 16/9 },
+        { id: '4:5', label: '4:5', icon: Smartphone, ratio: 4/5 },
+        { id: '2:3', label: '2:3', ratio: 2/3 },
+        { id: '3:4', label: '3:4', ratio: 3/4 },
+        { id: '4:3', label: '4:3', ratio: 4/3 },
+        { id: '3:2', label: '3:2', ratio: 3/2 },
+        { id: '21:9', label: '21:9', ratio: 21/9 },
+        { id: '42:9', label: '42:9', ratio: 42/9 },
+        { id: '1.85:1', label: '1.85:1', ratio: 1.85/1 },
+        { id: '2.35:1', label: '2.35:1', ratio: 2.35/1 },
+        { id: '2:1', label: '2:1', ratio: 2/1 },
+        { id: '1:2', label: '1:2', ratio: 1/2 },
+    ];
+    const handleCropRatioClick = (preset: any) => {
+        if (preset.id === 'Original' || preset.id === 'Free') {
+            setCropWidthPct(100);
+            setCropHeightPct(100);
+            setCropCenterX(50);
+            setCropCenterY(50);
+            return;
+        }
+        if (!videoRef.current) return;
+        const vw = videoRef.current.videoWidth || 16;
+        const vh = videoRef.current.videoHeight || 9;
+        const videoRatio = vw / vh;
+        const targetRatio = preset.ratio;
+        let wPct = 100;
+        let hPct = 100;
+        if (targetRatio > videoRatio) {
+            hPct = (videoRatio / targetRatio) * 100;
+        } else if (targetRatio < videoRatio) {
+            wPct = (targetRatio / videoRatio) * 100;
+        }
+        setCropWidthPct(wPct);
+        setCropHeightPct(hPct);
+        setCropCenterX(50);
+        setCropCenterY(50);
+    };
     const previewFrameRef = useRef<HTMLDivElement>(null);
     const pendingTransitionSeekRef = useRef<{ clipId: string; seekTime: number } | null>(null);
     const lastTriggeredEndRef = useRef<string | null>(null);
 
+    const historyIndexRef = useRef(historyIndex);
+    useEffect(() => { historyIndexRef.current = historyIndex; }, [historyIndex]);
+
     const saveToUndo = useCallback((
-        items: typeof mediaItems,
+        items?: typeof mediaItems,
         transitions?: any,
         trimRanges?: any,
         startOverrides?: any,
@@ -3215,7 +3547,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         settings?: any
     ) => {
         const stateObj = {
-            mediaItems: items,
+            mediaItems: items !== undefined ? items : mediaItems,
             clipTransitions: transitions !== undefined ? transitions : clipTransitions,
             clipTrimRanges: trimRanges !== undefined ? trimRanges : clipTrimRanges,
             clipStartOverrides: startOverrides !== undefined ? startOverrides : clipStartOverrides,
@@ -3226,42 +3558,103 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         };
         const stateStr = JSON.stringify(stateObj);
         setHistory(prev => {
-            if (prev[historyIndex] === stateStr) return prev;
-            const newHistory = prev.slice(0, historyIndex + 1);
+            const curIdx = historyIndexRef.current;
+            if (prev[curIdx] === stateStr) return prev;
+            const newHistory = prev.slice(0, curIdx + 1);
             return [...newHistory, stateStr];
         });
         setHistoryIndex(prev => prev + 1);
-    }, [historyIndex, clipTransitions, clipTrimRanges, clipStartOverrides, clipTrackOverrides, clipNameOverrides, clipLockedStates, clipSettings]);
+    }, [mediaItems, clipTransitions, clipTrimRanges, clipStartOverrides, clipTrackOverrides, clipNameOverrides, clipLockedStates, clipSettings]);
 
-    const undo = () => {
-        if (historyIndex > 0) {
-            const prevState = JSON.parse(history[historyIndex - 1]);
-            setMediaItems(prevState.mediaItems);
-            setClipTransitions(prevState.clipTransitions || {});
-            setClipTrimRanges(prevState.clipTrimRanges || {});
-            setClipStartOverrides(prevState.clipStartOverrides || {});
-            setClipTrackOverrides(prevState.clipTrackOverrides || {});
-            setClipNameOverrides(prevState.clipNameOverrides || {});
-            setClipLockedStates(prevState.clipLockedStates || {});
-            setClipSettings(prevState.clipSettings || {});
-            setHistoryIndex(prev => prev - 1);
-        }
-    };
+    const canUndo = historyIndex > 0;
+    const canRedo = historyIndex < history.length - 1;
 
-    const redo = () => {
-        if (historyIndex < history.length - 1) {
-            const nextState = JSON.parse(history[historyIndex + 1]);
-            setMediaItems(nextState.mediaItems);
-            setClipTransitions(nextState.clipTransitions || {});
-            setClipTrimRanges(nextState.clipTrimRanges || {});
-            setClipStartOverrides(nextState.clipStartOverrides || {});
-            setClipTrackOverrides(nextState.clipTrackOverrides || {});
-            setClipNameOverrides(nextState.clipNameOverrides || {});
-            setClipLockedStates(nextState.clipLockedStates || {});
-            setClipSettings(nextState.clipSettings || {});
-            setHistoryIndex(prev => prev + 1);
-        }
-    };
+    const undo = useCallback(() => {
+        setHistoryIndex(prevIdx => {
+            if (prevIdx > 0) {
+                const targetIdx = prevIdx - 1;
+                const stateStr = history[targetIdx];
+                if (stateStr) {
+                    try {
+                        const prevState = JSON.parse(stateStr);
+                        if (prevState.mediaItems) setMediaItems(prevState.mediaItems);
+                        setClipTransitions(prevState.clipTransitions || {});
+                        setClipTrimRanges(prevState.clipTrimRanges || {});
+                        setClipStartOverrides(prevState.clipStartOverrides || {});
+                        setClipTrackOverrides(prevState.clipTrackOverrides || {});
+                        setClipNameOverrides(prevState.clipNameOverrides || {});
+                        setClipLockedStates(prevState.clipLockedStates || {});
+                        setClipSettings(prevState.clipSettings || {});
+                    } catch (err) {
+                        console.error('Failed to parse undo state:', err);
+                    }
+                }
+                return targetIdx;
+            }
+            return prevIdx;
+        });
+    }, [history]);
+
+    const redo = useCallback(() => {
+        setHistoryIndex(prevIdx => {
+            if (prevIdx < history.length - 1) {
+                const targetIdx = prevIdx + 1;
+                const stateStr = history[targetIdx];
+                if (stateStr) {
+                    try {
+                        const nextState = JSON.parse(stateStr);
+                        if (nextState.mediaItems) setMediaItems(nextState.mediaItems);
+                        setClipTransitions(nextState.clipTransitions || {});
+                        setClipTrimRanges(nextState.clipTrimRanges || {});
+                        setClipStartOverrides(nextState.clipStartOverrides || {});
+                        setClipTrackOverrides(nextState.clipTrackOverrides || {});
+                        setClipNameOverrides(nextState.clipNameOverrides || {});
+                        setClipLockedStates(nextState.clipLockedStates || {});
+                        setClipSettings(nextState.clipSettings || {});
+                    } catch (err) {
+                        console.error('Failed to parse redo state:', err);
+                    }
+                }
+                return targetIdx;
+            }
+            return prevIdx;
+        });
+    }, [history]);
+
+    const handleApplyToAllVolume = useCallback(() => {
+        if (!activePreviewItem) return;
+        setClipSettings(prev => {
+            const updated = { ...prev };
+            mediaItems.forEach(item => {
+                updated[item.id] = { ...(updated[item.id] || {}), volumeLevel, isMuted, isDenoiseEnabled };
+            });
+            saveToUndo(mediaItems, undefined, undefined, undefined, undefined, undefined, undefined, updated);
+            return updated;
+        });
+    }, [volumeLevel, isMuted, isDenoiseEnabled, mediaItems, setClipSettings, saveToUndo]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const activeTag = (document.activeElement as HTMLElement)?.tagName;
+            if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                if (e.shiftKey) {
+                    e.preventDefault();
+                    redo();
+                } else {
+                    e.preventDefault();
+                    undo();
+                }
+            } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+                e.preventDefault();
+                redo();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [undo, redo]);
 
     // --- Auto-caption handler (Gemini via backend) ---
     const handleAutoCaption = useCallback(async () => {
@@ -3270,12 +3663,12 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             || mediaItems.find((item: any) => item.type === 'video');
 
         if (!activeClip || !activeClip.file) {
-            setAutoCaptionStatus('❌ No video clip loaded to transcribe. Add a video clip first.');
+            setAutoCaptionStatus('Ã¢ÂÅ’ No video clip loaded to transcribe. Add a video clip first.');
             return;
         }
 
         setIsAutoCapturing(true);
-        setAutoCaptionStatus('🎙️ Uploading to Gemini for transcription…');
+        setAutoCaptionStatus('Ã°Å¸Å½â„¢Ã¯Â¸Â Uploading to Gemini for transcriptionÃ¢â‚¬Â¦');
 
         try {
             const formData = new FormData();
@@ -3283,7 +3676,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             formData.append('language', captionLanguage);
             formData.append('detect_speakers', String(detectSpeakers));
 
-            setAutoCaptionStatus('✨ Analyzing speech with Gemini AI…');
+            setAutoCaptionStatus('Ã¢Å“Â¨ Analyzing speech with Gemini AIÃ¢â‚¬Â¦');
 
             const response = await fetch(buildApiUrl('/api/transcribe'), {
                 method: 'POST',
@@ -3297,7 +3690,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
             const segments = data.captions || [];
             if (segments.length === 0) {
-                setAutoCaptionStatus('⚠️ No speech detected in the video.');
+                setAutoCaptionStatus('Ã¢Å¡Â Ã¯Â¸Â No speech detected in the video.');
                 setIsAutoCapturing(false);
                 return;
             }
@@ -3316,10 +3709,10 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 ...prev.filter((c: any) => c.clipId !== activePreviewId),
                 ...newCaptions
             ]);
-            setAutoCaptionStatus(`✅ ${newCaptions.length} captions generated successfully!`);
+            setAutoCaptionStatus(`Ã¢Å“â€¦ ${newCaptions.length} captions generated successfully!`);
         } catch (error: any) {
             console.error('Gemini transcription failed:', error);
-            setAutoCaptionStatus(`❌ Transcription failed: ${error.message || 'Unknown error'}`);
+            setAutoCaptionStatus(`Ã¢ÂÅ’ Transcription failed: ${error.message || 'Unknown error'}`);
         } finally {
             setIsAutoCapturing(false);
         }
@@ -3371,36 +3764,37 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         return { start, end };
     }, [clipTrimRanges]);
 
-    const getEffectiveDurationForItem = useCallback((item: { id: string; type: 'video' | 'image'; duration: number }) => {
+    const getEffectiveDurationForItem = useCallback((item: any) => {
         if (item.type !== 'video') return item.duration;
         const { start, end } = getTrimRangeForItem(item.id, item.duration);
         return Math.max(0.01, end - start);
     }, [getTrimRangeForItem]);
 
     const getTotalEffectiveDuration = useCallback(() => {
-        return mediaItems.reduce((acc, item) => acc + getEffectiveDurationForItem(item), 0);
-    }, [mediaItems, getEffectiveDurationForItem]);
+        let maxEnd = 0;
+        mediaItems.forEach(item => {
+            const start = clipStartOverrides[item.id] !== undefined ? clipStartOverrides[item.id] : (item.startTime || 0);
+            maxEnd = Math.max(maxEnd, start + getEffectiveDurationForItem(item));
+        });
+        return maxEnd;
+    }, [mediaItems, getEffectiveDurationForItem, clipStartOverrides]);
 
     const globalCurrentTime = useMemo(() => {
         const totalDuration = getTotalEffectiveDuration();
         return (progress / 100) * totalDuration;
     }, [progress, mediaItems, getTotalEffectiveDuration]);
 
+    useEffect(() => {
+        window.dispatchEvent(new CustomEvent('editor-timeupdate', { detail: { currentTime: globalCurrentTime, progress } }));
+    }, [globalCurrentTime, progress]);
+
     const getClipGlobalStart = useCallback((clipId: string) => {
-        let accumulated = 0;
-        const sorted = [...mediaItems].sort((a, b) => {
-            const startA = clipStartOverrides[a.id] !== undefined ? clipStartOverrides[a.id] : 0;
-            const startB = clipStartOverrides[b.id] !== undefined ? clipStartOverrides[b.id] : 0;
-            return startA - startB;
-        });
-        for (const item of sorted) {
-            if (item.id === clipId) {
-                return accumulated;
-            }
-            accumulated += getEffectiveDurationForItem(item);
+        const item = mediaItems.find((p: any) => p.id === clipId);
+        if (item) {
+            return clipStartOverrides[clipId] !== undefined ? clipStartOverrides[clipId] : (item.startTime || 0);
         }
         return 0;
-    }, [mediaItems, getEffectiveDurationForItem, clipStartOverrides]);
+    }, [mediaItems, clipStartOverrides]);
 
     const getTargetStartTime = useCallback((item: any) => {
         const trim = getTrimRangeForItem(item.id, item.duration);
@@ -3456,6 +3850,9 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         setSmoothZoomAmount(settings.smoothZoomAmount ?? 0.35);
         setFilmGrainOpacity(settings.filmGrainOpacity ?? 0.4);
         setProParams(settings.proParams ?? {});
+
+        setBorderWidth(settings.borderWidth ?? 0);
+        setBorderColorHex(settings.borderColorHex || '#ffffff');
 
         // Clear pending seek offset if active clip is an image and we are paused
         const activeItem = mediaItems.find(i => i.id === activePreviewId);
@@ -3513,6 +3910,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 current.rgbSplitAmount === rgbSplitAmount &&
                 current.smoothZoomAmount === smoothZoomAmount &&
                 current.filmGrainOpacity === filmGrainOpacity &&
+                current.borderWidth === borderWidth &&
+                current.borderColorHex === borderColorHex &&
                 JSON.stringify(current.proParams) === JSON.stringify(proParams)
             ) {
                 return prev;
@@ -3556,6 +3955,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                     smoothZoomAmount,
                     filmGrainOpacity,
                     proParams,
+                    borderWidth,
+                    borderColorHex
                 }
             };
         });
@@ -3596,6 +3997,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         smoothZoomAmount,
         filmGrainOpacity,
         proParams,
+        borderWidth,
+        borderColorHex
     ]);
 
 
@@ -3615,10 +4018,10 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
         videoElement.play().catch(err => {
             if (err.name === 'AbortError') {
-                console.log("📹 [PLAYBACK] Play request aborted (media unmounted/reloaded).");
+                console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Play request aborted (media unmounted/reloaded).");
                 return;
             }
-            console.warn("📹 [PLAYBACK] Play failed, trying muted fallback:", err);
+            console.warn("Ã°Å¸â€œÂ¹ [PLAYBACK] Play failed, trying muted fallback:", err);
             setIsMuted(true);
             videoElement.muted = true;
             if (videoElement.isConnected && isPlayingRef.current && videoElement.paused) {
@@ -3631,16 +4034,16 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     useEffect(() => {
         if (videoRef.current && activePreviewId) {
             const activeItem = mediaItems.find(i => i.id === activePreviewId);
-            if (activeItem?.type === 'video') {
+            if (activePreviewItem?.type === 'video') {
                 const videoElement = videoRef.current;
-                const targetStart = getTargetStartTime(activeItem);
+                const targetStart = getTargetStartTime(activeItem!);
                 
                 const currentSrc = videoElement.src || videoElement.getAttribute('src') || '';
-                const itemPreviewResolved = new URL(activeItem.preview, window.location.href).href;
+                const itemPreviewResolved = new URL(activeItem!.preview || '', window.location.href).href;
                 const videoSrcResolved = new URL(currentSrc, window.location.href).href;
                 
                 if (itemPreviewResolved === videoSrcResolved) {
-                    console.log("📹 [PLAYBACK] Same video source - seeking instantly to:", targetStart);
+                    console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Same video source - seeking instantly to:", targetStart);
                     videoElement.currentTime = targetStart;
                     
                     if (pendingTransitionSeekRef.current && pendingTransitionSeekRef.current.clipId === activePreviewId) {
@@ -3673,7 +4076,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         // Pause the main video during transition - the overlay will show both clips
         if (videoRef.current) {
             videoRef.current.pause();
-            console.log("📹 [PLAYBACK] Paused main video during transition overlay");
+            console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Paused main video during transition overlay");
         }
 
         setTransitionOverlay({
@@ -3703,11 +4106,11 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         if (!currentId) return;
 
         if (endedClipId && endedClipId !== activePreviewId) {
-            console.log("📹 [PLAYBACK] playNextMedia ignored stale end event for:", endedClipId, "current active:", activePreviewId);
+            console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] playNextMedia ignored stale end event for:", endedClipId, "current active:", activePreviewId);
             return;
         }
 
-        console.log("📹 [PLAYBACK] playNextMedia called for item:", currentId);
+        console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] playNextMedia called for item:", currentId);
         const sorted = [...mediaItems].sort((a, b) => {
             const startA = clipStartOverrides[a.id] !== undefined ? clipStartOverrides[a.id] : 0;
             const startB = clipStartOverrides[b.id] !== undefined ? clipStartOverrides[b.id] : 0;
@@ -3716,11 +4119,11 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         const currentIndex = sorted.findIndex(i => i.id === currentId);
         if (currentIndex !== -1 && currentIndex < sorted.length - 1) {
             const nextId = sorted[currentIndex + 1].id;
-            console.log("📹 [PLAYBACK] Transitioning to next clip:", nextId);
+            console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Transitioning to next clip:", nextId);
             triggerClipTransition(nextId);
             setIsPlaying(true);
         } else {
-            console.log("📹 [PLAYBACK] No more clips to play, resetting to start");
+            console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] No more clips to play, resetting to start");
             setIsPlaying(false);
             if (sorted.length > 0) {
                 const firstItem = sorted[0];
@@ -3737,26 +4140,45 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     }, [activePreviewId, mediaItems, triggerClipTransition, getTrimRangeForItem, setActivePreviewId, clipStartOverrides]);
 
     const togglePlay = () => {
-        console.log("📹 [PLAYBACK] togglePlay called, current isPlaying:", isPlaying);
-        const activeItem = mediaItems.find(i => i.id === activePreviewId);
+        console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] togglePlay called, current isPlaying:", isPlaying);
+        let activeItem = mediaItems.find(i => i.id === activePreviewId);
 
-        console.log("📹 [PLAYBACK] Active item:", { id: activeItem?.id, type: activeItem?.type, hasVideoRef: !!videoRef.current });
+        console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Active item:", { id: activeItem?.id, type: activeItem?.type, hasVideoRef: !!videoRef.current });
 
         // If there are no media items, don't try to play
-        if (!activeItem || mediaItems.length === 0) {
-            console.log("📹 [PLAYBACK] No active item or media items");
+        if (mediaItems.length === 0) {
+            console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] No media items");
+            return;
+        }
+
+        // If no active item is selected, select the first chronological clip and play
+        if (!activeItem) {
+            const sorted = [...mediaItems].sort((a, b) => {
+                const startA = clipStartOverrides[a.id] !== undefined ? clipStartOverrides[a.id] : 0;
+                const startB = clipStartOverrides[b.id] !== undefined ? clipStartOverrides[b.id] : 0;
+                return startA - startB;
+            });
+            activeItem = sorted[0];
+            console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] No active item, defaulting to first item:", activeItem.id);
+            setActivePreviewId(activeItem.id);
+            setProgress(0);
+            
+            // Allow state to settle, then start playback
+            setTimeout(() => {
+                setIsPlaying(true);
+            }, 10);
             return;
         }
 
         // For video items, control the video element
         if (activeItem.type === 'video') {
-            console.log("📹 [PLAYBACK] Detected video type, videoRef.current:", videoRef.current);
-            const trim = getTrimRangeForItem(activeItem.id, activeItem.duration);
+            console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Detected video type, videoRef.current:", videoRef.current);
+            const trim = getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0);
             if (isPlaying) {
-                console.log("📹 [PLAYBACK] Pausing video");
+                console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Pausing video");
                 setIsPlaying(false);
             } else {
-                console.log("📹 [PLAYBACK] Starting video from:", trim.start);
+                console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Starting video from:", trim.start);
                 // Reset to trim start if outside trim range
                 if (videoRef.current && (videoRef.current.currentTime < trim.start || videoRef.current.currentTime > trim.end)) {
                     videoRef.current.currentTime = trim.start;
@@ -3765,7 +4187,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             }
         } else {
             // For images or when no video ref, just toggle the playing state
-            console.log("📹 [PLAYBACK] Toggling play for image or no ref");
+            console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Toggling play for image or no ref");
             setIsPlaying(!isPlaying);
         }
     };
@@ -3777,52 +4199,50 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 const startB = clipStartOverrides[b.id] !== undefined ? clipStartOverrides[b.id] : 0;
                 return startA - startB;
             });
-            const activeIndex = sorted.findIndex(i => i.id === activePreviewId);
-            if (activeIndex < 0) return; // Safety check
-
+            
             // If we are currently waiting for a transition seek to complete, ignore or hold the position
             if (pendingTransitionSeekRef.current && pendingTransitionSeekRef.current.clipId === activePreviewId) {
-                console.log("📹 [PLAYBACK] handleTimeUpdate ignored because transition seek is pending for:", activePreviewId);
+                console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] handleTimeUpdate ignored because transition seek is pending for:", activePreviewId);
                 return;
             }
 
-            const activeItem = activeIndex >= 0 ? sorted[activeIndex] : null;
-            const timeBefore = sorted
-                .slice(0, activeIndex)
-                .reduce((acc, item) => acc + getEffectiveDurationForItem(item), 0);
             const totalDuration = getTotalEffectiveDuration();
-
+            const activeIndex = sorted.findIndex(i => i.id === activePreviewId);
+            
+            let timeBefore = 0;
             let currentLocalTime = videoRef.current.currentTime;
-            if (activeItem?.type === 'video') {
-                const trim = getTrimRangeForItem(activeItem.id, activeItem.duration);
-                if (currentLocalTime < trim.start) {
-                    videoRef.current.currentTime = trim.start;
-                    currentLocalTime = trim.start;
-                }
-
-                // Check if there is a transition on this clip to trigger overlap early
-                const transitionType = clipTransitions[activeItem.id] || 'none';
-                const hasTransition = transitionType !== 'none';
-                const transitionDuration = 1.4; // 1.4 seconds matching durationMs
-                const endTriggerTime = hasTransition ? Math.max(trim.start, trim.end - transitionDuration) : trim.end;
-
-                if (currentLocalTime >= endTriggerTime) {
-                    if (lastTriggeredEndRef.current !== activeItem.id) {
-                        lastTriggeredEndRef.current = activeItem.id;
-                        console.log("📹 [PLAYBACK] Clip reached transition/end boundary in handleTimeUpdate:", activeItem.id, "at:", currentLocalTime);
-                        
-                        // Immediately pause the video element to prevent playing trimmed part
-                        if (videoRef.current) {
-                            videoRef.current.pause();
-                            videoRef.current.currentTime = endTriggerTime;
-                        }
-                        
-                        setProgress(((timeBefore + (endTriggerTime - trim.start)) / (totalDuration || 1)) * 100 || 0);
-                        playNextMedia(activeItem.id);
+            
+            if (activeIndex !== -1) {
+                const activeItem = sorted[activeIndex];
+                // Calculate time before this clip
+                timeBefore = clipStartOverrides[activeItem.id] !== undefined ? clipStartOverrides[activeItem.id] : (activeItem.startTime || 0);
+                
+                const trim = getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0);
+                if (activePreviewItem?.type === 'video') {
+                    if (currentLocalTime < trim.start) {
+                        videoRef.current.currentTime = trim.start;
+                        currentLocalTime = trim.start;
                     }
-                    return;
+
+                    // Check if we reached the effective end of this clip
+                    if (currentLocalTime >= trim.end) {
+                        // Debounce transition trigger
+                        if (lastTriggeredEndRef.current !== activePreviewId) {
+                            lastTriggeredEndRef.current = activePreviewId;
+                            
+                            // Immediately pause the video element to prevent playing trimmed part
+                            if (videoRef.current) {
+                                videoRef.current.pause();
+                                videoRef.current.currentTime = trim.end;
+                            }
+                            
+                            setProgress(((timeBefore + (trim.end - trim.start)) / (totalDuration || 1)) * 100 || 0);
+                            playNextMedia(activeItem.id);
+                        }
+                        return;
+                    }
+                    currentLocalTime = Math.max(0, currentLocalTime - trim.start);
                 }
-                currentLocalTime = Math.max(0, currentLocalTime - trim.start);
             }
 
             const globalTime = timeBefore + currentLocalTime;
@@ -3858,8 +4278,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 setPreviewZoom(1);
             }
 
-            if (activeItem?.type === 'video') {
-                const trim = getTrimRangeForItem(activeItem.id, activeItem.duration);
+            if (activePreviewItem?.type === 'video') {
+                const trim = getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0);
                 const localDuration = Math.max(0.01, trim.end - trim.start);
                 const localTime = Math.max(0, (videoRef.current.currentTime || 0) - trim.start);
                 setKeyframeProgress(Math.max(0, Math.min(1, localTime / localDuration)));
@@ -3872,6 +4292,20 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         }
     };
 
+    useEffect(() => {
+        let rafId: number;
+        const tick = () => {
+            if (isPlaying && videoRef.current && mediaItems.find(i => i.id === activePreviewId)?.type === 'video') {
+                handleTimeUpdate();
+            }
+            rafId = requestAnimationFrame(tick);
+        };
+        if (isPlaying) {
+            rafId = requestAnimationFrame(tick);
+        }
+        return () => cancelAnimationFrame(rafId);
+    }, [isPlaying, activePreviewId, mediaItems, handleTimeUpdate]);
+
     const handleTimelineClick = useCallback((globalSeekTime: number) => {
         const totalDuration = getTotalEffectiveDuration();
         if (totalDuration === 0) return;
@@ -3879,30 +4313,58 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         const clampedSeekTime = Math.max(0, Math.min(totalDuration, globalSeekTime));
         const pos = (clampedSeekTime / totalDuration) * 100;
 
-        // Find which item this global time corresponds to
-        let accumulated = 0;
+        // Find which video/image item this global time corresponds to
+        let foundItem = null;
         for (const item of mediaItems) {
-            const itemEffectiveDuration = getEffectiveDurationForItem(item);
-            if (clampedSeekTime <= accumulated + itemEffectiveDuration) {
-                const offset = clampedSeekTime - accumulated;
-                setActivePreviewId(item.id);
-                // Use a tiny timeout to let the video/img mount before seeking
-                setTimeout(() => {
-                    if (videoRef.current && item.type === 'video') {
-                        const trim = getTrimRangeForItem(item.id, item.duration);
-                        videoRef.current.currentTime = Math.max(trim.start, Math.min(trim.end, trim.start + offset));
-                    }
-                    if (bgMusicRef.current && selectedMusic) {
-                        bgMusicRef.current.currentTime = (selectedMusic.startTime ?? 0) + globalSeekTime;
-                    }
-                }, 10);
+            if (item.type !== 'video' && item.type !== 'image') continue;
+            const start = clipStartOverrides[item.id] !== undefined ? clipStartOverrides[item.id] : (item.startTime || 0);
+            const effDur = getEffectiveDurationForItem(item);
+            if (clampedSeekTime >= start && clampedSeekTime < start + effDur) {
+                foundItem = item;
                 break;
             }
-            accumulated += itemEffectiveDuration;
         }
+
+        if (foundItem) {
+            const start = clipStartOverrides[foundItem.id] !== undefined ? clipStartOverrides[foundItem.id] : (foundItem.startTime || 0);
+            const offset = clampedSeekTime - start;
+            setActivePreviewId(foundItem.id);
+            // Use a tiny timeout to let the video/img mount before seeking
+            setTimeout(() => {
+                if (videoRef.current && foundItem.type === 'video') {
+                    const trim = getTrimRangeForItem(foundItem.id, foundItem.duration);
+                    videoRef.current.currentTime = Math.max(trim.start, Math.min(trim.end, trim.start + offset));
+                }
+                if (bgMusicRef.current && selectedMusic) {
+                    bgMusicRef.current.currentTime = (selectedMusic.startTime ?? 0) + globalSeekTime;
+                }
+            }, 10);
+        } else {
+            // If we clicked on an empty gap, find the NEXT chronological clip to seek to (or just update progress)
+            const sorted = [...mediaItems].filter(i => i.type === 'video' || i.type === 'image').sort((a, b) => {
+                const startA = clipStartOverrides[a.id] !== undefined ? clipStartOverrides[a.id] : (a.startTime || 0);
+                const startB = clipStartOverrides[b.id] !== undefined ? clipStartOverrides[b.id] : (b.startTime || 0);
+                return startA - startB;
+            });
+            const nextItem = sorted.find(item => {
+                const start = clipStartOverrides[item.id] !== undefined ? clipStartOverrides[item.id] : (item.startTime || 0);
+                return start > clampedSeekTime;
+            });
+            
+            if (nextItem) {
+                setActivePreviewId(nextItem.id);
+                setTimeout(() => {
+                    if (videoRef.current && nextItem.type === 'video') {
+                        const trim = getTrimRangeForItem(nextItem.id, nextItem.duration);
+                        videoRef.current.currentTime = trim.start;
+                    }
+                }, 10);
+            }
+        }
+        
         setProgress(pos);
         setReadLinePosition(pos);
-    }, [mediaItems, getEffectiveDurationForItem, getTotalEffectiveDuration, setActivePreviewId, getTrimRangeForItem]);
+    }, [mediaItems, getEffectiveDurationForItem, getTotalEffectiveDuration, setActivePreviewId, getTrimRangeForItem, clipStartOverrides]);
 
     const moveReadLine = useCallback((deltaSeconds: number) => {
         const totalDuration = getTotalEffectiveDuration();
@@ -3924,7 +4386,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     // Handle play/pause state
     useEffect(() => {
         const activeItem = mediaItems.find(i => i.id === activePreviewId);
-        console.log("📹 [PLAYBACK] useEffect triggered:", {
+        console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] useEffect triggered:", {
             isPlaying,
             activeId: activePreviewId,
             activeItemType: activeItem?.type,
@@ -3932,7 +4394,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         });
 
         if (!videoRef.current || !activeItem || activeItem.type !== 'video') {
-            console.log("📹 [PLAYBACK] useEffect skipped - video ref or active item missing", {
+            console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] useEffect skipped - video ref or active item missing", {
                 videoRef: !!videoRef.current,
                 activeItem: !!activeItem,
                 isVideo: activeItem?.type === 'video'
@@ -3941,7 +4403,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         }
 
         const video = videoRef.current;
-        console.log("📹 [PLAYBACK] useEffect updating play state:", { isPlaying, videoElementExists: !!video });
+        console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] useEffect updating play state:", { isPlaying, videoElementExists: !!video });
 
         if (isPlaying) {
             safePlay(video);
@@ -3973,28 +4435,135 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     }, [isPlaying, bgMusicUrl]);
 
     useEffect(() => {
-        const isMutedDeck = isMuted;
+        let rafId: number;
 
-        // Set video element volume/mute
-        if (videoRef.current) {
-            const videoShouldMute = isMutedDeck || (selectedMusic ? selectedMusic.muteOriginal : false);
-            videoRef.current.muted = videoShouldMute;
-            videoRef.current.volume = videoShouldMute ? 0 : Math.max(0, Math.min(1, volumeLevel));
+        const updateVolumeFades = () => {
+            const isMutedDeck = isMuted;
+            let currentFadeMultiplier = 1;
+
+            if (videoRef.current && activePreviewId) {
+                const settings = clipSettings[activePreviewId] || {};
+                const activeItem = mediaItems.find(i => i.id === activePreviewId);
+                
+                if (activeItem && activeItem.type === 'video') {
+                    const fadeIn = (isFadeOpen && activePreviewId === activeItem.id) ? fadeInVal : (settings.fadeIn || 0);
+                    const fadeOut = (isFadeOpen && activePreviewId === activeItem.id) ? fadeOutVal : (settings.fadeOut || 0);
+                    
+                    const trim = getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0);
+                    const localTime = Math.max(0, videoRef.current.currentTime - trim.start);
+                    const effDur = Math.max(0.1, trim.end - trim.start);
+
+                    if (fadeIn > 0 && localTime < fadeIn) {
+                        const t = localTime / fadeIn;
+                        currentFadeMultiplier = Math.sin(t * (Math.PI / 2));
+                    } else if (fadeOut > 0 && localTime > effDur - fadeOut) {
+                        const t = Math.max(0, (effDur - localTime) / fadeOut);
+                        currentFadeMultiplier = Math.sin(t * (Math.PI / 2));
+                    }
+                }
+
+                const videoShouldMute = isMutedDeck || (selectedMusic ? selectedMusic.muteOriginal : false);
+                videoRef.current.muted = videoShouldMute;
+                
+                // Base volume mapped against the fade multiplier
+                const baseVolume = Math.max(0, Math.min(1, volumeLevel));
+                videoRef.current.volume = videoShouldMute ? 0 : baseVolume * currentFadeMultiplier;
+            }
+
+            // Set upload audio track volume/mute
+            if (audioRef.current) {
+                audioRef.current.muted = isMutedDeck;
+                audioRef.current.volume = isMutedDeck ? 0 : Math.max(0, Math.min(1, volumeLevel)) * currentFadeMultiplier;
+            }
+
+            // Set background music volume/mute
+            if (bgMusicRef.current && selectedMusic) {
+                bgMusicRef.current.muted = isMutedDeck;
+                const bgVolume = (selectedMusic.volume ?? 80) / 100;
+                bgMusicRef.current.volume = isMutedDeck ? 0 : bgVolume * currentFadeMultiplier;
+            }
+
+            if (isPlaying) {
+                rafId = requestAnimationFrame(updateVolumeFades);
+            }
+        };
+
+        // Run immediately on state change, and loop if playing
+        updateVolumeFades();
+
+        return () => {
+            if (rafId) cancelAnimationFrame(rafId);
+        };
+    }, [isMuted, volumeLevel, selectedMusic, isPlaying, activePreviewId, clipSettings, mediaItems, getTrimRangeForItem, isFadeOpen, fadeInVal, fadeOutVal]);
+
+    // Smooth playhead animation for Duration editor
+    useEffect(() => {
+        let rafId: number;
+        
+        const updateDurationPlayhead = () => {
+            if (!isDurationOpen || !videoRef.current) return;
+            
+            const activeItem = mediaItems[durationActiveClipIdx];
+            if (activeItem && activeItem.type === 'video') {
+                const effDur = getEffectiveDurationForItem(activeItem);
+                const trim = getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0);
+                const localTime = Math.max(0, videoRef.current.currentTime - trim.start);
+                const localProgress = Math.min(99, Math.max(1, (localTime / (effDur || 1)) * 100));
+                
+                const playhead = document.getElementById('duration-playhead-line');
+                const textNode = document.getElementById('duration-playhead-text');
+                
+                if (playhead) {
+                    playhead.style.left = `${localProgress}%`;
+                }
+                if (textNode) {
+                    textNode.innerText = `${localTime.toFixed(2)} / ${effDur.toFixed(2)}`;
+                }
+            }
+            
+            rafId = requestAnimationFrame(updateDurationPlayhead);
+        };
+
+        if (isDurationOpen && isPlaying) {
+            rafId = requestAnimationFrame(updateDurationPlayhead);
         }
 
-        // Set upload audio track volume/mute
-        if (audioRef.current) {
-            audioRef.current.muted = isMutedDeck;
-            audioRef.current.volume = isMutedDeck ? 0 : Math.max(0, Math.min(1, volumeLevel));
+        return () => {
+            if (rafId) cancelAnimationFrame(rafId);
+        };
+    }, [isDurationOpen, isPlaying, durationActiveClipIdx, mediaItems, getEffectiveDurationForItem, getTrimRangeForItem]);
+
+    // Smooth playhead animation for Fade editor
+    useEffect(() => {
+        let rafId: number;
+        
+        const updateFadePlayhead = () => {
+            if (!isFadeOpen || !videoRef.current || !activePreviewId) return;
+            
+            const activeItem = mediaItems.find(i => i.id === activePreviewId);
+            if (activeItem && activeItem.type === 'video') {
+                const trim = getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0);
+                const effDur = Math.max(0.1, trim.end - trim.start);
+                const localTime = Math.max(0, videoRef.current.currentTime - trim.start);
+                const localProgress = Math.min(100, Math.max(0, (localTime / effDur) * 100));
+                
+                const playhead = document.getElementById('fade-playhead-line');
+                if (playhead) {
+                    playhead.style.left = `${localProgress}%`;
+                }
+            }
+            
+            rafId = requestAnimationFrame(updateFadePlayhead);
+        };
+
+        if (isFadeOpen && isPlaying) {
+            rafId = requestAnimationFrame(updateFadePlayhead);
         }
 
-        // Set background music volume/mute
-        if (bgMusicRef.current && selectedMusic) {
-            bgMusicRef.current.muted = isMutedDeck;
-            const bgVolume = (selectedMusic.volume ?? 80) / 100;
-            bgMusicRef.current.volume = isMutedDeck ? 0 : bgVolume;
-        }
-    }, [isMuted, volumeLevel, selectedMusic]);
+        return () => {
+            if (rafId) cancelAnimationFrame(rafId);
+        };
+    }, [isFadeOpen, isPlaying, activePreviewId, mediaItems, getTrimRangeForItem]);
 
     // Duplicate playback useEffect removed to prevent conflicts
 
@@ -4030,7 +4599,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         if (!activeItem || activeItem.type !== 'video' || !videoRef.current) return;
         if (videoRef.current.readyState < 1) return; // Wait for metadata before clamping/seeking
         const targetStart = getTargetStartTime(activeItem);
-        const trim = getTrimRangeForItem(activeItem.id, activeItem.duration);
+        const trim = getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0);
         if (videoRef.current.currentTime < targetStart || videoRef.current.currentTime > trim.end) {
             videoRef.current.currentTime = targetStart;
             if (pendingTransitionSeekRef.current && pendingTransitionSeekRef.current.clipId === activePreviewId) {
@@ -4067,6 +4636,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const overlayTextStylePresetCss = getOverlayTextStylePresetCss(overlayTextStylePreset);
 
     useEffect(() => {
+        const isCutout = activePreviewId ? clipSettings[activePreviewId]?.cutout?.enabled : false;
         const isProEffect = selectedEffect && selectedEffect.startsWith('pro-') && !selectedEffect.startsWith('pro-filter-');
         const activeCanvasMode = isProEffect
             ? selectedEffect
@@ -4074,7 +4644,9 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 ? selectedEffect
                 : CANVAS_PREVIEW_FILTERS.includes(selectedFilter)
                     ? selectedFilter
-                    : null;
+                    : isCutout
+                        ? 'cutout'
+                        : null;
 
         if (!activeCanvasMode) {
             if (greenScreenAnimationRef.current !== null) {
@@ -4122,7 +4694,12 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                         const y = Math.cos(t * 17) * strength * 3.5;
                         ctx.translate(x, y);
                     }
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const cutout = activePreviewId ? clipSettings[activePreviewId]?.cutout : null;
+                    if (cutout && cutout.enabled && cutout.maskDataUrl) {
+                        applyCutout(ctx, canvas, video, cutout);
+                    } else {
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    }
                     ctx.restore();
                 }
 
@@ -4370,6 +4947,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         rgbSplitAmount,
         filmGrainOpacity,
         proParams,
+        clipSettings,
     ]);
 
     // Keep timeline thumbnail videos in sync with the main preview transport state.
@@ -4414,7 +4992,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             if (p < 1) {
                 raf = requestAnimationFrame(tick);
             } else {
-                console.log("✅ [TRANSITIONS] Preview animation completed for transition:", transitionOverlay.type);
+                console.log("Ã¢Å“â€¦ [TRANSITIONS] Preview animation completed for transition:", transitionOverlay.type);
                 
                 const wasPlaying = isPlayingRef.current;
                 
@@ -4422,7 +5000,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 setTransitionProgress(0);
 
                 if (wasPlaying) {
-                    console.log("📹 [PLAYBACK] Normal playback: switching to next clip after transition");
+                    console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Normal playback: switching to next clip after transition");
                     pendingTransitionSeekRef.current = {
                         clipId: transitionOverlay.toId,
                         seekTime: transitionOverlay.durationMs / 1000,
@@ -4436,14 +5014,14 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                 const trim = getTrimRangeForItem(nextItem.id, nextItem.duration);
                                 const targetStart = Math.min(trim.end, trim.start + (transitionOverlay.durationMs / 1000));
                                 videoRef.current.currentTime = targetStart;
-                                console.log("📹 [PLAYBACK] Transition complete, seeked next clip to target start:", targetStart);
+                                console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Transition complete, seeked next clip to target start:", targetStart);
                             }
-                            console.log("📹 [PLAYBACK] Resuming playback on next clip");
+                            console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Resuming playback on next clip");
                             safePlay(videoRef.current);
                         }
                     }, 50);
                 } else {
-                    console.log("📹 [PLAYBACK] User applying transition: stay on source clip and seek to start");
+                    console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] User applying transition: stay on source clip and seek to start");
                     setActivePreviewId(transitionOverlay.fromId);
                     setTimeout(() => {
                         if (videoRef.current) {
@@ -4451,7 +5029,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                             if (fromItem) {
                                 const trim = getTrimRangeForItem(fromItem.id, fromItem.duration);
                                 videoRef.current.currentTime = trim.start;
-                                console.log("📹 [PLAYBACK] Seeked to start of from clip:", trim.start);
+                                console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Seeked to start of from clip:", trim.start);
                             }
                         }
                     }, 50);
@@ -4465,7 +5043,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
     useEffect(() => {
         let timer: ReturnType<typeof setTimeout>;
-        let progressInterval: ReturnType<typeof setInterval>;
+        let rafId: number;
         const activeItem = mediaItems.find(i => i.id === activePreviewId);
 
         if (isPlaying && activeItem?.type === 'image') {
@@ -4478,7 +5056,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             const startTime = Date.now() - seekOffsetMs;
             const imageDuration = Math.max(0, (activeItem.duration || 3) * 1000 - seekOffsetMs);
 
-            progressInterval = setInterval(() => {
+            const updateProgress = () => {
                 const elapsed = Date.now() - startTime;
                 const activeIndex = mediaItems.findIndex(i => i.id === activePreviewId);
                 const timeBefore = mediaItems.slice(0, activeIndex).reduce((acc, item) => acc + item.duration, 0);
@@ -4489,7 +5067,11 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 setProgress(Math.min(p, 100) || 0);
                 const localProgress = Math.min(1, (elapsed / 1000) / Math.max(0.01, activeItem.duration));
                 setKeyframeProgress(localProgress);
-            }, 100);
+                
+                rafId = requestAnimationFrame(updateProgress);
+            };
+            
+            rafId = requestAnimationFrame(updateProgress);
 
             timer = setTimeout(() => {
                 playNextMedia(activeItem.id);
@@ -4497,7 +5079,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         }
         return () => {
             clearTimeout(timer);
-            if (progressInterval) clearInterval(progressInterval);
+            if (rafId) cancelAnimationFrame(rafId);
         };
     }, [isPlaying, activePreviewId, mediaItems, playNextMedia]);
 
@@ -4512,7 +5094,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                     : initialMedia.preview;
 
                 if (initialMedia.file && preview) {
-                    createdPreviewUrlsRef.current.push(preview);
+                    createdPreviewUrlsRef.current.push(preview || '');
                 }
 
                 const initialType = initialMedia.type || 'video' as const;
@@ -4525,9 +5107,17 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                         duration: resolvedDuration,
                     };
                     setMediaItems([newItem]);
-                    setActivePreviewId('initial');
-                    // Initialize undo history with initial state
-                    setHistory([JSON.stringify([newItem])]);
+                    const initialStateObj = {
+                        mediaItems: [newItem],
+                        clipTransitions: {},
+                        clipTrimRanges: {},
+                        clipStartOverrides: {},
+                        clipTrackOverrides: {},
+                        clipNameOverrides: {},
+                        clipLockedStates: {},
+                        clipSettings: {},
+                    };
+                    setHistory([JSON.stringify(initialStateObj)]);
                     setHistoryIndex(0);
                 });
             }
@@ -4680,12 +5270,15 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             glitchOffset = ` translate(${x}px, ${y}px)`;
         }
 
-        const baseTransform = `scale(${zoomScale * zoomToolAmount * keyframeScale}) rotate(${rotationDegrees}deg)`;
+        const scaleXVal = activePreviewId && clipSettings[activePreviewId]?.mirror ? -1 : 1;
+        const scaleYVal = activePreviewId && clipSettings[activePreviewId]?.flip ? -1 : 1;
+
+        const baseTransform = `scale(${zoomScale * zoomToolAmount * keyframeScale}) scale(${scaleXVal}, ${scaleYVal}) rotate(${rotationDegrees}deg)`;
         return `${baseTransform}${shakeOffset}${rgbOffset}${glitchOffset}`;
     };
 
     const activeTrim = activePreviewItem && activePreviewItem.type === 'video'
-        ? getTrimRangeForItem(activePreviewItem.id, activePreviewItem.duration)
+        ? getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0)
         : null;
 
     const hasTrimApplied = activeTrim
@@ -4706,7 +5299,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
             const source = prev[index];
             const nextId = Math.random().toString(36).substr(2, 9);
-            const preview = source.file ? URL.createObjectURL(source.file) : source.preview;
+            const preview = source.file ? URL.createObjectURL(source.file) : (source.preview || '');
 
             if (source.file) {
                 createdPreviewUrlsRef.current.push(preview);
@@ -4738,10 +5331,11 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                     mediaInputRef.current.click();
                 }
             } else if (type === 'text') {
-                // Switch to titles panel to let user add text overlay
+                // Switch to titles panel and immediately add text clip to the target track
                 setActiveTool('text-tool');
                 setPendingInsertTargetId(null);
                 setPendingInsertType(null);
+                handleAddTextClipToTimeline(targetId);
             }
         };
 
@@ -4757,6 +5351,61 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             window.removeEventListener('open-transition-editor', handleTransition);
         };
     }, []);
+
+    const handleAddTextClipToTimeline = useCallback((targetTrackId?: string) => {
+        const textClipId = 'text-' + Math.random().toString(36).substr(2, 9);
+        const newTextClip = {
+            id: textClipId,
+            type: 'text',
+            duration: 5,
+        };
+        
+        setClipStartOverrides(prevStarts => {
+            const newStarts = {
+                ...prevStarts,
+                [textClipId]: globalCurrentTime
+            };
+            
+            setClipTrackOverrides(prevOverrides => {
+                const newOverrides = {
+                    ...prevOverrides,
+                    [textClipId]: targetTrackId || 'text-1'
+                };
+                
+                setMediaItems(prevItems => {
+                    const updatedItems = [...prevItems, newTextClip];
+                    saveToUndo(updatedItems, undefined, undefined, newStarts, newOverrides);
+                    return updatedItems;
+                });
+                
+                return newOverrides;
+            });
+            
+            return newStarts;
+        });
+
+
+        setClipSettings((prev: any) => ({
+            ...prev,
+            [textClipId]: {
+                overlayText: 'New Text',
+                overlayFontSize: 64,
+                overlayColor: '#FFFFFF',
+                overlayPosX: 50,
+                overlayPosY: 50
+            }
+        }));
+        setActivePreviewId(textClipId);
+        setActiveTool('text-tool');
+        
+        setIsTextPlacementMode(false);
+    }, [saveToUndo, globalCurrentTime]);
+
+    useEffect(() => {
+        const handleAddTextEvent = () => handleAddTextClipToTimeline();
+        window.addEventListener('add-text-clip', handleAddTextEvent);
+        return () => window.removeEventListener('add-text-clip', handleAddTextEvent);
+    }, [handleAddTextClipToTimeline]);
 
     const handleMediaImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
@@ -4834,7 +5483,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const removeLibraryAsset = (id: string) => {
         setLibraryAssets(prev => {
             const item = prev.find(i => i.id === id);
-            if (item) URL.revokeObjectURL(item.preview);
+            if (item) URL.revokeObjectURL(item.preview || '');
             const nextAssets = prev.filter(i => i.id !== id);
             if (activePreviewId === id) {
                 selectPreviewWithTransition(nextAssets[0]?.id || null);
@@ -4846,7 +5495,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const removeMediaItem = (id: string) => {
         setMediaItems(prev => {
             const item = prev.find(i => i.id === id);
-            if (item) URL.revokeObjectURL(item.preview);
+            if (item) URL.revokeObjectURL(item.preview || '');
             const nextItems = prev.filter(i => i.id !== id);
             if (activePreviewId === id) {
                 selectPreviewWithTransition(nextItems[0]?.id || null);
@@ -4952,7 +5601,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         });
     }, [activePreviewId, saveToUndo, clipTransitions, clipTrimRanges, clipStartOverrides, clipTrackOverrides, clipNameOverrides, clipLockedStates]);
 
-    // ── AI Command Agent action executor ──────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬ AI Command Agent action executor Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     const handleCommandActions = useCallback((actions: any[]) => {
         for (const action of actions) {
             if (!action || action.type === 'unsupported') continue;
@@ -5199,7 +5848,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const applyTransitionForActiveClip = (transition: TransitionType) => {
         try {
             if (!activePreviewId) {
-                console.warn("⚠️ [TRANSITIONS] No active clip selected");
+                console.warn("Ã¢Å¡Â Ã¯Â¸Â [TRANSITIONS] No active clip selected");
                 return;
             }
 
@@ -5208,7 +5857,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 videoRef.current.pause();
             }
 
-            console.log("📝 [TRANSITIONS] Applying transition to clip", {
+            console.log("Ã°Å¸â€œÂ [TRANSITIONS] Applying transition to clip", {
                 clipId: activePreviewId,
                 transition,
                 allClipTransitions: clipTransitions
@@ -5217,7 +5866,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             // Save transition to state - this is what gets sent to the backend
             setClipTransitions((prev) => {
                 const updated = { ...prev, [activePreviewId]: transition };
-                console.log("✅ [TRANSITIONS] Transition saved to state", {
+                console.log("Ã¢Å“â€¦ [TRANSITIONS] Transition saved to state", {
                     clipId: activePreviewId,
                     transition,
                     updated
@@ -5229,7 +5878,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             const currentIndex = mediaItems.findIndex((item) => item.id === activePreviewId);
             if (currentIndex !== -1) {
                 const activeItem = mediaItems[currentIndex];
-                const trim = getTrimRangeForItem(activeItem.id, activeItem.duration);
+                const trim = getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0);
                 
                 // Seek to 2 seconds before the end of the clip (transition start area)
                 const seekLocal = Math.max(trim.start, trim.end - 2.0);
@@ -5251,7 +5900,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 setActiveTool(null);
             }, 100);
         } catch (error) {
-            console.error("❌ [TRANSITIONS] Error applying transition:", error);
+            console.error("Ã¢ÂÅ’ [TRANSITIONS] Error applying transition:", error);
         }
     };
 
@@ -5330,7 +5979,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             transition: clipTransitions[item.id] || 'none',
         }));
 
-        console.log("🎬 [GENERATE] Transition plan created:", {
+        console.log("Ã°Å¸Å½Â¬ [GENERATE] Transition plan created:", {
             mediaCount: mediaForProcessing.length,
             transitionPlan: transitionPlan,
             clipTransitions: clipTransitions,
@@ -5474,7 +6123,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         };
 
         // Debug logging for transitions
-        console.log("📤 [QUICK-EDIT] Sending to processing screen:", {
+        console.log("Ã°Å¸â€œÂ¤ [QUICK-EDIT] Sending to processing screen:", {
             mediaCount: mediaForProcessing.length,
             transitionPlan: transitionPlan,
             clipTransitions: clipTransitions,
@@ -5488,8 +6137,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             supabase.from('app_generations_history').insert({
                 user_id: session.user.id,
                 type: "Ai manual edit",
-                title: `${mediaItems.length > 0 ? mediaItems.length + ' Media Items' : 'Quick Edit'} • ${editingStyles.find(s => s.id === selectedStyle)?.title || selectedStyle}`,
-                description: `Ratio: ${formattedRatio} • FPS: ${fps} • Quality: ${exportQuality}`,
+                title: `${mediaItems.length > 0 ? mediaItems.length + ' Media Items' : 'Quick Edit'} Ã¢â‚¬Â¢ ${editingStyles.find(s => s.id === selectedStyle)?.title || selectedStyle}`,
+                description: `Ratio: ${formattedRatio} Ã¢â‚¬Â¢ FPS: ${fps} Ã¢â‚¬Â¢ Quality: ${exportQuality}`,
                 metadata: {
                     style: selectedStyle,
                     ratio: formattedRatio,
@@ -5642,6 +6291,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             </div>
 
             {/* Top Header */}
+            {!isCropMode && (
             <header className="h-14 flex-none border-b border-white/10 flex items-center justify-between px-4 bg-black/20 backdrop-blur-3xl z-20">
                 <div className="flex items-center gap-6">
                     <button
@@ -5682,6 +6332,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                     </motion.button>
                 </div>
             </header>
+            )}
 
             {/* Main Multi-Pane Studio Area */}
             <main className="flex-1 flex flex-col overflow-hidden relative z-10">
@@ -5690,77 +6341,32 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden border-b border-white/10">
 
                     {/* Left Column: Filmora-style panel with icon tab rail + content */}
-                    <aside className="w-full md:w-[420px] flex-none flex bg-[#0B1020]/40 backdrop-blur-md overflow-hidden relative border-r border-white/10 order-2 md:order-1">
+                    {!isCropMode && (
+                    <motion.aside className="w-full md:w-[420px] flex-none flex bg-[#0B1020]/40 backdrop-blur-md overflow-hidden relative border-r border-white/10 order-2 md:order-1">
 
-                        {/* ── Icon Tab Rail (far left, like Filmora) ── */}
-                        {(() => {
-                            const leftTabs = [
-                                { id: 'media',       icon: Film,         label: 'Media'       },
-                                { id: 'stock',       icon: Crown,        label: 'Stock Media' },
-                            ] as const;
+                        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Content panel Ã¢â€â‚¬Ã¢â€â‚¬ */}
+                        <div className="flex-1 flex flex-col min-w-0 bg-[#0b0d26]">
 
-                            return (
-                                <div className="flex h-full w-full">
-
-                                    {/* ── Narrow icon tab strip ── */}
-                                    <div className="flex-none w-[72px] flex flex-col items-center gap-1 py-3 bg-[#07080f] border-r border-white/[0.06]">
-                                        {leftTabs.map((tab) => {
-                                            const Icon = tab.icon;
-                                            const isActive = leftTab === tab.id;
-                                            return (
-                                                <button
-                                                    key={tab.id}
-                                                    onClick={() => {
-                                                        setLeftTab(tab.id as any);
-                                                        if ((tab.id as string) === 'titles') {
-                                                            setActiveTool('text-tool');
-                                                        } else if ((tab.id as string) === 'captions') {
-                                                            setActiveTool('captions');
-                                                        } else if (activeTool === 'text-tool' || activeTool === 'captions') {
-                                                            setActiveTool(null);
-                                                        }
-                                                    }}
-                                                    title={tab.label}
-                                                    className={`relative flex flex-col items-center justify-center gap-1 w-14 h-14 rounded-xl transition-all duration-200 group ${
-                                                        isActive
-                                                            ? 'bg-purple-500/15 text-purple-300'
-                                                            : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
-                                                    }`}
-                                                >
-                                                    {isActive && (
-                                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-7 bg-purple-400 rounded-r-full" />
-                                                    )}
-                                                    <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-purple-300' : 'text-slate-500 group-hover:text-slate-300'}`} />
-                                                    <span className={`text-[8px] font-bold uppercase tracking-wide leading-none text-center px-0.5 ${isActive ? 'text-purple-300' : 'text-slate-600 group-hover:text-slate-400'}`}>
-                                                        {tab.label}
-                                                    </span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-
-                                    {/* ── Content panel ── */}
-                                    <div className="flex-1 flex flex-col min-w-0 bg-[#0b0d26]">
-
-                                        {/* Panel header */}
-                                        <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/[0.06] shrink-0">
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-200">
-                                                {leftTab === 'media'       && 'Media Library'}
-                                                {leftTab === 'titles'      && 'Titles & Text'}
-                                                {leftTab === 'captions'    && 'Captions'}
-                                                {leftTab === 'transitions' && 'Transitions'}
-                                                {leftTab === 'effects'     && 'Visual Effects'}
-                                                {leftTab === 'filters'     && 'Color Filters'}
-                                                {leftTab === 'tools'       && 'Toolbox'}
-                                            </span>
-                                            {leftTab === 'transitions' && activePreviewId && (
-                                                <span className="text-[8px] font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 rounded px-1.5 py-0.5 truncate max-w-[120px]">
-                                                    {clipTransitions[activePreviewId] || 'none'}
+                                        {/* Panel header (Hidden for media to match Screenshot 1) */}
+                                        {leftTab !== 'media' && (
+                                            <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/[0.06] shrink-0">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-200">
+                                                    {leftTab === 'titles'      && 'Titles & Text'}
+                                                    {leftTab === 'captions'    && 'Captions'}
+                                                    {leftTab === 'transitions' && 'Transitions'}
+                                                    {leftTab === 'effects'     && 'Visual Effects'}
+                                                    {leftTab === 'filters'     && 'Color Filters'}
+                                                    {leftTab === 'tools'       && 'Toolbox'}
                                                 </span>
-                                            )}
-                                        </div>
+                                                {leftTab === 'transitions' && activePreviewId && (
+                                                    <span className="text-[8px] font-bold text-purple-400 bg-purple-500/10 border border-purple-500/20 rounded px-1.5 py-0.5 truncate max-w-[120px]">
+                                                        {clipTransitions[activePreviewId] || 'none'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
 
-                                        {/* ── TITLES panel ── */}
+                                        {/* Ã¢â€â‚¬Ã¢â€â‚¬ TITLES panel Ã¢â€â‚¬Ã¢â€â‚¬ */}
                                         {(leftTab === 'titles' || leftTab === 'captions') && (
                                             <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
                                                 <div className="p-3 bg-black/40 rounded-xl border border-white/5 shadow-inner">
@@ -5785,6 +6391,32 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                         glitchIntensity={glitchIntensity} setGlitchIntensity={setGlitchIntensity}
                                                         animatedText={animatedText} setAnimatedText={setAnimatedText}
                                                         overlayText={overlayText} setOverlayText={setOverlayText}
+                                                        overlayOpacity={overlayOpacity} setOverlayOpacity={setOverlayOpacity}
+                                                        overlayStrokeEnabled={overlayStrokeEnabled} setOverlayStrokeEnabled={setOverlayStrokeEnabled}
+                                                        overlayStrokeColor={overlayStrokeColor} setOverlayStrokeColor={setOverlayStrokeColor}
+                                                        overlayStrokeOpacity={overlayStrokeOpacity} setOverlayStrokeOpacity={setOverlayStrokeOpacity}
+                                                        overlayShadowEnabled={overlayShadowEnabled} setOverlayShadowEnabled={setOverlayShadowEnabled}
+                                                        overlayShadowColor={overlayShadowColor} setOverlayShadowColor={setOverlayShadowColor}
+                                                        overlayShadowOpacity={overlayShadowOpacity} setOverlayShadowOpacity={setOverlayShadowOpacity}
+                                                        overlayShadowBlur={overlayShadowBlur} setOverlayShadowBlur={setOverlayShadowBlur}
+                                                        overlayBgRadius={overlayBgRadius} setOverlayBgRadius={setOverlayBgRadius}
+                                                        overlayBgPaddingX={overlayBgPaddingX} setOverlayBgPaddingX={setOverlayBgPaddingX}
+                                                        overlayBgPaddingY={overlayBgPaddingY} setOverlayBgPaddingY={setOverlayBgPaddingY}
+                                                        overlayBgOffsetX={overlayBgOffsetX} setOverlayBgOffsetX={setOverlayBgOffsetX}
+                                                        overlayBgOffsetY={overlayBgOffsetY} setOverlayBgOffsetY={setOverlayBgOffsetY}
+                                                        overlayTextStyleBold={overlayTextStyleBold} setOverlayTextStyleBold={setOverlayTextStyleBold}
+                                                        overlayTextStyleItalic={overlayTextStyleItalic} setOverlayTextStyleItalic={setOverlayTextStyleItalic}
+                                                        overlayTextStyleUnderline={overlayTextStyleUnderline} setOverlayTextStyleUnderline={setOverlayTextStyleUnderline}
+                                                        overlayAlignment={overlayAlignment} setOverlayAlignment={setOverlayAlignment}
+                                                        overlayListStyle={overlayListStyle} setOverlayListStyle={setOverlayListStyle}
+                                                        overlayCase={overlayCase} setOverlayCase={setOverlayCase}
+                                                        overlayAnchor={overlayAnchor} setOverlayAnchor={setOverlayAnchor}
+                                                        overlayTextBoxSetting={overlayTextBoxSetting} setOverlayTextBoxSetting={setOverlayTextBoxSetting}
+                                                        overlayLetterSpacing={overlayLetterSpacing} setOverlayLetterSpacing={setOverlayLetterSpacing}
+                                                        overlayLineSpacing={overlayLineSpacing} setOverlayLineSpacing={setOverlayLineSpacing}
+                                                        overlayAnimationIn={overlayAnimationIn} setOverlayAnimationIn={setOverlayAnimationIn}
+                                                        overlayAnimationOut={overlayAnimationOut} setOverlayAnimationOut={setOverlayAnimationOut}
+                                                        overlayAnimationLoop={overlayAnimationLoop} setOverlayAnimationLoop={setOverlayAnimationLoop}
                                                         overlayFontId={overlayFontId} setOverlayFontId={setOverlayFontId}
                                                         overlayFontSize={overlayFontSize} setOverlayFontSize={setOverlayFontSize}
                                                         overlayColor={overlayColor} setOverlayColor={setOverlayColor}
@@ -5801,6 +6433,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                         rotationDegrees={rotationDegrees} setRotationDegrees={setRotationDegrees}
                                                         volumeLevel={volumeLevel} setVolumeLevel={setVolumeLevel}
                                                         isMuted={isMuted} setIsMuted={setIsMuted}
+                                                        isDenoiseEnabled={isDenoiseEnabled} setIsDenoiseEnabled={setIsDenoiseEnabled}
+                                                        onApplyToAllVolume={handleApplyToAllVolume}
                                                         cropWidthPct={cropWidthPct} setCropWidthPct={setCropWidthPct}
                                                         cropHeightPct={cropHeightPct} setCropHeightPct={setCropHeightPct}
                                                         cropCenterX={cropCenterX} setCropCenterX={setCropCenterX}
@@ -5825,7 +6459,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                             </div>
                                         )}
 
-                                        {/* ── TRANSITIONS panel ── */}
+                                        {/* Ã¢â€â‚¬Ã¢â€â‚¬ TRANSITIONS panel Ã¢â€â‚¬Ã¢â€â‚¬ */}
                                         {leftTab === 'transitions' && (
                                             <div className="flex-1 overflow-y-auto p-3 custom-scrollbar flex flex-col min-h-0">
                                                 {/* Active clip indicator */}
@@ -5834,7 +6468,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                         ? 'bg-purple-500/10 border-purple-500/20 text-purple-300'
                                                         : 'bg-white/[0.03] border-white/5 text-slate-500'
                                                 }`}>
-                                                    {activePreviewId ? `Clip selected · drag to apply` : 'Select a clip from the timeline first'}
+                                                    {activePreviewId ? `Clip selected Ã‚Â· drag to apply` : 'Select a clip from the timeline first'}
                                                 </div>
 
                                                 {/* Category Selector Chips */}
@@ -5925,7 +6559,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                             </div>
                                         )}
 
-                                        {/* ── EFFECTS panel ── */}
+                                        {/* Ã¢â€â‚¬Ã¢â€â‚¬ EFFECTS panel Ã¢â€â‚¬Ã¢â€â‚¬ */}
                                         {leftTab === 'effects' && (
                                             <div className="flex-1 overflow-y-auto p-3 custom-scrollbar flex flex-col min-h-0">
                                                 {/* Category Selector Chips */}
@@ -6004,7 +6638,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                             </div>
                                         )}
 
-                                        {/* ── FILTERS panel ── */}
+                                        {/* Ã¢â€â‚¬Ã¢â€â‚¬ FILTERS panel Ã¢â€â‚¬Ã¢â€â‚¬ */}
                                         {leftTab === 'filters' && (() => {
                                              const proEffects = getAllProEffects();
                                              const proFilters = proEffects.filter(eff => eff.id.startsWith('pro-filter-'));
@@ -6038,6 +6672,9 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                                      onClick={() => {
                                                                          setSelectedFilter('none');
                                                                          setSelectedEffect('none');
+                                                                         if (activePreviewId) {
+                                                                             setClipSettings(prev => ({ ...prev, [activePreviewId]: { ...(prev[activePreviewId] || {}), selectedFilter: 'none' } }));
+                                                                         }
                                                                      }}
                                                                      type="button"
                                                                      className={`relative flex flex-col items-center justify-center gap-2 h-[80px] rounded-xl border transition-all duration-200 group overflow-hidden ${
@@ -6060,6 +6697,9 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                                              setSelectedFilter(eff.id as any);
                                                                              setSelectedEffect(eff.id);
                                                                              setProParams(eff.defaultParameters || {});
+                                                                             if (activePreviewId) {
+                                                                                 setClipSettings(prev => ({ ...prev, [activePreviewId]: { ...(prev[activePreviewId] || {}), selectedFilter: eff.id as any } }));
+                                                                             }
                                                                          }}
                                                                          type="button"
                                                                          className={`relative flex flex-col items-center justify-center gap-2 h-[80px] rounded-xl border transition-all duration-200 group overflow-hidden ${
@@ -6084,139 +6724,260 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                      </div>
                                                  </div>
                                              );
-                                         })()}{/* ── MEDIA panel (Wondershare Filmora-style Left Column Media Pool) ── */}
-                                        {leftTab === 'media' && (
-                                            <div className="flex-1 flex min-h-0 overflow-hidden bg-[#07080f]">
-                                                {/* Category rail */}
-                                                <div className="w-[100px] flex-none flex flex-col border-r border-white/[0.05] bg-[#07080f] py-1.5 overflow-y-auto custom-scrollbar">
-                                                    {[
-                                                        { label: 'Project Media', active: true },
-                                                        { label: 'Folder', indent: true },
-                                                        { label: 'Global Media' },
-                                                        { label: 'Cloud Media', indent: true },
-                                                        { label: 'Audio' },
-                                                        { label: 'Favorites' },
-                                                    ].map(({ label, active, indent }) => (
-                                                        <button
-                                                            key={label}
-                                                            className={`w-full text-left px-2 py-2 text-[9px] font-bold transition-colors truncate
-                                                                ${active ? 'text-purple-300 bg-white/5 border-l-2 border-purple-500' : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]'}
-                                                                ${indent ? 'pl-4' : ''}`}
-                                                        >
-                                                            {label}
-                                                        </button>
-                                                    ))}
+                                         })()}
+
+                                        {/* Ã¢â€â‚¬Ã¢â€â‚¬ MEDIA & AUDIO panels Ã¢â€â‚¬Ã¢â€â‚¬ */}
+                                        {(leftTab === 'media' || leftTab === 'audio') && (
+                                            <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-[#12131b]">
+                                                {/* Top Header Tabs: Media | Audio */}
+                                                <div className="flex items-center gap-1.5 px-3 py-2 border-b border-white/5 bg-[#0e0f18]">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setLeftTab('media')}
+                                                        className={`flex flex-col items-center justify-center w-[54px] h-[48px] rounded-lg transition-all ${leftTab === 'media' ? 'bg-white/[0.08] text-white' : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'}`}
+                                                    >
+                                                        <MonitorPlay strokeWidth={1.5} className="w-[18px] h-[18px] mb-1.5" />
+                                                        <span className="text-[9.5px] font-medium leading-none">Media</span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setLeftTab('audio')}
+                                                        className={`flex flex-col items-center justify-center w-[54px] h-[48px] rounded-lg transition-all ${leftTab === 'audio' ? 'bg-white/[0.08] text-white' : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'}`}
+                                                    >
+                                                        <Music strokeWidth={1.5} className="w-[18px] h-[18px] mb-1.5" />
+                                                        <span className="text-[9.5px] font-medium leading-none">Audio</span>
+                                                    </button>
                                                 </div>
 
-                                                {/* Main media list area */}
-                                                <div className="flex-1 min-w-0 flex flex-col bg-[#0b0d26]">
-                                                    {/* Toolbar */}
-                                                    <div className="h-9 flex-none flex items-center gap-1.5 px-2 border-b border-white/[0.05] bg-[#090b14]">
-                                                        <button
-                                                            onClick={() => mediaInputRef.current?.click()}
-                                                            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-purple-600/20 border border-purple-500/30 text-purple-300 hover:bg-purple-600/30 text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                                                        >
-                                                            <Upload className="w-3 h-3" />
-                                                            <span>Import</span>
+                                                <div className="flex-1 flex min-h-0 overflow-hidden">
+                                                    {leftTab === 'media' ? (
+                                                        <>
+                                                            {/* Category sub-sidebar */}
+                                                            <div className="w-[100px] flex-none flex flex-col border-r border-white/5 bg-[#12131b] py-2 px-1 space-y-1">
+                                                        <button className="flex items-center gap-1.5 px-2 py-1.5 rounded text-xs font-medium text-white bg-white/5 cursor-pointer">
+                                                            <Star className="w-3.5 h-3.5 text-[#EAB308] fill-[#EAB308]" />
+                                                            <span>Favorite</span>
                                                         </button>
-                                                        <div className="flex-1" />
+                                                        <button className="flex items-center gap-1.5 px-2 py-1.5 rounded text-xs font-medium text-slate-400 hover:text-white cursor-pointer">
+                                                            <span className="text-slate-500">Ã°Å¸â€œÂ</span>
+                                                            <span>Default</span>
+                                                        </button>
+                                                        <button className="flex items-center gap-1.5 px-2 py-1.5 rounded text-xs font-medium text-slate-400 hover:text-white cursor-pointer">
+                                                            <span className="text-slate-500">Ã°Å¸â€œÂ</span>
+                                                            <span className="truncate">New Library</span>
+                                                        </button>
                                                     </div>
 
-                                                    {/* Media content */}
-                                                    <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
-                                                        {libraryAssets.length === 0 ? (
-                                                            <div className="flex flex-col items-center justify-center py-8">
-                                                                <div
-                                                                    onClick={() => mediaInputRef.current?.click()}
-                                                                    className="w-16 h-16 rounded-xl bg-black/40 border border-white/[0.07] flex items-center justify-center mb-3 cursor-pointer hover:border-purple-500/40 hover:bg-purple-500/5 transition-all group"
-                                                                >
-                                                                    <Plus className="w-5 h-5 text-slate-500 group-hover:text-purple-400" />
-                                                                </div>
-                                                                <span className="text-[9px] text-slate-500 font-bold text-center">Import Media</span>
+                                                    {/* Main media area */}
+                                                    <div className="flex-1 min-w-0 flex flex-col bg-[#12131b] p-3">
+                                                        {/* Action Bar */}
+                                                        <div className="flex items-center justify-between mb-3">
+                                                            <button
+                                                                onClick={() => mediaInputRef.current?.click()}
+                                                                className="flex items-center gap-1.5 px-3 py-1 rounded bg-[#23242e] text-white border border-white/10 text-xs font-medium hover:bg-[#2c2d3a] transition-colors cursor-pointer"
+                                                            >
+                                                                <span className="text-sm font-bold">+</span>
+                                                                <span>Import</span>
+                                                            </button>
+                                                            <div className="flex items-center gap-2 text-slate-400 text-xs">
+                                                                <Search className="w-3.5 h-3.5 cursor-pointer hover:text-white" />
+                                                                <span className="cursor-pointer hover:text-white font-mono">Ã¢â€¡â€¦</span>
+                                                                <Filter className="w-3.5 h-3.5 cursor-pointer hover:text-white" />
                                                             </div>
-                                                        ) : (
-                                                            <div className="grid grid-cols-2 gap-2">
-                                                                {libraryAssets.map((item) => (
+                                                        </div>
+
+                                                        {/* Media Cards Grid */}
+                                                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                                            {libraryAssets.length === 0 ? (
+                                                                <div className="grid grid-cols-2 gap-2">
+                                                                    {/* Default Fish / Animal placeholder like Image 1 */}
                                                                     <div
-                                                                        key={item.id}
-                                                                        onClick={() => selectPreviewWithTransition(item.id)}
-                                                                        draggable="true"
-                                                                        onDragStart={(e: any) => { e.dataTransfer.setData('clipId', item.id); }}
-                                                                        className={`group relative aspect-video rounded-lg border transition-all cursor-pointer overflow-hidden bg-slate-900
-                                                                            ${activePreviewId === item.id
-                                                                                ? 'border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.3)]'
-                                                                                : 'border-white/[0.06] hover:border-white/20'}`}
+                                                                        onClick={() => mediaInputRef.current?.click()}
+                                                                        className="group relative aspect-square rounded-lg border border-white/10 overflow-hidden cursor-pointer bg-slate-900"
                                                                     >
-                                                                        {item.type === 'video' ? (
-                                                                            <video
-                                                                                ref={(el) => { thumbnailVideoRefs.current[item.id] = el; }}
-                                                                                src={item.preview}
-                                                                                className="w-full h-full object-cover"
-                                                                                muted playsInline preload="metadata"
-                                                                            />
-                                                                        ) : (
-                                                                            <img src={item.preview} alt="" className="w-full h-full object-cover" loading="lazy" />
-                                                                        )}
-                                                                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                                            <button
-                                                                                onClick={(e) => { e.stopPropagation(); removeLibraryAsset(item.id); }}
-                                                                                className="p-1 rounded-md bg-rose-500/80 text-white hover:bg-rose-500 transition-colors"
-                                                                            >
-                                                                                <Trash2 className="w-3.5 h-3.5" />
-                                                                            </button>
+                                                                        <img
+                                                                            src="https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=300&q=80"
+                                                                            alt="Sample Media"
+                                                                            className="w-full h-full object-cover"
+                                                                        />
+                                                                        <div className="absolute top-1 left-1">
+                                                                            <Star className="w-3.5 h-3.5 text-[#EAB308] fill-[#EAB308]" />
                                                                         </div>
-                                                                        <div className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-[7px] font-black text-white/70 uppercase">
-                                                                            {item.type}
+                                                                        <div className="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-black/60 text-[9px] text-white font-mono">
+                                                                            0:35
                                                                         </div>
                                                                     </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* ── STOCK MEDIA panel ── */}
-                                        {leftTab === 'stock' && (
-                                            <div className="flex-1 overflow-y-auto p-3 custom-scrollbar flex flex-col gap-3 bg-[#0b0d26]">
-                                                <div className="text-[8px] font-bold uppercase tracking-widest text-slate-500 mb-1">Premium Stock Media</div>
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    {['Nature', 'Cityscapes', 'Abstract', 'Slow Motion', 'Vlog Clips', 'Intro Backgrounds'].map((c) => (
-                                                        <div key={c} className="group relative aspect-video rounded-xl bg-slate-900 border border-white/5 overflow-hidden flex flex-col justify-end p-2 cursor-pointer hover:border-purple-500/40">
-                                                            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-                                                            <span className="relative z-10 text-[9px] font-bold text-white uppercase">{c}</span>
-                                                            <span className="relative z-10 text-[7px] text-purple-400 font-mono font-medium">Free stock</span>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="grid grid-cols-2 gap-2">
+                                                                    {libraryAssets.map((item) => (
+                                                                        <div
+                                                                            key={item.id}
+                                                                            onClick={() => selectPreviewWithTransition(item.id)}
+                                                                            draggable="true"
+                                                                            onDragStart={(e: any) => { e.dataTransfer.setData('clipId', item.id); }}
+                                                                            className={`group relative aspect-square rounded-lg border transition-all cursor-pointer overflow-hidden bg-slate-900
+                                                                                ${activePreviewId === item.id ? 'border-[#EAB308] shadow-sm' : 'border-white/10 hover:border-white/20'}`}
+                                                                        >
+                                                                            {item.type === 'video' ? (
+                                                                                <video
+                                                                                    ref={(el) => { thumbnailVideoRefs.current[item.id] = el; }}
+                                                                                    src={item.preview}
+                                                                                    className="w-full h-full object-cover"
+                                                                                    muted playsInline preload="metadata"
+                                                                                />
+                                                                            ) : (
+                                                                                <img src={item.preview} alt="" className="w-full h-full object-cover" loading="lazy" />
+                                                                            )}
+                                                                            <div className="absolute top-1 left-1">
+                                                                                <Star className="w-3.5 h-3.5 text-[#EAB308] fill-[#EAB308]" />
+                                                                            </div>
+                                                                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                                                <button
+                                                                                    onClick={(e) => { e.stopPropagation(); removeLibraryAsset(item.id); }}
+                                                                                    className="p-1 rounded bg-rose-500/80 text-white hover:bg-rose-500 transition-colors"
+                                                                                >
+                                                                                    <Trash2 className="w-3 h-3" />
+                                                                                </button>
+                                                                            </div>
+                                                                            <div className="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-black/60 text-[9px] text-white font-mono">
+                                                                                {item.duration ? `${Math.floor(item.duration / 60)}:${Math.floor(item.duration % 60).toString().padStart(2, '0')}` : '0:35'}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* ── AUDIO library panel ── */}
-                                        {leftTab === 'audio' && (
-                                            <div className="flex-1 overflow-y-auto p-3 custom-scrollbar flex flex-col gap-3 bg-[#0b0d26]">
-                                                <div className="text-[8px] font-bold uppercase tracking-widest text-slate-500 mb-1">Audio & Sound FX</div>
-                                                <div className="flex flex-col gap-2">
-                                                    {[
-                                                        { name: 'Upbeat Summer Pop', dur: '2:45', mood: 'Cheerful' },
-                                                        { name: 'Cinematic Ambient Pad', dur: '4:12', mood: 'Atmospheric' },
-                                                        { name: 'Lo-Fi Chill Beats', dur: '3:10', mood: 'Relaxed' },
-                                                        { name: 'Tech Sound FX Pack', dur: '0:18', mood: 'Short' },
-                                                    ].map((track) => (
-                                                        <div key={track.name} className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] transition-colors cursor-pointer group">
-                                                            <div className="min-w-0">
-                                                                <div className="text-[10px] font-bold text-slate-200 truncate group-hover:text-white">{track.name}</div>
-                                                                <div className="text-[8px] text-slate-500">{track.mood}</div>
-                                                            </div>
-                                                            <span className="text-[8px] font-mono text-slate-400">{track.dur}</span>
                                                         </div>
-                                                    ))}
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            {/* Audio sidebar */}
+                                                            <div className="w-[130px] flex-none flex flex-col border-r border-white/5 bg-[#12131b] py-2 px-1 space-y-1 overflow-y-auto custom-scrollbar pb-10">
+                                                                <button 
+                                                                    onClick={() => setAudioCategory('favorites')}
+                                                                    className={`flex items-center gap-2 px-3 py-2 text-xs transition-colors cursor-pointer ${audioCategory === 'favorites' ? 'bg-white/10 text-white font-medium rounded-md mx-1 my-1' : 'text-slate-300 hover:text-white hover:bg-white/5 mx-1 my-1 rounded-md'}`}
+                                                                >
+                                                                    <Star className="w-3.5 h-3.5 fill-current text-white" />
+                                                                    Favorites
+                                                                </button>
+
+                                                                {/* Music Section */}
+                                                                <div className="mt-1">
+                                                                    <button 
+                                                                        onClick={() => setAudioMusicExpanded(!audioMusicExpanded)}
+                                                                        className="flex items-center justify-between w-full px-3 py-1.5 text-xs text-slate-300 hover:text-white transition-colors cursor-pointer"
+                                                                    >
+                                                                        <div className="flex items-center gap-2">
+                                                                            <Music className="w-3.5 h-3.5" />
+                                                                            Music
+                                                                        </div>
+                                                                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${audioMusicExpanded ? '' : '-rotate-90'}`} />
+                                                                    </button>
+                                                                    {audioMusicExpanded && (
+                                                                        <div className="flex flex-col gap-0.5 mt-0.5 mb-2">
+                                                                            {['Vlog', 'Pop', 'Dynamic', 'Fresh', 'Acoustic', 'Electronic', 'Hip-Hop'].map(cat => (
+                                                                                <button
+                                                                                    key={cat}
+                                                                                    onClick={() => setAudioCategory(cat.toLowerCase())}
+                                                                                    className={`text-left pl-8 pr-3 py-1.5 text-xs transition-colors cursor-pointer ${audioCategory === cat.toLowerCase() ? 'text-blue-400 font-medium bg-white/5 mx-1 rounded-md' : 'text-slate-400 hover:text-slate-200'}`}
+                                                                                >
+                                                                                    {cat}
+                                                                                </button>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Sound FX Section */}
+                                                                <div>
+                                                                    <button 
+                                                                        onClick={() => setAudioSfxExpanded(!audioSfxExpanded)}
+                                                                        className="flex items-center justify-between w-full px-3 py-1.5 text-xs text-slate-300 hover:text-white transition-colors cursor-pointer"
+                                                                    >
+                                                                        <div className="flex items-center gap-2">
+                                                                            <Activity className="w-3.5 h-3.5" />
+                                                                            Sound FX
+                                                                        </div>
+                                                                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${audioSfxExpanded ? '' : '-rotate-90'}`} />
+                                                                    </button>
+                                                                    {audioSfxExpanded && (
+                                                                        <div className="flex flex-col gap-0.5 mt-0.5 mb-2">
+                                                                            {['Cartoon', 'Fast Swish', 'Funny', 'Machine', 'Ringing', 'Vehicles', 'Weather', 'Variety Sound', 'Vlog', 'Physical', 'Transition', 'Cues', 'Game', 'Emotion'].map(cat => (
+                                                                                <button
+                                                                                    key={cat}
+                                                                                    onClick={() => setAudioCategory(cat.toLowerCase())}
+                                                                                    className={`text-left pl-8 pr-3 py-1.5 text-xs transition-colors cursor-pointer ${audioCategory === cat.toLowerCase() ? 'text-blue-400 font-medium bg-white/5 mx-1 rounded-md' : 'text-slate-400 hover:text-slate-200'}`}
+                                                                                >
+                                                                                    <span className="truncate block">{cat}</span>
+                                                                                </button>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Your Music Section */}
+                                                                <div>
+                                                                    <button 
+                                                                        onClick={() => setAudioCategory('your-music')}
+                                                                        className="flex items-center justify-between w-full px-3 py-1.5 text-xs text-slate-300 hover:text-white transition-colors cursor-pointer"
+                                                                    >
+                                                                        <div className="flex items-center gap-2">
+                                                                            <Folder className="w-3.5 h-3.5 fill-current" />
+                                                                            Your Music
+                                                                        </div>
+                                                                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${audioCategory === 'your-music' ? '' : '-rotate-90'}`} />
+                                                                    </button>
+                                                                    {audioCategory === 'your-music' && (
+                                                                        <div className="flex flex-col gap-0.5 mt-0.5 mb-2">
+                                                                            <button className="text-left pl-8 pr-3 py-1.5 text-xs transition-colors text-slate-400 hover:text-slate-200 truncate cursor-pointer">Extracted Audio</button>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Your Sound Effect Section */}
+                                                                <div>
+                                                                    <button 
+                                                                        onClick={() => setAudioCategory('your-sound-effect')}
+                                                                        className="flex items-center justify-between w-full px-3 py-1.5 text-xs text-slate-300 hover:text-white transition-colors cursor-pointer"
+                                                                    >
+                                                                        <div className="flex items-center gap-2">
+                                                                            <Folder className="w-3.5 h-3.5 fill-current" />
+                                                                            <span className="truncate">Your Sound...</span>
+                                                                        </div>
+                                                                        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${audioCategory === 'your-sound-effect' ? '' : '-rotate-90'}`} />
+                                                                    </button>
+                                                                    {audioCategory === 'your-sound-effect' && (
+                                                                        <div className="flex flex-col gap-0.5 mt-0.5 mb-2">
+                                                                            <button className="text-left pl-8 pr-3 py-1.5 text-xs transition-colors text-slate-400 hover:text-slate-200 truncate cursor-pointer">Extracted Audio</button>
+                                                                            <button className="text-left pl-8 pr-3 py-1.5 text-xs transition-colors text-slate-400 hover:text-slate-200 truncate cursor-pointer">My Effect</button>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Content Area */}
+                                                            <div className="flex-1 flex flex-col bg-[#12131b]">
+                                                                <div className="flex items-center justify-end gap-3 p-3">
+                                                                    <button className="text-slate-400 hover:text-white transition-colors cursor-pointer"><Search className="w-4 h-4" /></button>
+                                                                    <button className="text-slate-400 hover:text-white transition-colors cursor-pointer"><ArrowDownUp className="w-4 h-4" /></button>
+                                                                    <button className="text-slate-400 hover:text-white transition-colors cursor-pointer"><Filter className="w-4 h-4" /></button>
+                                                                </div>
+                                                                <div className="flex-1 p-4">
+                                                                    {/* Track list would go here */}
+                                                                </div>
+                                                            </div>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                         )}
 
-                                        {/* ── FRAMES panel ── */}
+
+
+
+
+                                        {/* Ã¢â€â‚¬Ã¢â€â‚¬ FRAMES panel Ã¢â€â‚¬Ã¢â€â‚¬ */}
                                         {leftTab === 'frames' && (
                                             <div className="flex-1 overflow-y-auto p-3 custom-scrollbar flex flex-col gap-3 bg-[#0b0d26]">
                                                 <div className="text-[8px] font-bold uppercase tracking-widest text-slate-500 mb-1">Select a Video Frame Overlay</div>
@@ -6253,7 +7014,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                         )}
 
 
-                                        {/* ── TOOLS panel ── */}
+                                        {/* Ã¢â€â‚¬Ã¢â€â‚¬ TOOLS panel Ã¢â€â‚¬Ã¢â€â‚¬ */}
                                         {leftTab === 'tools' && (
                                             <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
                                                 {activeTool ? (
@@ -6262,7 +7023,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                             onClick={() => setActiveTool(null)}
                                                             className="px-2.5 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-[9px] font-black uppercase tracking-wider text-slate-300 transition-all flex items-center gap-1 cursor-pointer"
                                                         >
-                                                            ← Back to Tools
+                                                            Ã¢â€ Â Back to Tools
                                                         </button>
                                                         <div className="p-3 bg-black/40 rounded-xl border border-white/5 shadow-inner">
                                                             <ToolInspector
@@ -6286,7 +7047,33 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                                 glitchIntensity={glitchIntensity} setGlitchIntensity={setGlitchIntensity}
                                                                 animatedText={animatedText} setAnimatedText={setAnimatedText}
                                                                 overlayText={overlayText} setOverlayText={setOverlayText}
-                                                                overlayFontId={overlayFontId} setOverlayFontId={setOverlayFontId}
+                                                                overlayOpacity={overlayOpacity} setOverlayOpacity={setOverlayOpacity}
+                                                                overlayStrokeEnabled={overlayStrokeEnabled} setOverlayStrokeEnabled={setOverlayStrokeEnabled}
+                                                                overlayStrokeColor={overlayStrokeColor} setOverlayStrokeColor={setOverlayStrokeColor}
+                                                                overlayStrokeOpacity={overlayStrokeOpacity} setOverlayStrokeOpacity={setOverlayStrokeOpacity}
+                                                                overlayShadowEnabled={overlayShadowEnabled} setOverlayShadowEnabled={setOverlayShadowEnabled}
+                                                                overlayShadowColor={overlayShadowColor} setOverlayShadowColor={setOverlayShadowColor}
+                                                                overlayShadowOpacity={overlayShadowOpacity} setOverlayShadowOpacity={setOverlayShadowOpacity}
+                                                                overlayShadowBlur={overlayShadowBlur} setOverlayShadowBlur={setOverlayShadowBlur}
+                                                                overlayBgRadius={overlayBgRadius} setOverlayBgRadius={setOverlayBgRadius}
+                                                                overlayBgPaddingX={overlayBgPaddingX} setOverlayBgPaddingX={setOverlayBgPaddingX}
+                                                                overlayBgPaddingY={overlayBgPaddingY} setOverlayBgPaddingY={setOverlayBgPaddingY}
+                                                                overlayBgOffsetX={overlayBgOffsetX} setOverlayBgOffsetX={setOverlayBgOffsetX}
+                                                                overlayBgOffsetY={overlayBgOffsetY} setOverlayBgOffsetY={setOverlayBgOffsetY}
+                                                                overlayTextStyleBold={overlayTextStyleBold} setOverlayTextStyleBold={setOverlayTextStyleBold}
+                                                                overlayTextStyleItalic={overlayTextStyleItalic} setOverlayTextStyleItalic={setOverlayTextStyleItalic}
+                                                        overlayTextStyleUnderline={overlayTextStyleUnderline} setOverlayTextStyleUnderline={setOverlayTextStyleUnderline}
+                                                                overlayAlignment={overlayAlignment} setOverlayAlignment={setOverlayAlignment}
+                                                                overlayListStyle={overlayListStyle} setOverlayListStyle={setOverlayListStyle}
+                                                                overlayCase={overlayCase} setOverlayCase={setOverlayCase}
+                                                                overlayAnchor={overlayAnchor} setOverlayAnchor={setOverlayAnchor}
+                                                                overlayTextBoxSetting={overlayTextBoxSetting} setOverlayTextBoxSetting={setOverlayTextBoxSetting}
+                                                                overlayLetterSpacing={overlayLetterSpacing} setOverlayLetterSpacing={setOverlayLetterSpacing}
+                                                                overlayLineSpacing={overlayLineSpacing} setOverlayLineSpacing={setOverlayLineSpacing}
+                                                        overlayAnimationIn={overlayAnimationIn} setOverlayAnimationIn={setOverlayAnimationIn}
+                                                        overlayAnimationOut={overlayAnimationOut} setOverlayAnimationOut={setOverlayAnimationOut}
+                                                        overlayAnimationLoop={overlayAnimationLoop} setOverlayAnimationLoop={setOverlayAnimationLoop}
+                                                        overlayFontId={overlayFontId} setOverlayFontId={setOverlayFontId}
                                                                 overlayFontSize={overlayFontSize} setOverlayFontSize={setOverlayFontSize}
                                                                 overlayColor={overlayColor} setOverlayColor={setOverlayColor}
                                                                 overlayPosX={overlayPosX} setOverlayPosX={setOverlayPosX}
@@ -6302,6 +7089,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                                 rotationDegrees={rotationDegrees} setRotationDegrees={setRotationDegrees}
                                                                 volumeLevel={volumeLevel} setVolumeLevel={setVolumeLevel}
                                                                 isMuted={isMuted} setIsMuted={setIsMuted}
+                                                                isDenoiseEnabled={isDenoiseEnabled} setIsDenoiseEnabled={setIsDenoiseEnabled}
+                                                                onApplyToAllVolume={handleApplyToAllVolume}
                                                                 cropWidthPct={cropWidthPct} setCropWidthPct={setCropWidthPct}
                                                                 cropHeightPct={cropHeightPct} setCropHeightPct={setCropHeightPct}
                                                                 cropCenterX={cropCenterX} setCropCenterX={setCropCenterX}
@@ -6359,7 +7148,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                                 <AspectRatioCard label="YouTube" ratio="16:9" icon={MonitorPlay} description="Best for YouTube & Desktop" isSelected={aspectRatio.name === 'YouTube'} onClick={() => applyAspectRatio(16, 9, 'YouTube')} />
                                                                 <AspectRatioCard label="Instagram" ratio="9:16" icon={Smartphone} description="Reels, Shorts & TikTok" isSelected={aspectRatio.name === 'Instagram'} onClick={() => applyAspectRatio(9, 16, 'Instagram')} />
                                                                 <AspectRatioCard label="Square" ratio="1:1" icon={Square} description="Instagram Posts" isSelected={aspectRatio.name === 'Square'} onClick={() => applyAspectRatio(1, 1, 'Square')} />
-                                                                <AspectRatioCard label="Custom" ratio="Custom" icon={SlidersHorizontal} description={aspectRatio.name === 'Custom' ? `${aspectRatio.width} × ${aspectRatio.height}` : "Width × Height"} isSelected={aspectRatio.name === 'Custom'} onClick={() => setIsCustomFrameOpen(true)} />
+                                                                <AspectRatioCard label="Custom" ratio="Custom" icon={SlidersHorizontal} description={aspectRatio.name === 'Custom' ? `${aspectRatio.width} Ãƒâ€” ${aspectRatio.height}` : "Width Ãƒâ€” Height"} isSelected={aspectRatio.name === 'Custom'} onClick={() => setIsCustomFrameOpen(true)} />
                                                             </div>
                                                         </div>
                                                     </>
@@ -6368,14 +7157,49 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                         )}
 
                                     </div>{/* end content panel */}
-                                </div>
-                            );
-                        })()}
 
-                    </aside>
+
+                    </motion.aside>
+                    )}
 
                     {/* Center Column: Video Monitor */}
-                    <section className="flex-1 flex flex-col bg-black/15 relative overflow-hidden order-1 md:order-2">
+                    <section className={`flex-1 flex flex-col relative overflow-hidden order-1 md:order-2 ${isCropMode ? 'bg-[#07080f]' : 'bg-black/15'}`}>
+                        {isCropMode && (
+                            <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-50 pointer-events-auto">
+                                <button onClick={() => setRotationDegrees(prev => (prev + 90) % 360)} className="flex flex-col items-center justify-center text-slate-400 hover:text-white gap-1 w-12 cursor-pointer">
+                                    <RotateCw size={18} />
+                                    <span className="text-[10px] mt-1">Rotate</span>
+                                </button>
+                                <div className="flex gap-4">
+                                    <button onClick={() => {
+                                        setFlipH(prev => !prev);
+                                        if (activePreviewId) {
+                                            setClipSettings(prev => {
+                                                const updated = { ...prev, [activePreviewId]: { ...prev[activePreviewId], mirror: !prev[activePreviewId]?.mirror } };
+                                                saveToUndo(mediaItems, undefined, undefined, undefined, undefined, undefined, undefined, updated);
+                                                return updated;
+                                            });
+                                        }
+                                    }} className={`flex flex-col items-center justify-center gap-1 w-12 cursor-pointer ${flipH || (activePreviewId && clipSettings[activePreviewId]?.mirror) ? 'text-[#EAB308]' : 'text-slate-400 hover:text-white'}`}>
+                                        <FlipHorizontal size={18} />
+                                        <span className="text-[10px] mt-1">Mirror</span>
+                                    </button>
+                                    <button onClick={() => {
+                                        setFlipV(prev => !prev);
+                                        if (activePreviewId) {
+                                            setClipSettings(prev => {
+                                                const updated = { ...prev, [activePreviewId]: { ...prev[activePreviewId], flip: !prev[activePreviewId]?.flip } };
+                                                saveToUndo(mediaItems, undefined, undefined, undefined, undefined, undefined, undefined, updated);
+                                                return updated;
+                                            });
+                                        }
+                                    }} className={`flex flex-col items-center justify-center gap-1 w-12 cursor-pointer ${flipV || (activePreviewId && clipSettings[activePreviewId]?.flip) ? 'text-[#EAB308]' : 'text-slate-400 hover:text-white'}`}>
+                                        <FlipVertical size={18} />
+                                        <span className="text-[10px] mt-1">Flip</span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                         <div className="absolute inset-0 pointer-events-none z-0">
                             <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
                         </div>
@@ -6389,7 +7213,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                     aspectRatio: getRatioValue(),
                                     width: getRatioValue() > 1 ? '100%' : 'auto',
                                     height: getRatioValue() > 1 ? 'auto' : '100%',
-                                    maxWidth: '100%',
+                                                    maxWidth: '100%',
                                     maxHeight: '90%'
                                 }}
                                 onClick={(e) => {
@@ -6400,6 +7224,16 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                     if (isTextPlacementMode) {
                                         setOverlayPosX(Math.max(0, Math.min(100, x)));
                                         setOverlayPosY(Math.max(0, Math.min(100, y)));
+                                        if (activePreviewId) {
+                                            setClipSettings((prev: any) => ({
+                                                ...prev,
+                                                [activePreviewId]: {
+                                                    ...(prev[activePreviewId] || {}),
+                                                    overlayPosX: Math.max(0, Math.min(100, x)),
+                                                    overlayPosY: Math.max(0, Math.min(100, y))
+                                                }
+                                            }));
+                                        }
                                         setIsTextPlacementMode(false);
                                     } else if (isCaptionPlacementMode) {
                                         setCaptionStyle(prev => ({ ...prev, posX: Math.max(0, Math.min(100, x)), posY: Math.max(0, Math.min(100, y)) }));
@@ -6420,46 +7254,85 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                         >
                                             {activePreviewItem.type === 'video' ? (() => {
                                                 const isPro = selectedEffect && selectedEffect.startsWith('pro-') && !selectedEffect.startsWith('pro-filter-');
-                                                const showCanvas = isPro || CANVAS_PREVIEW_EFFECTS.includes(selectedEffect) || CANVAS_PREVIEW_FILTERS.includes(selectedFilter);
+                                                const isCutout = clipSettings[activePreviewId]?.cutout?.enabled;
+                                                const showCanvas = isPro || CANVAS_PREVIEW_EFFECTS.includes(selectedEffect) || CANVAS_PREVIEW_FILTERS.includes(selectedFilter) || isCutout;
                                                 return (
                                                     <>
+                                                        {(() => {
+                                                            const styleId = clipSettings[activePreviewId]?.bgBlurStyle || 'none';
+                                                            if (styleId === 'none' && !clipSettings[activePreviewId]?.fill) return null;
+                                                            
+                                                            const blurAmt = clipSettings[activePreviewId]?.bgBlurAmount ?? 45;
+                                                            const blurPx = Math.max(2, (blurAmt / 100) * 40);
+                                                            
+                                                            let filterStr = `blur(${blurPx}px) brightness(0.6)`;
+                                                            let scaleStr = 'scale(1.1)';
+                                                            
+                                                            if (styleId === 'horizontal') scaleStr = 'scaleX(1.5) scaleY(1.1)';
+                                                            else if (styleId === 'vertical') scaleStr = 'scaleY(1.5) scaleX(1.1)';
+                                                            else if (styleId === 'radioactive') filterStr += ' hue-rotate(90deg) saturate(2)';
+                                                            
+                                                            return (
+                                                                <video
+                                                                    ref={bgVideoRef}
+                                                                    src={activePreviewItem.preview}
+                                                                    className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none"
+                                                                    style={{ filter: filterStr, transform: scaleStr }}
+                                                                    muted
+                                                                    playsInline
+                                                                />
+                                                            );
+                                                        })()}
                                                         <video
                                                             ref={videoRef}
                                                             key="main-editor-video-preview"
-                                                            onTimeUpdate={handleTimeUpdate}
+                                                            onTimeUpdate={(e) => {
+                                                                handleTimeUpdate();
+                                                                if (bgVideoRef.current && Math.abs(bgVideoRef.current.currentTime - e.currentTarget.currentTime) > 0.1) {
+                                                                    bgVideoRef.current.currentTime = e.currentTarget.currentTime;
+                                                                }
+                                                            }}
+                                                            onPlay={(e) => {
+                                                                if (bgVideoRef.current) bgVideoRef.current.play().catch(() => {});
+                                                            }}
+                                                            onPause={(e) => {
+                                                                if (bgVideoRef.current) bgVideoRef.current.pause();
+                                                            }}
                                                             onEnded={() => {
                                                                 if (lastTriggeredEndRef.current !== activePreviewItem.id) {
                                                                     lastTriggeredEndRef.current = activePreviewItem.id;
-                                                                    console.log("📹 [PLAYBACK] Clip reached end in onEnded:", activePreviewItem.id);
+                                                                    console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Clip reached end in onEnded:", activePreviewItem.id);
                                                                     playNextMedia(activePreviewItem.id);
                                                                 }
                                                             }}
                                                             onLoadStart={() => {
-                                                                console.log("📹 [PLAYBACK] onLoadStart");
+                                                                console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] onLoadStart");
                                                             }}
                                                             onLoadedMetadata={() => {
-                                                                console.log("📹 [PLAYBACK] onLoadedMetadata");
+                                                                console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] onLoadedMetadata");
                                                                 if (selectedEffect === 'fade-in') setPreviewOpacity(0);
                                                                 else setPreviewOpacity(1);
                                                                 if (selectedEffect !== 'zoom') setPreviewZoom(1);
                                                             }}
                                                             onLoadedData={() => {
-                                                                console.log("📹 [PLAYBACK] onLoadedData, videoRef.current exists:", !!videoRef.current);
+                                                                console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] onLoadedData, videoRef.current exists:", !!videoRef.current);
                                                                 // Reset current time to trim start when new video is loaded
                                                                 if (videoRef.current) {
                                                                     const activeItem = mediaItems.find(i => i.id === activePreviewId);
-                                                                    if (activeItem?.type === 'video') {
+                                                                    if (activePreviewItem?.type === 'video') {
                                                                         const targetStart = getTargetStartTime(activeItem);
                                                                         const videoElement = videoRef.current;
                                                                         videoElement.currentTime = targetStart;
-                                                                        console.log("📹 [PLAYBACK] Video loaded, current time set to:", targetStart, "isPlaying:", isPlaying);
+                                                                        console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Video loaded, current time set to:", targetStart, "isPlaying:", isPlaying);
 
                                                                         // Clear the pending seek offset once applied
                                                                         if (pendingTransitionSeekRef.current && pendingTransitionSeekRef.current.clipId === activePreviewId) {
                                                                             pendingTransitionSeekRef.current = null;
                                                                         }
 
-                                                                        safePlay(videoElement);
+                                                                        if (isPlaying) {
+                                                                            safePlay(videoElement);
+                                                                        }
                                                                     } else {
                                                                         videoRef.current.currentTime = 0;
                                                                     }
@@ -6467,19 +7340,20 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                             }}
                                                             onCanPlay={(e) => {
                                                                 const videoElement = e.currentTarget;
-                                                                console.log("📹 [PLAYBACK] onCanPlay fired, isPlaying:", isPlaying, "videoElement:", !!videoElement);
+                                                                console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] onCanPlay fired, isPlaying:", isPlaying, "videoElement:", !!videoElement);
                                                                 safePlay(videoElement);
                                                             }}
                                                             onSeeked={(e) => {
+                                                                if (bgVideoRef.current) bgVideoRef.current.currentTime = e.currentTarget.currentTime;
                                                                 const videoElement = e.currentTarget;
-                                                                console.log("📹 [PLAYBACK] onSeeked fired, isPlaying:", isPlaying, "paused:", videoElement.paused);
+                                                                console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] onSeeked fired, isPlaying:", isPlaying, "paused:", videoElement.paused);
                                                                 safePlay(videoElement);
                                                             }}
                                                             onError={(e) => {
-                                                                console.error("📹 [PLAYBACK] Video error:", e);
+                                                                console.error("Ã°Å¸â€œÂ¹ [PLAYBACK] Video error:", e);
                                                             }}
                                                             src={activePreviewItem.preview}
-                                                            className={showCanvas ? 'opacity-0 absolute pointer-events-none w-0 h-0' : `w-full h-full ${clipSettings[activePreviewId]?.fill ? 'object-cover' : 'object-contain'}`}
+                                                            className={showCanvas ? 'opacity-0 absolute pointer-events-none w-0 h-0' : `relative z-10 w-full h-full object-contain`}
                                                             style={{
                                                                 opacity: selectedEffect === 'fade-in' ? previewOpacity : (clipSettings[activePreviewId]?.opacity ?? 100) / 100,
                                                                 filter: getCombinedPreviewFilterCss(),
@@ -6487,7 +7361,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                                 clipPath: getPreviewClipPath(),
                                                                 transformOrigin: 'center center',
                                                                 borderRadius: `${cornerRadius}px`,
-                                                                border: clipSettings[activePreviewId]?.border ? `2px solid white` : 'none',
+                                                                border: (clipSettings[activePreviewId]?.borderWidth ?? 0) > 0 ? `${clipSettings[activePreviewId].borderWidth}px solid ${clipSettings[activePreviewId].borderColorHex || '#ffffff'}` : 'none',
                                                                 backgroundColor: clipSettings[activePreviewId]?.bg || 'transparent'
                                                             }}
                                                             muted={isMuted}
@@ -6496,7 +7370,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                         {showCanvas && (
                                                             <canvas
                                                                 ref={greenScreenCanvasRef}
-                                                                className={`w-full h-full ${clipSettings[activePreviewId]?.fill ? 'object-cover' : 'object-contain'}`}
+                                                                className={`relative z-10 w-full h-full object-contain`}
                                                                 style={{
                                                                     opacity: selectedEffect === 'fade-in' ? previewOpacity : (clipSettings[activePreviewId]?.opacity ?? 100) / 100,
                                                                     filter: getCombinedPreviewFilterCss(),
@@ -6504,7 +7378,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                                     clipPath: getPreviewClipPath(),
                                                                     transformOrigin: 'center center',
                                                                     borderRadius: `${cornerRadius}px`,
-                                                                    border: clipSettings[activePreviewId]?.border ? `2px solid white` : 'none',
+                                                                    border: (clipSettings[activePreviewId]?.borderWidth ?? 0) > 0 ? `${clipSettings[activePreviewId].borderWidth}px solid ${clipSettings[activePreviewId].borderColorHex || '#ffffff'}` : 'none',
                                                                     backgroundColor: clipSettings[activePreviewId]?.bg || 'transparent'
                                                                 }}
                                                             />
@@ -6513,9 +7387,17 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                 );
                                             })() : (
                                                 <>
+                                                    {clipSettings[activePreviewId]?.fill && (
+                                                        <img
+                                                            src={activePreviewItem.preview}
+                                                            className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none"
+                                                            style={{ filter: 'blur(30px) brightness(0.6)' }}
+                                                            alt=""
+                                                        />
+                                                    )}
                                                     <img
                                                         src={activePreviewItem.preview}
-                                                        className={`w-full h-full ${clipSettings[activePreviewId]?.fill ? 'object-cover' : 'object-contain'}`}
+                                                        className={`relative z-10 w-full h-full object-contain`}
                                                         style={{
                                                             opacity: selectedEffect === 'fade-in' ? previewOpacity : (clipSettings[activePreviewId]?.opacity ?? 100) / 100,
                                                             filter: getCombinedPreviewFilterCss(),
@@ -6523,7 +7405,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                             clipPath: getPreviewClipPath(),
                                                             transformOrigin: 'center center',
                                                             borderRadius: `${cornerRadius}px`,
-                                                            border: clipSettings[activePreviewId]?.border ? `2px solid white` : 'none',
+                                                            border: (clipSettings[activePreviewId]?.borderWidth ?? 0) > 0 ? `${clipSettings[activePreviewId].borderWidth}px solid ${clipSettings[activePreviewId].borderColorHex || '#ffffff'}` : 'none',
                                                             backgroundColor: clipSettings[activePreviewId]?.bg || 'transparent'
                                                         }}
                                                         alt="Preview"
@@ -6650,25 +7532,124 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                     </div>
                                 )}
 
-                                {overlayText.trim().length > 0 && (
-                                    <div
-                                        className="absolute z-40 pointer-events-none select-none text-center"
-                                        style={{
-                                            left: `${overlayPosX}%`,
-                                            top: `${overlayPosY}%`,
-                                            transform: overlayTextStylePreset === 'motion-tracking-text'
-                                                ? `translate(-50%, -50%) translateX(${Math.sin((progress / 100) * Math.PI * 2) * 12}px)`
-                                                : 'translate(-50%, -50%)',
-                                            maxWidth: '88%',
-                                            ...getOverlayTextStylePresetCss(overlayTextStylePreset),
-                                            background: overlayBgEnabled ? `${overlayBgColorHex}cc` : getOverlayTextStylePresetCss(overlayTextStylePreset).background,
-                                            padding: overlayBgEnabled ? '4px 12px' : getOverlayTextStylePresetCss(overlayTextStylePreset).padding,
-                                            borderRadius: overlayBgEnabled ? '6px' : getOverlayTextStylePresetCss(overlayTextStylePreset).borderRadius,
-                                        }}
-                                    >
-                                        {overlayText}
-                                    </div>
-                                )}
+                                {mediaItems.filter((clip: any) => clip.type === 'text' || clip.type === 'overlay').map((clip: any) => {
+                                    // Use clipSettings if they exist, otherwise fallback to global state if it's the active clip (for backward compat during transition)
+                                    const isCurrent = clip.id === activePreviewId;
+                                    const settings = clipSettings[clip.id] || {};
+                                    const text = settings.overlayText !== undefined ? settings.overlayText : (isCurrent ? overlayText : '');
+                                    if (!text || text.trim().length === 0) return null;
+                                    
+                                    // Check if active
+                                    const start = clipStartOverrides[clip.id] !== undefined ? clipStartOverrides[clip.id] : (clip.startTime || 0);
+                                    const trim = clipTrimRanges[clip.id] || (getTrimRangeForItem ? getTrimRangeForItem(clip.id, clip.duration || 5) : { start: 0, end: clip.duration || 5 });
+                                    const effDur = (trim.end ?? (clip.duration || 5)) - trim.start;
+                                    const isActive = globalCurrentTime >= start && globalCurrentTime <= start + effDur;
+                                    if (!isActive) return null;
+
+                                    const posX = settings.overlayPosX ?? (isCurrent ? overlayPosX : 50);
+                                    const posY = settings.overlayPosY ?? (isCurrent ? overlayPosY : 50);
+                                    const fontSize = settings.overlayFontSize ?? (isCurrent ? overlayFontSize : 48);
+                                    const fontId = settings.overlayFontId || (isCurrent ? overlayFontId : 'rubik');
+                                    const font = textFontOptions.find((f: any) => f.id === fontId)?.family || textFontOptions[0].family;
+                                    const color = settings.overlayColor || (isCurrent ? overlayColor : '#FFFFFF');
+                                    const isBold = settings.overlayTextStyleBold ?? (isCurrent ? overlayTextStyleBold : false);
+                                    const isItalic = settings.overlayTextStyleItalic ?? (isCurrent ? overlayTextStyleItalic : false);
+                                    const isUnderline = settings.overlayTextStyleUnderline ?? false;
+                                    
+                                    const hasBg = settings.overlayBgEnabled ?? (isCurrent ? overlayBgEnabled : false);
+                                    const bgColor = settings.overlayBgColorHex || (isCurrent ? overlayBgColorHex : '#000000');
+                                    const bgRadius = settings.overlayBgRadius ?? (isCurrent ? overlayBgRadius : 0);
+                                    
+                                    const hasStroke = settings.overlayStrokeEnabled ?? (isCurrent ? overlayStrokeEnabled : false);
+                                    const strokeColor = settings.overlayStrokeColor || (isCurrent ? overlayStrokeColor : '#000000');
+                                    
+                                    const hasShadow = settings.overlayShadowEnabled ?? (isCurrent ? overlayShadowEnabled : false);
+                                    const shadowColor = settings.overlayShadowColor || (isCurrent ? overlayShadowColor : '#000000');
+                                    const shadowBlur = settings.overlayShadowBlur ?? (isCurrent ? overlayShadowBlur : 10);
+                                    
+                                    const letterSpacing = settings.overlayLetterSpacing ?? (isCurrent ? overlayLetterSpacing : 0);
+                                    const lineSpacing = settings.overlayLineSpacing ?? (isCurrent ? overlayLineSpacing : 0);
+                                    
+                                    const animIn = settings.overlayAnimationIn ?? (isCurrent ? overlayAnimationIn : 'none');
+                                    const animOut = settings.overlayAnimationOut ?? (isCurrent ? overlayAnimationOut : 'none');
+                                    const animLoop = settings.overlayAnimationLoop ?? (isCurrent ? overlayAnimationLoop : 'none');
+                                    
+                                    let dynamicOpacity = 1;
+                                    let dynamicScale = 1;
+                                    let dynamicOffsetX = 0;
+                                    let dynamicOffsetY = 0;
+                                    let dynamicRotation = 0;
+                                    
+                                    const animDuration = 0.5; // half a second in/out
+                                    const relTime = globalCurrentTime - start;
+                                    const relTimeEnd = (start + effDur) - globalCurrentTime;
+                                    
+                                    // In Animation
+                                    if (relTime < animDuration) {
+                                        const progress = relTime / animDuration; // 0 to 1
+                                        if (animIn === 'fade') dynamicOpacity = progress;
+                                        if (animIn === 'slide-left') { dynamicOpacity = progress; dynamicOffsetX = -50 * (1 - progress); }
+                                        if (animIn === 'zoom-in') { dynamicOpacity = progress; dynamicScale = 0.5 + (0.5 * progress); }
+                                    }
+                                    
+                                    // Out Animation
+                                    if (relTimeEnd < animDuration && relTimeEnd >= 0) {
+                                        const progress = relTimeEnd / animDuration; // 1 to 0
+                                        if (animOut === 'fade') dynamicOpacity = progress;
+                                        if (animOut === 'slide-right') { dynamicOpacity = progress; dynamicOffsetX = 50 * (1 - progress); }
+                                        if (animOut === 'zoom-out') { dynamicOpacity = progress; dynamicScale = 0.5 + (0.5 * progress); }
+                                    }
+                                    
+                                    // Loop Animation
+                                    if (relTime >= animDuration && relTimeEnd >= animDuration) {
+                                        if (animLoop === 'pulse') dynamicScale = 1 + 0.1 * Math.sin(relTime * Math.PI * 4);
+                                        if (animLoop === 'shake') dynamicOffsetX = 5 * Math.sin(relTime * Math.PI * 10);
+                                        if (animLoop === 'float') dynamicOffsetY = -10 * Math.sin(relTime * Math.PI * 2);
+                                        if (animLoop === 'wobble') {
+                                            dynamicOffsetX = 10 * Math.sin(relTime * Math.PI * 4);
+                                            dynamicRotation = 5 * Math.sin(relTime * Math.PI * 4);
+                                        }
+                                        if (animLoop === 'blink') dynamicOpacity = Math.floor(relTime * 2) % 2 === 0 ? 1 : 0;
+                                        if (animLoop === 'typewriter') {
+                                            // Typewriter just truncates the string!
+                                            // We can't do that via CSS, so we'll just leave this as is.
+                                            // Wait, if it's typewriter, we can use CSS steps or clip-path
+                                        }
+                                    }
+                                    
+                                    // Base transform including anchor, nudge, and animations
+                                    let transformStr = `translate(-50%, -50%) translate(${dynamicOffsetX}px, ${dynamicOffsetY}px) scale(${dynamicScale}) rotate(${dynamicRotation}deg)`;
+
+
+                                    return (
+                                        <div
+                                            key={clip.id}
+                                            className="absolute z-40 pointer-events-none select-none text-center"
+                                            style={{
+                                                left: `${posX}%`,
+                                                top: `${posY}%`,
+                                                transform: 'translate(-50%, -50%)',
+                                                maxWidth: '88%',
+                                                fontFamily: font,
+                                                fontSize: `${fontSize}px`,
+                                                color: color,
+                                                fontWeight: isBold ? 'bold' : 'normal',
+                                                fontStyle: isItalic ? 'italic' : 'normal',
+                                                textDecoration: isUnderline ? 'underline' : 'none',
+                                                letterSpacing: `${letterSpacing}px`,
+                                                lineHeight: lineSpacing ? `${1 + (lineSpacing/100)}em` : 'normal',
+                                                WebkitTextStroke: hasStroke ? `1.5px ${strokeColor}` : 'none',
+                                                textShadow: hasShadow ? `2px 2px ${shadowBlur}px ${shadowColor}` : 'none',
+                                                background: hasBg ? `${bgColor}cc` : 'transparent',
+                                                padding: hasBg ? '4px 12px' : '0',
+                                                borderRadius: hasBg ? `${bgRadius}px` : '0',
+                                                whiteSpace: 'pre-wrap',
+                                            }}
+                                        >
+                                            {text}
+                                        </div>
+                                    );
+                                })}
 
                                 {/* Render Frame Overlay */}
                                 {selectedFrameId && (
@@ -6728,7 +7709,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                     </div>
                                 )}
 
-                                {/* Read Line — sweeps across the preview in sync with video playback */}
+                                {/* Read Line Ã¢â‚¬â€ sweeps across the preview in sync with video playback */}
                                 {showReadLine && (
                                     <div
                                         className="absolute z-[45] pointer-events-none"
@@ -6754,7 +7735,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                     />
                                 )}
 
-                                {/* Caption overlay — visible when a caption is active at current playback time */}
+                                {/* Caption overlay Ã¢â‚¬â€ visible when a caption is active at current playback time */}
                                 {currentCaption && (
                                     <div
                                         className="absolute z-[50] pointer-events-none select-none"
@@ -6781,159 +7762,81 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                     </div>
                                 )}
 
-                                {/* HUD Overlay Badges */}
-                                <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-40 max-w-[80%]">
-                                    {Math.abs(speedValue - 1) > 0.001 && <div className="px-1.5 py-0.5 rounded bg-purple-500/20 border border-purple-400/30 text-[8px] font-black uppercase text-purple-200">Speed {speedValue.toFixed(2)}x</div>}
-                                    {hasTrimApplied && activePreviewId && <div className="px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/30 text-[8px] font-black uppercase text-emerald-200">Trimmed</div>}
-                                    {rotationDegrees % 360 !== 0 && <div className="px-1.5 py-0.5 rounded bg-fuchsia-500/20 border border-fuchsia-400/30 text-[8px] font-black uppercase text-fuchsia-200">Rotated {rotationDegrees}°</div>}
-                                    {isMuted && <div className="px-1.5 py-0.5 rounded bg-red-500/20 border border-red-400/30 text-[8px] font-black uppercase text-red-200">Muted</div>}
-                                    {zoomToolAmount > 1.001 && <div className="px-1.5 py-0.5 rounded bg-yellow-500/20 border border-yellow-400/30 text-[8px] font-black uppercase text-yellow-200">Zoom {zoomToolAmount.toFixed(2)}x</div>}
-                                </div>
+
 
                             </motion.div>
                         </div>
 
-                        {/* Video Player Transport Bar */}
-                        <div className="h-12 border-t border-white/10 bg-black/35 flex items-center justify-between px-6 z-10 flex-none select-none">
-                            {/* Timeline Time Code display */}
-                            <div className="font-mono text-[10px] text-slate-400 tracking-wider">
-                                {activePreviewId && activePreviewItem ? (
-                                    <span>
-                                        00:00:
-                                        {Math.floor((progress * activePreviewItem.duration) / 100).toString().padStart(2, '0')}
-                                        :
-                                        {Math.floor((progress * fps) % fps).toString().padStart(2, '0')}
-                                    </span>
-                                ) : (
-                                    <span>00:00:00:00</span>
-                                )}
+                        {/* Status bar under Video Canvas (Timecode center + Original / Fullscreen right) */}
+                        <div className="h-8 border-t border-white/10 bg-[#0d0e16] flex items-center justify-between px-4 z-10 flex-none text-xs text-slate-400 select-none">
+                            <div />
+                            <div className="font-mono text-xs text-slate-300 font-medium">
+                                0:10.34 / 0:35.33
                             </div>
-
-                            {/* Hardware Transport Deck buttons */}
                             <div className="flex items-center gap-3">
                                 <button
-                                    onClick={undo}
-                                    disabled={historyIndex <= 0}
-                                    className="p-1 text-slate-500 hover:text-white disabled:opacity-20 transition-colors"
+                                    type="button"
+                                    onClick={() => setIsDurationOpen(true)}
+                                    className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-slate-200 border border-white/10 text-xs transition-colors cursor-pointer"
                                 >
-                                    <Undo2 className="w-4 h-4" />
+                                    <Square className="w-3 h-3 text-slate-400" />
+                                    <span>Original</span>
                                 </button>
-
                                 <button
-                                    onClick={() => {
-                                        setIsPlaying(false);
-                                        setProgress(0);
-                                        setReadLinePosition(0);
-                                        // Go back to first clip
-                                        const firstId = mediaItems[0]?.id ?? null;
-                                        if (firstId) setActivePreviewId(firstId);
-                                        // Reset video to trim start
-                                        if (videoRef.current) {
-                                            const firstItem = mediaItems[0];
-                                            if (firstItem?.type === 'video') {
-                                                const trim = getTrimRangeForItem(firstItem.id, firstItem.duration);
-                                                videoRef.current.currentTime = trim.start;
-                                                videoRef.current.pause();
-                                            }
-                                        }
-                                        if (audioRef.current) {
-                                            audioRef.current.currentTime = 0;
-                                            audioRef.current.pause();
-                                        }
-                                        if (bgMusicRef.current) {
-                                            bgMusicRef.current.currentTime = 0;
-                                            bgMusicRef.current.pause();
-                                        }
-                                    }}
-                                    className="p-1 text-slate-400 hover:text-white transition-colors"
-                                    title="Reset to beginning"
+                                    type="button"
+                                    onClick={() => previewFrameRef.current?.requestFullscreen && previewFrameRef.current.requestFullscreen()}
+                                    className="p-1 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                                    title="Fullscreen"
                                 >
-                                    <RefreshCw className="w-4 h-4" />
+                                    <Maximize2 className="w-3.5 h-3.5" />
                                 </button>
-
-                                <button
-                                    onClick={() => moveReadLine(-10)}
-                                    className="p-1.5 text-slate-400 hover:text-white transition-all duration-150 active:scale-95 cursor-pointer hover:bg-white/5 rounded-lg"
-                                    title="Back 10s (Left Arrow)"
-                                >
-                                    <Rewind className="w-4 h-4" />
-                                </button>
-
-                                <button
-                                    onClick={togglePlay}
-                                    className="w-8 h-8 rounded-full bg-purple-500 flex items-center justify-center text-[#0B1020] hover:scale-105 active:scale-95 transition-all shadow-md shadow-purple-500/10"
-                                >
-                                    {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
-                                </button>
-
-                                <button
-                                    onClick={() => moveReadLine(10)}
-                                    className="p-1.5 text-slate-400 hover:text-white transition-all duration-150 active:scale-95 cursor-pointer hover:bg-white/5 rounded-lg"
-                                    title="Forward 10s (Right Arrow)"
-                                >
-                                    <FastForward className="w-4 h-4" />
-                                </button>
-
-                                <button
-                                    onClick={() => setIsMuted(!isMuted)}
-                                    className="p-1 text-slate-400 hover:text-white transition-colors"
-                                >
-                                    {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-purple-400" />}
-                                </button>
-
-                                <button
-                                    onClick={redo}
-                                    disabled={historyIndex >= history.length - 1}
-                                    className="p-1 text-slate-500 hover:text-white disabled:opacity-20 transition-colors"
-                                >
-                                    <Redo2 className="w-4 h-4" />
-                                </button>
-
-                                <div className="w-[1px] h-4 bg-white/10 mx-1" />
-
-                                {/* Read-line toggle */}
-                                <button
-                                    onClick={() => setShowReadLine(v => !v)}
-                                    title={showReadLine ? 'Hide Read Line' : 'Show Read Line'}
-                                    className={`p-1 rounded transition-all ${showReadLine ? 'text-purple-400 bg-purple-500/15' : 'text-slate-500 hover:text-white'
-                                        }`}
-                                >
-                                    <ScanLine className="w-4 h-4" />
-                                </button>
-
-                                {showReadLine && (
-                                    <>
-                                        <button
-                                            onClick={() => moveReadLine(-1)}
-                                            title="Move Read Line Left"
-                                            className="p-1 rounded transition-all text-slate-400 hover:text-white hover:bg-white/5"
-                                        >
-                                            <ArrowLeft className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => moveReadLine(1)}
-                                            title="Move Read Line Right"
-                                            className="p-1 rounded transition-all text-slate-400 hover:text-white hover:bg-white/5"
-                                        >
-                                            <ChevronRight className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => setReadLineDirection(d => d === 'horizontal' ? 'vertical' : 'horizontal')}
-                                            title={`Direction: ${readLineDirection}`}
-                                            className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase border border-purple-500/30 text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 transition-all"
-                                        >
-                                            {readLineDirection === 'horizontal' ? '↔' : '↕'}
-                                        </button>
-                                    </>
-                                )}
-                            </div>
-
-                            {/* FPS & Ratio status info */}
-                            <div className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
-                                {formattedRatio} • {fps} FPS
                             </div>
                         </div>
-
+                        {isCropMode && (
+                            <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center justify-between gap-6 z-50 bg-[#15161c] px-6 py-4 rounded-2xl shadow-2xl pointer-events-auto border border-white/5 w-[80%] max-w-[800px]">
+                                <button onClick={() => setIsCropMode(false)} className="text-slate-400 hover:text-white font-bold text-xs uppercase tracking-wider px-4 py-2 flex items-center gap-2 cursor-pointer transition-colors">
+                                    Cancel
+                                </button>
+                                <div className="flex items-center gap-3 overflow-x-auto custom-scrollbar py-2 px-2 flex-1 justify-center max-w-[600px]">
+                                    {CROP_RATIOS.map((preset) => (
+                                        <button
+                                            key={preset.id}
+                                            onClick={() => handleCropRatioClick(preset)}
+                                            className="flex flex-col items-center justify-center min-w-[54px] h-[54px] rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 shrink-0 transition-colors cursor-pointer"
+                                        >
+                                            {preset.icon ? (
+                                                <>
+                                                    <preset.icon className="w-4 h-4 text-slate-300 mb-1" />
+                                                    <span className="text-[8px] font-medium text-slate-300">{preset.label}</span>
+                                                </>
+                                            ) : (
+                                                <span className="text-[10px] font-bold text-slate-300">{preset.label}</span>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                    <button
+                                        onClick={() => {
+                                            setCropWidthPct(100);
+                                            setCropHeightPct(100);
+                                            setCropCenterX(50);
+                                            setCropCenterY(50);
+                                            setRotationDegrees(0);
+                                            setFlipH(false);
+                                            setFlipV(false);
+                                        }}
+                                        className="text-slate-400 hover:text-white flex items-center gap-1.5 px-3 py-1.5 rounded bg-white/5 hover:bg-white/10 text-xs font-bold transition-colors cursor-pointer"
+                                        title="Reset Crop"
+                                    >
+                                        Reset
+                                    </button>
+                                    <button onClick={() => setIsCropMode(false)} className="text-[#0B1020] bg-white hover:bg-slate-200 font-bold text-xs uppercase tracking-wider px-6 py-2 rounded-full flex items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.4)] cursor-pointer transition-colors">
+                                        Confirm
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </section>
 
                     {/* Toggle Inspector Button */}
@@ -6947,561 +7850,1133 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                         </button>
                     </div>
 
-                    {/* Right Column: Inspector Panel (Filmora-style) */}
+                    {/* Right Column: CapCut / VN Style Side Inspector Panel */}
+                    {!isCropMode && (
                     <motion.aside
                         initial={false}
                         animate={{ width: isMediaPoolVisible ? (isMobile ? '100%' : 340) : 0, opacity: isMediaPoolVisible ? 1 : 0 }}
-                        className="flex-none flex flex-col border-l border-white/[0.06] overflow-hidden select-none order-3 bg-[#090b16] text-xs z-20"
+                        className="flex-none flex border-l border-white/[0.06] overflow-hidden select-none order-3 bg-[#0d0e16] text-xs z-20"
                     >
-                        <div className={`${isMobile ? 'w-full' : 'w-[340px]'} h-full flex flex-col min-h-0`}>
-                            {/* Tab Rail Header */}
-                            <div className="h-10 flex-none border-b border-white/[0.05] bg-[#07080f] flex items-center px-1 gap-1">
-                                {(['video', 'audio', 'speed', 'animation', 'color'] as const).map(tab => (
+                        <div className={`${isMobile ? 'w-full' : 'w-[340px]'} h-full flex min-h-0 bg-[#12131e]`}>
+                            
+                            {/* Ã¢â€â‚¬Ã¢â€â‚¬ Vertical Icon Tab Sidebar Ã¢â€â‚¬Ã¢â€â‚¬ */}
+                            <div className="w-12 flex-none flex flex-col items-center gap-1 py-3 bg-[#0d0e18] border-r border-white/[0.06]">
+                                {([
+                                    {
+                                        tab: 'color',
+                                        title: 'Filters & Color',
+                                        icon: (
+                                            <svg viewBox="0 0 22 22" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6">
+                                                <circle cx="7.5" cy="11" r="4.5" />
+                                                <circle cx="14.5" cy="7.5" r="4.5" />
+                                                <circle cx="14.5" cy="14.5" r="4.5" />
+                                            </svg>
+                                        ),
+                                    },
+                                    {
+                                        tab: 'speed',
+                                        title: 'Speed',
+                                        icon: (
+                                            <svg viewBox="0 0 22 22" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6">
+                                                <circle cx="11" cy="11" r="8.5" />
+                                                <path d="M11 11 L11 4.5" strokeLinecap="round" />
+                                                <path d="M11 11 L15.5 13" strokeLinecap="round" />
+                                                <circle cx="11" cy="11" r="1.2" fill="currentColor" />
+                                            </svg>
+                                        ),
+                                    },
+                                    {
+                                        tab: 'audio',
+                                        title: 'Audio',
+                                        icon: (
+                                            <svg viewBox="0 0 22 22" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6">
+                                                <path d="M4 8.5h4l3-5 3 11 3-6 2 0" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                        ),
+                                    },
+                                    {
+                                        tab: 'bg',
+                                        title: 'Canvas & Frame',
+                                        icon: (
+                                            <svg viewBox="0 0 22 22" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6">
+                                                <rect x="3" y="3" width="16" height="16" rx="4" />
+                                                <path d="M7 15 L15 7" strokeLinecap="round" />
+                                                <path d="M4 12 L12 4" strokeLinecap="round" opacity="0.5" />
+                                                <path d="M10 18 L18 10" strokeLinecap="round" opacity="0.5" />
+                                            </svg>
+                                        ),
+                                    },
+                                    {
+                                        tab: 'video',
+                                        title: 'Transform',
+                                        icon: (
+                                            <svg viewBox="0 0 22 22" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6">
+                                                <rect x="4" y="4" width="14" height="14" rx="1.5" strokeDasharray="3 2" />
+                                                <circle cx="4" cy="4" r="1.5" fill="currentColor" />
+                                                <circle cx="18" cy="4" r="1.5" fill="currentColor" />
+                                                <circle cx="4" cy="18" r="1.5" fill="currentColor" />
+                                                <circle cx="18" cy="18" r="1.5" fill="currentColor" />
+                                            </svg>
+                                        ),
+                                    },
+                                    {
+                                        tab: 'animation',
+                                        title: 'Effects & Animation',
+                                        icon: (
+                                            <svg viewBox="0 0 22 22" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.5">
+                                                {[0,1,2].map(row => [0,1,2].map(col => (
+                                                    <circle key={`${row}-${col}`} cx={5 + col * 6} cy={5 + row * 6} r="1.2" fill="currentColor" stroke="none" opacity={0.3 + (row * 3 + col) * 0.08} />
+                                                )))}
+                                            </svg>
+                                        ),
+                                    },
+                                    {
+                                        tab: 'opacity',
+                                        title: 'Opacity & Blend',
+                                        icon: (
+                                            <svg viewBox="0 0 22 22" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.5">
+                                                <circle cx="11" cy="11" r="8.5" />
+                                                <circle cx="11" cy="11" r="5.5" />
+                                                <circle cx="11" cy="11" r="2.5" />
+                                            </svg>
+                                        ),
+                                    },
+                                ] as { tab: typeof inspectorTab; title: string; icon: React.ReactNode }[]).map(({ tab, title, icon }) => (
                                     <button
                                         key={tab}
-                                        onClick={() => setInspectorTab(tab)}
-                                        className={`flex-1 py-2 text-[9px] font-black uppercase tracking-wider text-center rounded-md transition-colors cursor-pointer ${
+                                        type="button"
+                                        onClick={() => { setInspectorTab(tab); if (tab === 'color') setColorSubTab('filters'); setIsMediaPoolVisible(true); }}
+                                        title={title}
+                                        className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 group relative ${
                                             inspectorTab === tab
-                                                ? 'bg-purple-500/10 text-purple-300 border border-purple-500/20'
-                                                : 'text-slate-500 hover:text-slate-300'
+                                                ? 'bg-white/15 text-white shadow-[0_0_12px_rgba(255,255,255,0.1)]'
+                                                : 'text-slate-500 hover:text-slate-300 hover:bg-white/8'
                                         }`}
                                     >
-                                        {tab}
+                                        {icon}
+                                        {/* Active dot indicator */}
+                                        {inspectorTab === tab && (
+                                            <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-white rounded-r-full" />
+                                        )}
                                     </button>
                                 ))}
                             </div>
 
-                            {/* Sub Tabs for Video */}
-                            {inspectorTab === 'video' && (
-                                <div className="h-8 flex-none border-b border-white/[0.03] bg-black/10 flex items-center px-2 gap-3 text-[9px] font-bold uppercase tracking-wider text-slate-400">
-                                    {(['basic', 'mask', 'ai-matte'] as const).map(subTab => (
-                                        <button
-                                            key={subTab}
-                                            onClick={() => setInspectorSubTab(subTab)}
-                                            className={`transition-colors relative py-1 ${
-                                                inspectorSubTab === subTab
-                                                    ? 'text-purple-300'
-                                                    : 'hover:text-slate-200'
-                                            }`}
-                                        >
-                                            {subTab}
-                                            {inspectorSubTab === subTab && (
-                                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-400 rounded-full" />
-                                            )}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
+                            {/* Main Active Tool Inspector Area */}
+                            <div className="flex-1 flex flex-col p-4 overflow-y-auto custom-scrollbar">
+                                {/* Inspector Header Title */}
+                                <h3 className="text-center font-bold text-sm text-white capitalize tracking-wide mb-6">
+                                    {inspectorTab === 'video' ? 'Border' : inspectorTab === 'color' ? 'Color & Filters' : inspectorTab === 'bg' ? 'Canvas & Frame' : inspectorTab}
+                                </h3>
 
-                            {/* Main Inspector Scroll Area */}
-                            <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar text-slate-300">
-                                
-                                {/* ── VIDEO -> BASIC TAB ── */}
-                                {inspectorTab === 'video' && inspectorSubTab === 'basic' && (
-                                    <div className="space-y-4">
-                                        
-                                        {/* TRANSFORM SECTION */}
-                                        <div className="border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
-                                            <div className="flex items-center justify-between px-3 py-2.5 bg-white/[0.02] border-b border-white/[0.05]">
-                                                <div className="flex items-center gap-2">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isTransformEnabled}
-                                                        onChange={e => setIsTransformEnabled(e.target.checked)}
-                                                        className="rounded border-white/20 accent-purple-500 bg-black/40 w-3 h-3 cursor-pointer"
-                                                    />
-                                                    <span className="font-bold text-[10px] uppercase tracking-wider text-slate-200">Transform</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <KeyframeButton active={hasTransformKeyframe} onClick={() => setHasTransformKeyframe(!hasTransformKeyframe)} />
-                                                    <button
-                                                        onClick={() => setIsTransformExpanded(!isTransformExpanded)}
-                                                        className="text-slate-500 hover:text-slate-200 cursor-pointer"
-                                                    >
-                                                        {isTransformExpanded ? <ChevronLeft className="w-3.5 h-3.5 rotate-90" /> : <ChevronLeft className="w-3.5 h-3.5 -rotate-90" />}
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {isTransformExpanded && (
-                                                <div className={`p-3 space-y-3.5 ${!isTransformEnabled ? 'opacity-40 pointer-events-none' : ''}`}>
-                                                    
-                                                    {/* Scale Width / Height */}
-                                                    <div className="flex items-end gap-2.5">
-                                                        <div className="flex-1 space-y-1.5">
-                                                            <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                                <span>SCALE (WIDTH)</span>
-                                                                <span className="font-mono text-purple-400">{(zoomToolAmountX * 100).toFixed(0)}%</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <input
-                                                                    type="range"
-                                                                    min="0.1"
-                                                                    max="3.0"
-                                                                    step="0.01"
-                                                                    value={zoomToolAmountX}
-                                                                    onChange={e => {
-                                                                        const val = Number(e.target.value);
-                                                                        setZoomToolAmountX(val);
-                                                                        if (isAspectLocked) {
-                                                                            setZoomToolAmountY(val);
-                                                                            setZoomToolAmount(val);
-                                                                        }
-                                                                    }}
-                                                                    className="flex-1 accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
-                                                                />
-                                                                <button
-                                                                    onClick={() => setIsAspectLocked(!isAspectLocked)}
-                                                                    className={`p-1 rounded border transition-colors cursor-pointer ${
-                                                                        isAspectLocked
-                                                                            ? 'bg-purple-500/20 text-purple-300 border-purple-500/30'
-                                                                            : 'bg-white/5 text-slate-500 border-white/10 hover:text-slate-300'
-                                                                    }`}
-                                                                    title="Lock Aspect Ratio"
-                                                                >
-                                                                    <SlidersHorizontal className="w-3 h-3" />
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                        <KeyframeButton active={hasWidthKeyframe} onClick={() => setHasWidthKeyframe(!hasWidthKeyframe)} />
-                                                    </div>
-
-                                                    <div className="flex items-end gap-2.5">
-                                                        <div className="flex-1 space-y-1.5">
-                                                            <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                                <span>SCALE (HEIGHT)</span>
-                                                                <span className="font-mono text-purple-400">{(zoomToolAmountY * 100).toFixed(0)}%</span>
-                                                            </div>
-                                                            <input
-                                                                type="range"
-                                                                min="0.1"
-                                                                max="3.0"
-                                                                step="0.01"
-                                                                value={zoomToolAmountY}
-                                                                onChange={e => {
-                                                                    const val = Number(e.target.value);
-                                                                    setZoomToolAmountY(val);
-                                                                    if (isAspectLocked) {
-                                                                        setZoomToolAmountX(val);
-                                                                        setZoomToolAmount(val);
-                                                                    }
-                                                                }}
-                                                                className="w-full accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
-                                                            />
-                                                        </div>
-                                                        <KeyframeButton active={hasHeightKeyframe} onClick={() => setHasHeightKeyframe(!hasHeightKeyframe)} />
-                                                    </div>
-
-                                                    {/* Position X / Y */}
-                                                    <div className="flex items-end gap-2.5">
-                                                        <div className="flex-1 grid grid-cols-2 gap-3.5">
-                                                            <div className="space-y-1">
-                                                                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">POSITION X</span>
-                                                                <div className="flex items-center bg-black/40 border border-white/10 rounded px-2 py-1">
-                                                                    <input
-                                                                        type="number"
-                                                                        value={posX}
-                                                                        onChange={e => setPosX(Number(e.target.value))}
-                                                                        className="w-full bg-transparent focus:outline-none text-white text-[11px] font-mono"
-                                                                    />
-                                                                    <span className="text-[9px] text-slate-600 font-bold ml-1">px</span>
-                                                                </div>
-                                                            </div>
-                                                            <div className="space-y-1">
-                                                                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">POSITION Y</span>
-                                                                <div className="flex items-center bg-black/40 border border-white/10 rounded px-2 py-1">
-                                                                    <input
-                                                                        type="number"
-                                                                        value={posY}
-                                                                        onChange={e => setPosY(Number(e.target.value))}
-                                                                        className="w-full bg-transparent focus:outline-none text-white text-[11px] font-mono"
-                                                                    />
-                                                                    <span className="text-[9px] text-slate-600 font-bold ml-1">px</span>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <KeyframeButton active={hasPositionKeyframe} onClick={() => setHasPositionKeyframe(!hasPositionKeyframe)} />
-                                                    </div>
-
-                                                    {/* Rotation degrees */}
-                                                    <div className="flex items-end gap-2.5">
-                                                        <div className="flex-1 space-y-1.5">
-                                                            <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                                <span>ROTATE</span>
-                                                                <span className="font-mono text-purple-400">{rotationDegrees}°</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-3">
-                                                                <input
-                                                                    type="range"
-                                                                    min="-180"
-                                                                    max="180"
-                                                                    value={rotationDegrees}
-                                                                    onChange={e => setRotationDegrees(Number(e.target.value))}
-                                                                    className="flex-1 accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
-                                                                />
-                                                                <button
-                                                                    onClick={() => setRotationDegrees(0)}
-                                                                    className="text-[9px] font-bold text-slate-500 hover:text-white uppercase transition-colors cursor-pointer"
-                                                                >
-                                                                    Reset
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                        <KeyframeButton active={hasRotateKeyframe} onClick={() => setHasRotateKeyframe(!hasRotateKeyframe)} />
-                                                    </div>
-
-                                                    {/* Flip Horizontal / Vertical */}
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">FLIP</span>
-                                                        <div className="flex gap-2">
-                                                            <button
-                                                                onClick={() => setFlipH(!flipH)}
-                                                                className={`px-3 py-1.5 rounded-lg border text-[9px] font-bold transition-all cursor-pointer ${
-                                                                    flipH
-                                                                        ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
-                                                                        : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10'
-                                                                }`}
-                                                            >
-                                                                Horizontal
-                                                            </button>
-                                                            <button
-                                                                onClick={() => setFlipV(!flipV)}
-                                                                className={`px-3 py-1.5 rounded-lg border text-[9px] font-bold transition-all cursor-pointer ${
-                                                                    flipV
-                                                                        ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
-                                                                        : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10'
-                                                                }`}
-                                                            >
-                                                                Vertical
-                                                            </button>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Corner Radius */}
-                                                    <div className="flex items-end gap-2.5">
-                                                        <div className="flex-1 space-y-1.5">
-                                                            <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                                <span>CORNER RADIUS</span>
-                                                                <span className="font-mono text-purple-400">{cornerRadius}px</span>
-                                                            </div>
-                                                            <input
-                                                                type="range"
-                                                                min="0"
-                                                                max="100"
-                                                                value={cornerRadius}
-                                                                onChange={e => setCornerRadius(Number(e.target.value))}
-                                                                className="w-full accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
-                                                            />
-                                                        </div>
-                                                        <KeyframeButton active={hasRadiusKeyframe} onClick={() => setHasRadiusKeyframe(!hasRadiusKeyframe)} />
-                                                    </div>
-
-                                                </div>
-                                            )}
+                                {/* Ã¢â€â‚¬Ã¢â€â‚¬ OPACITY TAB Ã¢â€â‚¬Ã¢â€â‚¬ */}
+                                {inspectorTab === 'opacity' && (
+                                    <div className="flex flex-col flex-1">
+                                        <div className="flex items-center justify-between text-xs font-medium text-slate-300 mb-2">
+                                            <span>Opacity</span>
+                                            <span className="text-[#EAB308] font-bold font-mono">{(previewOpacity * 100).toFixed(0)}%</span>
                                         </div>
-
-                                        {/* COMPOSITING SECTION */}
-                                        <div className="border border-white/[0.05] rounded-xl bg-black/25 overflow-hidden">
-                                            <div className="flex items-center justify-between px-3 py-2.5 bg-white/[0.02] border-b border-white/[0.05]">
-                                                <div className="flex items-center gap-2">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isCompositingEnabled}
-                                                        onChange={e => setIsCompositingEnabled(e.target.checked)}
-                                                        className="rounded border-white/20 accent-purple-500 bg-black/40 w-3 h-3 cursor-pointer"
-                                                    />
-                                                    <span className="font-bold text-[10px] uppercase tracking-wider text-slate-200">Compositing</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <KeyframeButton active={hasCompositingKeyframe} onClick={() => setHasCompositingKeyframe(!hasCompositingKeyframe)} />
-                                                    <button
-                                                        onClick={() => setIsCompositingExpanded(!isCompositingExpanded)}
-                                                        className="text-slate-500 hover:text-slate-200 cursor-pointer"
-                                                    >
-                                                        {isCompositingExpanded ? <ChevronLeft className="w-3.5 h-3.5 rotate-90" /> : <ChevronLeft className="w-3.5 h-3.5 -rotate-90" />}
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {isCompositingExpanded && (
-                                                <div className={`p-3 space-y-4 ${!isCompositingEnabled ? 'opacity-40 pointer-events-none' : ''}`}>
-                                                    
-                                                    {/* Opacity slider */}
-                                                    <div className="flex items-end gap-2.5">
-                                                        <div className="flex-1 space-y-1.5">
-                                                            <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                                <span>OPACITY</span>
-                                                                <span className="font-mono text-purple-400">{(previewOpacity * 100).toFixed(0)}%</span>
-                                                            </div>
-                                                            <input
-                                                                type="range"
-                                                                min="0"
-                                                                max="1"
-                                                                step="0.01"
-                                                                value={previewOpacity}
-                                                                onChange={e => setPreviewOpacity(Number(e.target.value))}
-                                                                className="w-full accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
-                                                            />
-                                                        </div>
-                                                        <KeyframeButton active={hasOpacityKeyframe} onClick={() => setHasOpacityKeyframe(!hasOpacityKeyframe)} />
-                                                    </div>
-
-                                                    {/* Compositing features switches */}
-                                                    <div className="space-y-2 text-[10px] font-bold text-slate-400">
-                                                        {[
-                                                            { label: 'Background Color', val: compositingBg, set: setCompositingBg },
-                                                            { label: 'Drop Shadow', val: compositingShadow, set: setCompositingShadow },
-                                                            { label: 'AI Eye Contact Fix', val: compositingEyeContact, set: setCompositingEyeContact },
-                                                            { label: 'AI Smart Refocus', val: compositingRefocus, set: setCompositingRefocus },
-                                                            { label: 'Dynamic Relighting', val: compositingRelight, set: setCompositingRelight },
-                                                        ].map(feat => (
-                                                            <div key={feat.label} className="flex items-center justify-between py-1 border-b border-white/[0.03] last:border-0">
-                                                                <span>{feat.label}</span>
-                                                                <div className="flex items-center gap-2">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={feat.val}
-                                                                        onChange={e => feat.set(e.target.checked)}
-                                                                        className="rounded border-white/20 accent-purple-500 bg-black/40 w-3 h-3 cursor-pointer"
-                                                                    />
-                                                                    <KeyframeButton 
-                                                                        active={!!compositingKeyframes[feat.label]} 
-                                                                        onClick={() => toggleCompositingKeyframe(feat.label)} 
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-
-                                                </div>
-                                            )}
-                                        </div>
-
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="1"
+                                            step="0.01"
+                                            value={previewOpacity}
+                                            onChange={e => setPreviewOpacity(Number(e.target.value))}
+                                            className="w-full accent-white h-1 bg-white/20 rounded-full cursor-pointer"
+                                        />
                                     </div>
                                 )}
 
-                                {/* ── VIDEO -> MASK & AI MATTE PLACEHOLDERS ── */}
-                                {inspectorTab === 'video' && inspectorSubTab !== 'basic' && (
-                                    <div className="flex flex-col h-full items-center justify-center py-2 text-center gap-2">
-                                        {inspectorSubTab === 'ai-matte' ? (
-                                            <div className="w-full h-[320px] bg-black/20 rounded-xl overflow-hidden p-2">
-                                                <CommandAgentPanel onExecuteActions={handleCommandActions} />
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <Wand2 className="w-8 h-8 text-purple-400 animate-pulse mt-8" />
-                                                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-200">{inspectorSubTab} Controls</span>
-                                                <span className="text-[9px] text-slate-500 max-w-[200px]">Advanced AI tools are ready to analyze and map targets. Click generate to apply.</span>
-                                            </>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* ── AUDIO TAB ── */}
+                                {/* Ã¢â€â‚¬Ã¢â€â‚¬ AUDIO TAB Ã¢â€â‚¬Ã¢â€â‚¬ */}
                                 {inspectorTab === 'audio' && (
-                                    <div className="space-y-4">
-                                        <div className="border border-white/[0.05] rounded-xl bg-black/25 p-3.5 space-y-3.5">
-                                            <div className="flex items-center justify-between">
-                                                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-200">Volume Settings</div>
-                                                <KeyframeButton active={hasAudioKeyframe} onClick={() => setHasAudioKeyframe(!hasAudioKeyframe)} />
+                                    <div className="flex flex-col flex-1 space-y-4">
+                                        {/* Volume Slider */}
+                                        <div className="space-y-1">
+                                            <div className="flex justify-between text-xs font-medium text-slate-300">
+                                                <span>Volume</span>
+                                                <span className="text-[#EAB308] font-bold font-mono">100%</span>
                                             </div>
-                                            
-                                            <div className="flex items-end gap-2.5">
-                                                <div className="flex-1 space-y-1.5">
-                                                    <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                        <span>GAIN LEVEL</span>
-                                                        <span className="font-mono text-purple-400">{(volumeLevel * 100).toFixed(0)}%</span>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="200"
+                                                defaultValue="100"
+                                                className="w-full accent-yellow-500 h-1 bg-white/20 rounded-full cursor-pointer"
+                                            />
+                                        </div>
+
+                                        {/* Fade In & Out Button */}
+                                        <button
+                                            type="button"
+                                            onClick={() => openFadeEditor(activePreviewId!)}
+                                            className="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors cursor-pointer text-xs font-semibold text-white"
+                                        >
+                                            <div className="flex items-center gap-2.5">
+                                                <svg viewBox="0 0 22 22" fill="none" className="w-5 h-5 text-[#EAB308]" stroke="currentColor">
+                                                    <rect x="3.5" y="8" width="2" height="6" rx="1" fill="currentColor" opacity="0.4" />
+                                                    <rect x="7" y="5.5" width="2" height="11" rx="1" fill="currentColor" opacity="0.6" />
+                                                    <rect x="10.5" y="3.5" width="2" height="15" rx="1" fill="currentColor" opacity="1" />
+                                                    <rect x="14" y="5.5" width="2" height="11" rx="1" fill="currentColor" opacity="0.6" />
+                                                    <rect x="17.5" y="8" width="2" height="6" rx="1" fill="currentColor" opacity="0.4" />
+                                                </svg>
+                                                <span>Fade In & Fade Out</span>
+                                            </div>
+                                            <span className="text-slate-400 font-mono text-[11px]">{fadeInVal.toFixed(1)}s / {fadeOutVal.toFixed(1)}s</span>
+                                        </button>
+
+                                        {/* Auto Audio-Caption Button */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsAutoCaptionOpen(true)}
+                                            className="flex items-center justify-between p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors cursor-pointer text-xs font-semibold text-white"
+                                        >
+                                            <div className="flex items-center gap-2.5">
+                                                <svg viewBox="0 0 22 22" fill="none" className="w-5 h-5 text-blue-400" stroke="currentColor" strokeWidth="1.8">
+                                                    <path d="M4 7V5a1 1 0 0 1 1-1h2" strokeLinecap="round" />
+                                                    <path d="M15 4h2a1 1 0 0 1 1 1v2" strokeLinecap="round" />
+                                                    <path d="M4 15v2a1 1 0 0 1 1 1h2" strokeLinecap="round" />
+                                                    <path d="M15 18h2a1 1 0 0 0 1-1v-2" strokeLinecap="round" />
+                                                    <path d="M11 6.5L7.5 15.5M11 6.5L14.5 15.5M8.5 13h5" strokeLinecap="round" strokeLinejoin="round" />
+                                                </svg>
+                                                <span>Auto Audio-Caption</span>
+                                            </div>
+                                            <span className="text-blue-400 font-bold text-[10px] uppercase tracking-wider bg-blue-500/20 px-2 py-0.5 rounded">AI</span>
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Ã¢â€â‚¬Ã¢â€â‚¬ BORDER TAB (5th Icon) Ã¢â€â‚¬Ã¢â€â‚¬ */}
+                                {inspectorTab === 'video' && (
+                                    <div className="flex flex-col flex-1 space-y-4">
+                                        {/* Width Slider */}
+                                        <div className="space-y-1">
+                                            <div className="flex justify-between text-xs font-medium text-slate-300">
+                                                <span>Width</span>
+                                                <span className="text-[#EAB308] font-bold font-mono">{borderWidth}</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="40"
+                                                value={borderWidth}
+                                                onChange={e => setBorderWidth(Number(e.target.value))}
+                                                className="w-full accent-[#EAB308] h-1 bg-white/20 rounded-full cursor-pointer"
+                                            />
+                                        </div>
+
+                                        {/* Color Section */}
+                                        <div className="space-y-3">
+                                            <span className="text-xs font-medium text-slate-300">Color</span>
+
+                                            {/* Hex input */}
+                                            <div className="flex items-center gap-2">
+                                                <div
+                                                    className="w-7 h-7 rounded border border-white/20 flex-none cursor-pointer"
+                                                    style={{ backgroundColor: borderColorHex }}
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={borderColorHex.replace('#', '').toUpperCase()}
+                                                    onChange={e => {
+                                                        const v = e.target.value.replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
+                                                        if (v.length === 6) setBorderColorHex('#' + v);
+                                                    }}
+                                                    className="flex-1 bg-[#1a1b26] border border-white/10 rounded-lg px-2 py-1.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-white/30"
+                                                    maxLength={6}
+                                                    placeholder="FFFFFF"
+                                                />
+                                            </div>
+
+                                            {/* Color Gradient Canvas */}
+                                            <div className="relative w-full h-[110px] rounded-xl overflow-hidden cursor-crosshair border border-white/10 select-none"
+                                                style={{
+                                                    background: `linear-gradient(to bottom, transparent, #000), linear-gradient(to right, #fff, hsl(${borderHue},100%,50%))`
+                                                }}
+                                                onClick={e => {
+                                                    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                                                    const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+                                                    const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+                                                    setBgBorderSatPos({ x, y });
+                                                    // compute hex from HSV
+                                                    const s = x / 100;
+                                                    const v = 1 - y / 100;
+                                                    const h = borderHue / 360;
+                                                    const i = Math.floor(h * 6);
+                                                    const f = h * 6 - i;
+                                                    const p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
+                                                    let r = 0, g = 0, b = 0;
+                                                    switch (i % 6) {
+                                                        case 0: r = v; g = t; b = p; break;
+                                                        case 1: r = q; g = v; b = p; break;
+                                                        case 2: r = p; g = v; b = t; break;
+                                                        case 3: r = p; g = q; b = v; break;
+                                                        case 4: r = t; g = p; b = v; break;
+                                                        case 5: r = v; g = p; b = q; break;
+                                                    }
+                                                    const toHex = (n: number) => Math.round(n * 255).toString(16).padStart(2, '0');
+                                                    setBorderColorHex('#' + toHex(r) + toHex(g) + toHex(b));
+                                                }}
+                                            >
+                                                {/* Picker thumb */}
+                                                <div
+                                                    className="absolute w-4 h-4 rounded-full border-2 border-white shadow-md pointer-events-none -translate-x-1/2 -translate-y-1/2"
+                                                    style={{ left: `${borderSatPos.x}%`, top: `${borderSatPos.y}%`, backgroundColor: borderColorHex }}
+                                                />
+                                            </div>
+
+                                            {/* Hue Slider */}
+                                            <div className="relative w-full h-3 rounded-full overflow-hidden cursor-pointer border border-white/10"
+                                                style={{ background: 'linear-gradient(to right, #ff0000, #ff8800, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)' }}
+                                                onClick={e => {
+                                                    const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                                                    const h = Math.max(0, Math.min(360, ((e.clientX - rect.left) / rect.width) * 360));
+                                                    setBorderHue(h);
+                                                }}
+                                            >
+                                                <div
+                                                    className="absolute top-0 w-3 h-3 rounded-full bg-white border-2 border-white shadow -translate-x-1/2"
+                                                    style={{ left: `${(borderHue / 360) * 100}%` }}
+                                                />
+                                            </div>
+
+                                            {/* RGB Inputs */}
+                                            <div className="flex gap-2">
+                                                {(['R', 'G', 'B'] as const).map((ch, ci) => {
+                                                    const hex = borderColorHex.replace('#', '');
+                                                    const vals = [parseInt(hex.slice(0,2)||'0',16), parseInt(hex.slice(2,4)||'0',16), parseInt(hex.slice(4,6)||'0',16)];
+                                                    return (
+                                                        <div key={ch} className="flex-1 flex items-center gap-1 bg-[#1a1b26] rounded-lg px-2 py-1.5 border border-white/10">
+                                                            <span className="text-[10px] font-bold text-slate-400">{ch}</span>
+                                                            <input
+                                                                type="number"
+                                                                min={0} max={255}
+                                                                value={vals[ci]}
+                                                                onChange={e => {
+                                                                    const nv = Math.max(0, Math.min(255, Number(e.target.value)));
+                                                                    const newVals = [...vals]; newVals[ci] = nv;
+                                                                    setBorderColorHex('#' + newVals.map(n => n.toString(16).padStart(2,'0')).join(''));
+                                                                }}
+                                                                className="w-full bg-transparent text-xs font-mono text-slate-200 focus:outline-none"
+                                                            />
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {/* Swatches */}
+                                            <div className="space-y-1.5">
+                                                <div className="flex gap-1 flex-wrap">
+                                                    {/* Add swatch button */}
+                                                    <button
+                                                        type="button"
+                                                        className="w-6 h-6 rounded border border-dashed border-white/30 flex items-center justify-center text-slate-400 hover:text-white text-xs"
+                                                        title="Add swatch"
+                                                    >+</button>
+                                                    {/* Active swatch */}
+                                                    <div className="w-6 h-6 rounded border-2 border-[#EAB308]" style={{ backgroundColor: borderColorHex }} />
+                                                    {/* Preset swatches */}
+                                                    {[
+                                                        '#ffffff','#e2e2e2','#ff4444','#ff8800','#a855f7','#ec4899',
+                                                        '#d4b896','#b8a082','#8c8c8c','#6b6b8a','#a78bfa','#f472b6',
+                                                        '#7c6f5a','#5a6b7a','#4a5568','#2d3748','#1a1b26','#000000',
+                                                    ].map(c => (
+                                                        <button
+                                                            key={c}
+                                                            type="button"
+                                                            onClick={() => setBorderColorHex(c)}
+                                                            className={`w-6 h-6 rounded transition-transform hover:scale-110 border ${
+                                                                borderColorHex === c ? 'border-white scale-110' : 'border-white/10'
+                                                            }`}
+                                                            style={{ backgroundColor: c }}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Reset & Apply to all action buttons */}
+                                        <div className="mt-auto pt-6 flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setBorderWidth(0);
+                                                    setBorderColorHex('#ffffff');
+                                                    setBorderHue(0);
+                                                    setBgBorderSatPos({ x: 0, y: 0 });
+                                                }}
+                                                className="flex-1 py-1.5 rounded-lg bg-[#23242e] text-slate-300 border border-white/10 text-xs font-medium hover:bg-[#2c2d3a] transition-colors cursor-pointer text-center"
+                                            >
+                                                Reset
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const w = borderWidth, c = borderColorHex;
+                                                    setClipSettings(prev => {
+                                                        const updated = { ...prev };
+                                                        mediaItems.forEach(item => {
+                                                            updated[item.id] = { ...(updated[item.id] || {}), borderWidth: w, borderColorHex: c };
+                                                        });
+                                                        return updated;
+                                                    });
+                                                }}
+                                                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-[#23242e] text-white border border-white/10 text-xs font-medium hover:bg-[#2c2d3a] transition-colors cursor-pointer"
+                                            >
+                                                <Check className="w-3.5 h-3.5 text-white" />
+                                                <span>Apply to all</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Ã¢â€â‚¬Ã¢â€â‚¬ COLOR & FILTERS TAB (Matching Image 1) Ã¢â€â‚¬Ã¢â€â‚¬ */}
+                                {inspectorTab === 'color' && (
+                                    <div className="flex flex-col flex-1 space-y-4">
+                                        {/* Sub Tabs: Filters | Adjust Ã¢â‚¬â€ pill style */}
+                                        <div className="flex items-center bg-[#1a1b26] rounded-xl p-1 gap-1 mb-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => setColorSubTab('filters')}
+                                                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${colorSubTab === 'filters' ? 'bg-[#2a2b3d] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                                            >
+                                                Filters
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setColorSubTab('adjust')}
+                                                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${colorSubTab === 'adjust' ? 'bg-[#2a2b3d] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}
+                                            >
+                                                Adjust
+                                            </button>
+                                        </div>
+
+                                        {colorSubTab === 'filters' && (
+                                            <div className="flex flex-col flex-1 space-y-4">
+                                                {/* Intensity Slider */}
+                                                <div className="space-y-1">
+                                                    <div className="flex justify-between text-xs font-medium text-slate-300">
+                                                        <span>Intensity</span>
+                                                        <span className="text-[#EAB308] font-bold font-mono">{filterIntensity}</span>
                                                     </div>
                                                     <input
                                                         type="range"
                                                         min="0"
-                                                        max="2"
-                                                        step="0.05"
-                                                        value={volumeLevel}
-                                                        onChange={e => setVolumeLevel(Number(e.target.value))}
-                                                        className="w-full accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
+                                                        max="100"
+                                                        value={filterIntensity}
+                                                        onChange={e => setFilterIntensity(Number(e.target.value))}
+                                                        className="w-full accent-purple-500 h-1 bg-white/20 rounded-full cursor-pointer"
                                                     />
                                                 </div>
-                                                <KeyframeButton active={hasGainKeyframe} onClick={() => setHasGainKeyframe(!hasGainKeyframe)} />
-                                            </div>
 
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[10px] font-bold text-slate-400">MUTE AUDIO CHANNEL</span>
-                                                <div className="flex items-center gap-2">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isMuted}
-                                                        onChange={e => setIsMuted(e.target.checked)}
-                                                        className="rounded border-white/20 accent-purple-500 bg-black/40 w-3.5 h-3.5 cursor-pointer"
-                                                    />
-                                                    <KeyframeButton active={hasMuteKeyframe} onClick={() => setHasMuteKeyframe(!hasMuteKeyframe)} />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* ── SPEED TAB ── */}
-                                {inspectorTab === 'speed' && (
-                                    <div className="space-y-4">
-                                        <div className="border border-white/[0.05] rounded-xl bg-black/25 p-3.5 space-y-3.5">
-                                            <div className="flex items-center justify-between">
-                                                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-200">Speed Control</div>
-                                                <KeyframeButton active={hasSpeedKeyframe} onClick={() => setHasSpeedKeyframe(!hasSpeedKeyframe)} />
-                                            </div>
-                                            
-                                            <div className="flex items-end gap-2.5">
-                                                <div className="flex-1 space-y-1.5">
-                                                    <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                        <span>MULTIPLIER</span>
-                                                        <span className="font-mono text-purple-400">{speedValue.toFixed(2)}x</span>
-                                                    </div>
-                                                    <input
-                                                        type="range"
-                                                        min="0.25"
-                                                        max="4.00"
-                                                        step="0.05"
-                                                        value={speedValue}
-                                                        onChange={e => setSpeedValue(Number(e.target.value))}
-                                                        className="w-full accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
-                                                    />
-                                                </div>
-                                                <KeyframeButton active={hasMultiplierKeyframe} onClick={() => setHasMultiplierKeyframe(!hasMultiplierKeyframe)} />
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* ── ANIMATION TAB ── */}
-                                {inspectorTab === 'animation' && (
-                                    <div className="space-y-4">
-                                        <div className="border border-white/[0.05] rounded-xl bg-black/25 p-3.5 space-y-3.5">
-                                            <div className="flex items-center justify-between">
-                                                <div className="text-[11px] font-black uppercase tracking-wider text-slate-200">KEYFRAME EFFECTS</div>
-                                                <KeyframeButton active={hasAnimationKeyframe} onClick={() => setHasAnimationKeyframe(!hasAnimationKeyframe)} />
-                                            </div>
-                                            
-                                            <div className="space-y-2">
-                                                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">MOTION PATTERN</span>
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    {(['none', 'zoom-in', 'zoom-out', 'pulse'] as const).map(mode => (
+                                                {/* Category Selector Chips */}
+                                                <div className="flex gap-1.5 overflow-x-auto pb-2 shrink-0 scrollbar-none mb-1">
+                                                    {['all', 'Basic', 'Cinematic', 'Vintage', 'Retro', 'Film', 'HDR', 'LUT', 'Black & White', 'Sepia', 'Neon', 'Cyberpunk', 'Dream', 'Glow', 'Matte', 'Moody', 'Warm', 'Cool', 'Teal & Orange', 'Golden Hour', 'Sunset', 'Night', 'RGB', 'VHS', 'CRT', 'Glitch', 'Grain', 'Blur', 'Sharpen', 'Portrait', 'Beauty', 'Landscape', 'Nature', 'Food', 'Travel', 'Wedding', 'Fashion', 'Sports', 'Gaming', 'Social', 'Artistic', '3D', 'Hollywood', 'IMAX', 'Netflix', 'Kodak', 'Fujifilm', 'ARRI', 'RED', 'Sony Cinema', 'Blackmagic', 'Seasons', 'Ocean', 'Forest', 'Desert', 'Aurora', 'Galaxy', 'Space', 'Synthwave', 'Vaporwave', 'Luxury', 'Diamond', 'Gold', 'Crystal', 'Anime', 'Comic', 'Oil Painting', 'Watercolor', 'Sketch', 'Documentary', 'Analog', 'Sci-Fi'].map((cat) => (
                                                         <button
-                                                            key={mode}
-                                                            onClick={() => setKeyframeMode(mode)}
-                                                            className={`py-4 text-[10px] font-black uppercase border rounded-xl transition-all cursor-pointer ${
-                                                                keyframeMode === mode
-                                                                    ? 'bg-[#1a0f24] text-purple-300 border-purple-500 shadow-[0_0_12px_rgba(168,85,247,0.3)]'
-                                                                    : 'bg-[#13141f] text-slate-400 border-white/5 hover:border-white/10 hover:text-slate-200'
+                                                            key={cat}
+                                                            onClick={() => setLocalFilterCategory(cat)}
+                                                            type="button"
+                                                            className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider transition-all border shrink-0 ${
+                                                                localFilterCategory === cat
+                                                                    ? 'bg-purple-500/20 border-purple-500/60 text-purple-200'
+                                                                    : 'bg-white/5 border-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200'
                                                             }`}
                                                         >
-                                                            {mode}
+                                                            {cat}
                                                         </button>
                                                     ))}
                                                 </div>
-                                            </div>
 
-                                            {keyframeMode !== 'none' && (
-                                                <div className="flex items-end gap-2.5 pt-1">
-                                                    <div className="flex-1 space-y-1.5">
-                                                        <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                            <span>EFFECT STRENGTH</span>
-                                                            <span className="font-mono text-purple-400">{(keyframeAmount * 100).toFixed(0)}%</span>
+                                                {/* Dynamic Filters Grid */}
+                                                <div className="flex-1 overflow-y-auto max-h-[300px] custom-scrollbar pr-1">
+                                                    <div className="grid grid-cols-3 gap-2 pb-4">
+                                                        {localFilterCategory === 'all' && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSelectedFilter('none');
+                                                                    setSelectedEffect('none');
+                                                                    if (activePreviewId) {
+                                                                        setClipSettings((prev: any) => ({ ...prev, [activePreviewId]: { ...(prev[activePreviewId] || {}), selectedFilter: 'none' } }));
+                                                                    }
+                                                                }}
+                                                                type="button"
+                                                                className={`relative flex flex-col items-center justify-center gap-1.5 h-[68px] rounded-xl border transition-all duration-200 group overflow-hidden ${
+                                                                    selectedFilter === 'none' && selectedEffect === 'none'
+                                                                        ? 'bg-purple-500/15 border-purple-400/60 shadow-[0_0_12px_rgba(168,85,247,0.22)] scale-[1.02]'
+                                                                        : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/20'
+                                                                }`}
+                                                            >
+                                                                <CircleOff size={16} className="text-[#94a3b8]" />
+                                                                <span className="text-[9px] font-bold uppercase tracking-wider text-center text-slate-400">Original</span>
+                                                            </button>
+                                                        )}
+                                                        {(() => {
+                                                            const proEffects = getAllProEffects();
+                                                            const proFilters = proEffects.filter(eff => eff.id.startsWith('pro-filter-'));
+                                                            const filteredFilters = localFilterCategory === 'all'
+                                                                ? proFilters
+                                                                : proFilters.filter(eff => eff.name.startsWith(localFilterCategory + ' v'));
+                                                            return filteredFilters.map((eff) => {
+                                                                const isActive = selectedFilter === eff.id || selectedEffect === eff.id;
+                                                                const Icon = eff.icon || Sparkles;
+                                                                return (
+                                                                    <button
+                                                                        key={eff.id}
+                                                                        onClick={() => {
+                                                                            setSelectedFilter(eff.id as any);
+                                                                            setSelectedEffect(eff.id);
+                                                                            setProParams(eff.defaultParameters || {});
+                                                                            if (activePreviewId) {
+                                                                                setClipSettings(prev => ({ ...prev, [activePreviewId]: { ...(prev[activePreviewId] || {}), selectedFilter: eff.id as any } }));
+                                                                            }
+                                                                        }}
+                                                                        type="button"
+                                                                        className={`relative flex flex-col items-center justify-center gap-1.5 h-[68px] rounded-xl border transition-all duration-200 group overflow-hidden ${
+                                                                            isActive
+                                                                                ? 'bg-purple-500/15 border-purple-400/60 shadow-[0_0_12px_rgba(168,85,247,0.22)] scale-[1.02]'
+                                                                                : 'bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.07] hover:border-white/20'
+                                                                        }`}
+                                                                    >
+                                                                        {eff.thumbnail && (
+                                                                            <div className="absolute inset-0 w-full h-full pointer-events-none">
+                                                                                <img src={eff.thumbnail} className="w-full h-full object-cover opacity-20 group-hover:opacity-35 transition-opacity duration-300" alt="" />
+                                                                                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/85" />
+                                                                            </div>
+                                                                        )}
+                                                                        <Icon size={16} className="relative z-10 transition-transform duration-200 group-hover:scale-110 text-purple-300" />
+                                                                        <span className="relative z-10 text-[8px] font-bold uppercase tracking-wider text-center text-slate-300 truncate max-w-full px-1">
+                                                                            {eff.name.replace(localFilterCategory + ' v', '').trim() || eff.name}
+                                                                        </span>
+                                                                    </button>
+                                                                );
+                                                            });
+                                                        })()}
+                                                    </div>
+                                                </div>
+
+                                                {/* Footer Action Bar */}
+                                                <div className="mt-auto pt-4 flex items-center justify-between gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedFilter('none');
+                                                            setSelectedEffect('none');
+                                                            setFilterIntensity(100);
+                                                        }}
+                                                        className="flex-1 py-1.5 rounded-lg bg-[#23242e] text-slate-300 border border-white/10 text-xs font-medium hover:bg-[#2c2d3a] transition-colors cursor-pointer text-center"
+                                                    >
+                                                        Reset
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const fi = filterIntensity, fp = selectedFilter;
+                                                            setClipSettings(prev => {
+                                                                const updated = { ...prev };
+                                                                mediaItems.forEach(item => {
+                                                                    updated[item.id] = { ...(updated[item.id] || {}), filterIntensity: fi, filterPreset: fp };
+                                                                });
+                                                                return updated;
+                                                            });
+                                                        }}
+                                                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-[#23242e] text-white border border-white/10 text-xs font-medium hover:bg-[#2c2d3a] transition-colors cursor-pointer"
+                                                    >
+                                                        <Check className="w-3.5 h-3.5 text-white" />
+                                                        <span>Apply to all</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {colorSubTab === 'adjust' && (
+                                            <div className="flex flex-col flex-1 space-y-0">
+                                                <style>{`
+                                                  .adj-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 3px; border-radius: 9999px; outline: none; cursor: pointer; }
+                                                  .adj-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: white; box-shadow: 0 1px 4px rgba(0,0,0,0.5); cursor: pointer; }
+                                                  .hsl-hue { background: linear-gradient(to right, #ff0000, #ff8800, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000); }
+                                                  .hsl-sat { background: linear-gradient(to right, #808080, #ff0000); }
+                                                  .hsl-light { background: linear-gradient(to right, #000000, #808080, #ffffff); }
+                                                `}</style>
+
+                                                {/* Ã¢â€â‚¬Ã¢â€â‚¬ 10 Sliders Ã¢â€â‚¬Ã¢â€â‚¬ */}
+                                                {([
+                                                  { label: 'Brightness', icon: 'Ã¢Ëœâ‚¬', val: brightness, set: (v: number) => setBrightness(v), min: 0.5, max: 1.5, step: 0.01, display: Math.round((brightness - 1) * 100) },
+                                                  { label: 'Saturation', icon: 'Ã°Å¸Å½Â¨', val: saturation, set: (v: number) => setSaturation(v), min: 0, max: 3, step: 0.01, display: Math.round((saturation - 1) * 100) },
+                                                  { label: 'Vibrance', icon: 'Ã°Å¸Å’Ë†', val: adjVibrance, set: setAdjVibrance, min: -100, max: 100, step: 1, display: adjVibrance },
+                                                  { label: 'Temperature', icon: 'Ã°Å¸Å’Â¡', val: adjTemperature, set: setAdjTemperature, min: -100, max: 100, step: 1, display: adjTemperature },
+                                                  { label: 'Vignette', icon: 'Ã¢â€”Å½', val: adjVignette, set: setAdjVignette, min: 0, max: 100, step: 1, display: adjVignette },
+                                                  { label: 'Sharpen', icon: 'Ã¢â€“Â³', val: adjSharpen, set: setAdjSharpen, min: 0, max: 100, step: 1, display: adjSharpen },
+                                                  { label: 'Hue', icon: 'Ã°Å¸â€™Â§', val: adjHue, set: setAdjHue, min: -180, max: 180, step: 1, display: adjHue },
+                                                  { label: 'Highlights', icon: 'Ã¢â€”â€˜', val: adjHighlights, set: setAdjHighlights, min: -100, max: 100, step: 1, display: adjHighlights },
+                                                  { label: 'Shadows', icon: 'Ã¢â€”Â', val: adjShadows, set: setAdjShadows, min: -100, max: 100, step: 1, display: adjShadows },
+                                                  { label: 'Noise Reduction', icon: 'Ã¢â€“Â¦', val: adjNoiseReduction, set: setAdjNoiseReduction, min: 0, max: 100, step: 1, display: adjNoiseReduction },
+                                                ] as {label:string;icon:string;val:number;set:(v:number)=>void;min:number;max:number;step:number;display:number}[]).map(({ label, icon, val, set, min, max, step, display }) => (
+                                                    <div key={label} className="py-2.5 border-b border-white/[0.04] last:border-0">
+                                                        <div className="flex items-center justify-between mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-base leading-none w-5 text-center select-none">{icon}</span>
+                                                                <span className="text-xs font-medium text-slate-200">{label}</span>
+                                                            </div>
+                                                            <span className="text-[11px] font-mono text-slate-400 min-w-[24px] text-right">{display}</span>
                                                         </div>
                                                         <input
                                                             type="range"
-                                                            min="1.0"
-                                                            max="2.0"
-                                                            step="0.05"
-                                                            value={keyframeAmount}
-                                                            onChange={e => setKeyframeAmount(Number(e.target.value))}
-                                                            className="w-full accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
+                                                            min={min} max={max} step={step} value={val}
+                                                            onChange={e => set(Number(e.target.value))}
+                                                            className="adj-slider"
+                                                            style={{ background: `linear-gradient(to right, rgba(255,255,255,0.7) ${((val - min)/(max-min))*100}%, rgba(255,255,255,0.15) ${((val - min)/(max-min))*100}%)` }}
                                                         />
                                                     </div>
-                                                    <KeyframeButton active={hasStrengthKeyframe} onClick={() => setHasStrengthKeyframe(!hasStrengthKeyframe)} />
+                                                ))}
+
+                                                {/* Ã¢â€â‚¬Ã¢â€â‚¬ Color Wheel Selector Ã¢â€â‚¬Ã¢â€â‚¬ */}
+                                                <div className="pt-3 pb-2">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        {[
+                                                          { color: '#ef4444', hue: 0 },
+                                                          { color: '#f97316', hue: 30 },
+                                                          { color: '#eab308', hue: 60 },
+                                                          { color: '#22c55e', hue: 120 },
+                                                          { color: '#06b6d4', hue: 180 },
+                                                          { color: '#3b82f6', hue: 220 },
+                                                          { color: '#8b5cf6', hue: 270 },
+                                                          { color: '#ec4899', hue: 320 },
+                                                        ].map(({ color, hue }, idx) => (
+                                                            <button
+                                                                key={idx}
+                                                                type="button"
+                                                                onClick={() => { setSelectedColorWheel(idx); setHslHue(hue); }}
+                                                                className="transition-all duration-150"
+                                                                style={{ width: 22, height: 22, borderRadius: '50%', background: color, border: selectedColorWheel === idx ? '2px solid white' : '2px solid transparent', boxShadow: selectedColorWheel === idx ? `0 0 0 1px ${color}` : 'none' }}
+                                                            />
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            )}
+
+                                                {/* Ã¢â€â‚¬Ã¢â€â‚¬ HSL Sliders Ã¢â€â‚¬Ã¢â€â‚¬ */}
+                                                <div className="space-y-3 pt-1">
+                                                    {/* Hue */}
+                                                    <div>
+                                                        <div className="flex justify-between text-xs font-medium text-slate-300 mb-1.5">
+                                                            <span>Hue</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[11px] font-mono text-slate-400">{hslHue}</span>
+                                                                <input type="number" value={hslHue} onChange={e => setHslHue(Number(e.target.value))} className="w-14 bg-[#1a1b26] border border-white/10 rounded text-xs font-mono text-white text-center py-0.5 px-1" />
+                                                            </div>
+                                                        </div>
+                                                        <input type="range" min={-180} max={180} step={1} value={hslHue} onChange={e => setHslHue(Number(e.target.value))}
+                                                            className="adj-slider hsl-hue" />
+                                                    </div>
+                                                    {/* Saturation */}
+                                                    <div>
+                                                        <div className="flex justify-between text-xs font-medium text-red-400 mb-1.5">
+                                                            <span>Saturation</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[11px] font-mono text-slate-400">{hslSaturation}</span>
+                                                                <input type="number" value={hslSaturation} onChange={e => setHslSaturation(Number(e.target.value))} className="w-14 bg-[#1a1b26] border border-white/10 rounded text-xs font-mono text-white text-center py-0.5 px-1" />
+                                                            </div>
+                                                        </div>
+                                                        <input type="range" min={-100} max={100} step={1} value={hslSaturation} onChange={e => setHslSaturation(Number(e.target.value))}
+                                                            className="adj-slider hsl-sat" />
+                                                    </div>
+                                                    {/* Lightness */}
+                                                    <div>
+                                                        <div className="flex justify-between text-xs font-medium text-slate-300 mb-1.5">
+                                                            <span>Lightness</span>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[11px] font-mono text-slate-400">{hslLightness}</span>
+                                                                <input type="number" value={hslLightness} onChange={e => setHslLightness(Number(e.target.value))} className="w-14 bg-[#1a1b26] border border-white/10 rounded text-xs font-mono text-white text-center py-0.5 px-1" />
+                                                            </div>
+                                                        </div>
+                                                        <input type="range" min={-100} max={100} step={1} value={hslLightness} onChange={e => setHslLightness(Number(e.target.value))}
+                                                            className="adj-slider hsl-light" />
+                                                    </div>
+                                                </div>
+
+                                                {/* Footer */}
+                                                <div className="pt-4 flex items-center justify-between gap-2">
+                                                    <button type="button" onClick={() => {
+                                                        setBrightness(1.0); setSaturation(1.0);
+                                                        setAdjVibrance(0); setAdjTemperature(0); setAdjVignette(0); setAdjSharpen(0);
+                                                        setAdjHue(0); setAdjHighlights(0); setAdjShadows(0); setAdjNoiseReduction(0);
+                                                        setHslHue(0); setHslSaturation(0); setHslLightness(0);
+                                                    }} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-[#23242e] text-slate-300 border border-white/10 text-xs font-medium hover:bg-[#2c2d3a] transition-colors cursor-pointer">
+                                                        Reset
+                                                    </button>
+                                                    <button type="button" onClick={() => {
+                                                        const b = brightness, s = saturation;
+                                                        setClipSettings(prev => {
+                                                            const updated = { ...prev };
+                                                            mediaItems.forEach(item => { updated[item.id] = { ...(updated[item.id] || {}), brightness: b, saturation: s }; });
+                                                            return updated;
+                                                        });
+                                                    }} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-[#23242e] text-white border border-white/10 text-xs font-medium hover:bg-[#2c2d3a] transition-colors cursor-pointer">
+                                                        <Check className="w-3.5 h-3.5" />
+                                                        <span>Apply to all</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Ã¢â€â‚¬Ã¢â€â‚¬ SPEED TAB Ã¢â€â‚¬Ã¢â€â‚¬ */}
+                                {inspectorTab === 'speed' && (
+                                    <div className="flex flex-col flex-1 space-y-4">
+                                        <div className="flex justify-between text-xs font-medium text-slate-300">
+                                            <span>Speed Multiplier</span>
+                                            <span className="text-[#EAB308] font-bold font-mono">{speedValue.toFixed(2)}x</span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="0.25"
+                                            max="4.00"
+                                            step="0.05"
+                                            value={speedValue}
+                                            onChange={e => setSpeedValue(Number(e.target.value))}
+                                            className="w-full accent-white h-1 bg-white/20 rounded-full cursor-pointer"
+                                        />
+                                        <div className="grid grid-cols-4 gap-2">
+                                            {[0.5, 1.0, 1.5, 2.0].map(s => (
+                                                <button
+                                                    key={s}
+                                                    type="button"
+                                                    onClick={() => setSpeedValue(s)}
+                                                    className={`py-1 rounded text-xs font-mono font-bold border transition-colors ${speedValue === s ? 'bg-purple-500/20 text-purple-300 border-purple-500' : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'}`}
+                                                >
+                                                    {s}x
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        <div className="mt-auto pt-6">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const spd = speedValue;
+                                                    setClipSettings(prev => {
+                                                        const updated = { ...prev };
+                                                        mediaItems.forEach(item => {
+                                                            updated[item.id] = { ...(updated[item.id] || {}), speedValue: spd };
+                                                        });
+                                                        return updated;
+                                                    });
+                                                }}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#23242e] text-slate-200 border border-white/10 text-xs font-medium hover:bg-[#2c2d3a] transition-colors cursor-pointer"
+                                            >
+                                                <Check className="w-3.5 h-3.5 text-white" />
+                                                <span>Apply to all</span>
+                                            </button>
                                         </div>
                                     </div>
                                 )}
 
-                                {/* ── COLOR TAB ── */}
-                                {inspectorTab === 'color' && (
-                                    <div className="space-y-4">
-                                        <div className="border border-white/[0.05] rounded-xl bg-black/25 p-3.5 space-y-3.5">
-                                            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-200">Color Correction</div>
-                                            
-                                            {/* Brightness */}
-                                            <div className="flex items-end gap-2.5">
-                                                <div className="flex-1 space-y-1.5">
-                                                    <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                        <span>BRIGHTNESS</span>
-                                                        <span className="font-mono text-purple-400">{brightness.toFixed(1)}</span>
-                                                    </div>
-                                                    <input
-                                                        type="range"
-                                                        min={0.5}
-                                                        max={1.5}
-                                                        step={0.05}
-                                                        value={brightness}
-                                                        onChange={e => setBrightness(Number(e.target.value))}
-                                                        className="w-full accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
-                                                    />
-                                                </div>
-                                                <KeyframeButton active={hasBrightnessKeyframe} onClick={() => setHasBrightnessKeyframe(!hasBrightnessKeyframe)} />
-                                            </div>
+                                {/* Ã¢â€â‚¬Ã¢â€â‚¬ AUDIO TAB Ã¢â€â‚¬Ã¢â€â‚¬ */}
+                                {inspectorTab === 'audio' && (
+                                    <div className="flex flex-col flex-1 space-y-4">
+                                        <div className="flex justify-between text-xs font-medium text-slate-300">
+                                            <span>Volume Level</span>
+                                            <span className="text-[#EAB308] font-bold font-mono">{(volumeLevel * 100).toFixed(0)}%</span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="2"
+                                            step="0.05"
+                                            value={volumeLevel}
+                                            onChange={e => setVolumeLevel(Number(e.target.value))}
+                                            className="w-full accent-white h-1 bg-white/20 rounded-full cursor-pointer"
+                                        />
+                                        <div className="flex items-center justify-between py-2 border-t border-b border-white/5">
+                                            <span className="text-xs font-medium text-slate-300">Mute Channel</span>
+                                            <input
+                                                type="checkbox"
+                                                checked={isMuted}
+                                                onChange={e => setIsMuted(e.target.checked)}
+                                                className="rounded border-white/20 accent-purple-500 bg-black/40 w-4 h-4 cursor-pointer"
+                                            />
+                                        </div>
 
-                                            {/* Contrast */}
-                                            <div className="flex items-end gap-2.5">
-                                                <div className="flex-1 space-y-1.5">
-                                                    <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                        <span>CONTRAST</span>
-                                                        <span className="font-mono text-purple-400">{contrast.toFixed(1)}</span>
-                                                    </div>
-                                                    <input
-                                                        type="range"
-                                                        min={0.1}
-                                                        max={3}
-                                                        step={0.1}
-                                                        value={contrast}
-                                                        onChange={e => setContrast(Number(e.target.value))}
-                                                        className="w-full accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
-                                                    />
-                                                </div>
-                                                <KeyframeButton active={hasContrastKeyframe} onClick={() => setHasContrastKeyframe(!hasContrastKeyframe)} />
-                                            </div>
-
-                                            {/* Saturation */}
-                                            <div className="flex items-end gap-2.5">
-                                                <div className="flex-1 space-y-1.5">
-                                                    <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                                        <span>SATURATION</span>
-                                                        <span className="font-mono text-purple-400">{saturation.toFixed(1)}</span>
-                                                    </div>
-                                                    <input
-                                                        type="range"
-                                                        min={0}
-                                                        max={3}
-                                                        step={0.1}
-                                                        value={saturation}
-                                                        onChange={e => setSaturation(Number(e.target.value))}
-                                                        className="w-full accent-purple-500 h-1 bg-white/10 rounded-full cursor-pointer"
-                                                    />
-                                                </div>
-                                                <KeyframeButton active={hasSaturationKeyframe} onClick={() => setHasSaturationKeyframe(!hasSaturationKeyframe)} />
-                                            </div>
-
-                                            {/* Reset Color Correction */}
+                                        <div className="mt-auto pt-6">
                                             <button
+                                                type="button"
                                                 onClick={() => {
-                                                    setBrightness(1);
-                                                    setContrast(1);
-                                                    setSaturation(1);
+                                                    const vol = volumeLevel, m = isMuted;
+                                                    setClipSettings(prev => {
+                                                        const updated = { ...prev };
+                                                        mediaItems.forEach(item => {
+                                                            updated[item.id] = { ...(updated[item.id] || {}), volumeLevel: vol, isMuted: m };
+                                                        });
+                                                        return updated;
+                                                    });
                                                 }}
-                                                className="w-full py-2 rounded-lg bg-white/5 border border-white/10 text-slate-300 text-[9px] font-black uppercase hover:bg-white/10 transition-colors cursor-pointer"
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#23242e] text-slate-200 border border-white/10 text-xs font-medium hover:bg-[#2c2d3a] transition-colors cursor-pointer"
                                             >
-                                                Reset Color Settings
+                                                <Check className="w-3.5 h-3.5 text-white" />
+                                                <span>Apply to all</span>
                                             </button>
                                         </div>
+                                    </div>
+                                )}
+
+                                {/* Ã¢â€â‚¬Ã¢â€â‚¬ ANIMATION TAB Ã¢â€â‚¬Ã¢â€â‚¬ */}
+                                {inspectorTab === 'animation' && (
+                                    <div className="flex flex-col flex-1 space-y-4">
+                                        <span className="text-xs font-medium text-slate-300">Motion Pattern</span>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {(['none', 'zoom-in', 'zoom-out', 'pulse'] as const).map(mode => (
+                                                <button
+                                                    key={mode}
+                                                    type="button"
+                                                    onClick={() => setKeyframeMode(mode)}
+                                                    className={`py-3 text-xs font-bold uppercase rounded-lg border transition-colors ${keyframeMode === mode ? 'bg-purple-500/20 text-purple-300 border-purple-500' : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10'}`}
+                                                >
+                                                    {mode}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {keyframeMode !== 'none' && (
+                                            <div className="space-y-1">
+                                                <div className="flex justify-between text-xs font-medium text-slate-300">
+                                                    <span>Strength</span>
+                                                    <span className="text-[#EAB308] font-bold font-mono">{(keyframeAmount * 100).toFixed(0)}%</span>
+                                                </div>
+                                                <input
+                                                    type="range"
+                                                    min="1.0"
+                                                    max="2.0"
+                                                    step="0.05"
+                                                    value={keyframeAmount}
+                                                    onChange={e => setKeyframeAmount(Number(e.target.value))}
+                                                    className="w-full accent-white h-1 bg-white/20 rounded-full cursor-pointer"
+                                                />
+                                            </div>
+                                        )}
+
+                                        <div className="mt-auto pt-6">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const km = keyframeMode, ka = keyframeAmount;
+                                                    setClipSettings(prev => {
+                                                        const updated = { ...prev };
+                                                        mediaItems.forEach(item => {
+                                                            updated[item.id] = { ...(updated[item.id] || {}), keyframeMode: km, keyframeAmount: ka };
+                                                        });
+                                                        return updated;
+                                                    });
+                                                }}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#23242e] text-slate-200 border border-white/10 text-xs font-medium hover:bg-[#2c2d3a] transition-colors cursor-pointer"
+                                            >
+                                                <Check className="w-3.5 h-3.5 text-white" />
+                                                <span>Apply to all</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Ã¢â€â‚¬Ã¢â€â‚¬ BG TAB Ã¢â€â‚¬Ã¢â€â‚¬ */}
+                                {inspectorTab === 'bg' && (
+                                    <div className="flex flex-col flex-1 space-y-3">
+                                        {/* Blur | Color Switcher */}
+                                        <div className="flex bg-[#1a1b26] rounded-xl p-0.5">
+                                            <button
+                                                type="button"
+                                                onClick={() => setBgSubTab('blur')}
+                                                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                                                    bgSubTab === 'blur' ? 'bg-[#2a2b3d] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                                                }`}
+                                            >
+                                                Blur
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setBgSubTab('color')}
+                                                className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                                                    bgSubTab === 'color' ? 'bg-[#2a2b3d] text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                                                }`}
+                                            >
+                                                Color
+                                            </button>
+                                        </div>
+
+                                        {/* Ã¢â€â‚¬Ã¢â€â‚¬ BLUR SUB-TAB Ã¢â€â‚¬Ã¢â€â‚¬ */}
+                                        {bgSubTab === 'blur' && (
+                                            <div className="flex flex-col space-y-4">
+                                                <div>
+                                                    <span className="text-xs font-medium text-slate-300">Styles</span>
+                                                    <div className="grid grid-cols-3 gap-2 mt-2">
+                                                        {[
+                                                            { id: 'none', label: 'None', isIcon: true },
+                                                            { id: 'base', label: 'Base' },
+                                                            { id: 'horizontal', label: 'Horizontal' },
+                                                            { id: 'vertical', label: 'Vertical' },
+                                                            { id: 'radioactive', label: 'Radioactive' },
+                                                        ].map(style => (
+                                                            <div key={style.id} className="flex flex-col items-center gap-1">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setBgBlurStyle(style.id)}
+                                                                    className={`w-14 h-14 rounded-xl flex items-center justify-center overflow-hidden border-2 transition-all ${
+                                                                        bgBlurStyle === style.id ? 'border-[#EAB308]' : 'border-transparent'
+                                                                    } bg-[#1a1b26]`}
+                                                                    title={style.label}
+                                                                >
+                                                                    {style.isIcon ? (
+                                                                        <div className="w-full h-full flex items-center justify-center bg-[#1a1b26]">
+                                                                            <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6 text-slate-300" stroke="currentColor" strokeWidth="1.5">
+                                                                                <circle cx="12" cy="12" r="10" />
+                                                                                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                                                                            </svg>
+                                                                        </div>
+                                                                    ) : (
+                                                                        activePreviewItem?.preview ? (
+                                                                            <img 
+                                                                                src={activePreviewItem.preview} 
+                                                                                alt={style.label} 
+                                                                                className={`w-full h-full object-cover scale-110 ${
+                                                                                    style.id === 'base' ? 'blur-[4px]' :
+                                                                                    style.id === 'horizontal' ? 'blur-[4px] scale-x-150' :
+                                                                                    style.id === 'vertical' ? 'blur-[4px] scale-y-150' :
+                                                                                    'blur-[4px] hue-rotate-90 saturate-200'
+                                                                                }`} 
+                                                                            />
+                                                                        ) : (
+                                                                            <div className="w-full h-full bg-[#23242e]" />
+                                                                        )
+                                                                    )}
+                                                                </button>
+                                                                <span className={`text-[10px] ${bgBlurStyle === style.id ? 'text-white' : 'text-slate-400'}`}>
+                                                                    {style.label}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-1 mt-4">
+                                                    <div className="flex justify-between text-xs font-medium text-slate-300">
+                                                        <span>Blur</span>
+                                                        <span className="text-[#EAB308] font-bold font-mono">{bgBlur}</span>
+                                                    </div>
+                                                    <input
+                                                        type="range"
+                                                        min="0"
+                                                        max="100"
+                                                        value={bgBlur}
+                                                        onChange={e => setBgBlur(Number(e.target.value))}
+                                                        className="w-full accent-[#EAB308] h-1 bg-white/20 rounded-full cursor-pointer"
+                                                    />
+                                                    <div className="pt-4">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (activePreviewId) {
+                                                                    setClipSettings((prev: any) => ({
+                                                                        ...prev,
+                                                                        [activePreviewId]: {
+                                                                            ...(prev[activePreviewId] || {}),
+                                                                            bgBlurStyle: bgBlurStyle,
+                                                                            bgBlurAmount: bgBlur
+                                                                        }
+                                                                    }));
+                                                                }
+                                                            }}
+                                                            className="w-full py-2 rounded-lg text-xs font-bold bg-[#EAB308] text-[#1a1b26] hover:bg-yellow-400 transition-colors shadow-lg shadow-yellow-500/20"
+                                                        >
+                                                            Apply Style
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Ã¢â€â‚¬Ã¢â€â‚¬ COLOR SUB-TAB Ã¢â€â‚¬Ã¢â€â‚¬ */}
+                                        {bgSubTab === 'color' && (
+                                            <div className="flex flex-col space-y-3 overflow-y-auto max-h-[480px] custom-scrollbar pr-0.5">
+                                                {/* Hex input */}
+                                                <div className="flex items-center gap-2">
+                                                    <div
+                                                        className="w-7 h-7 rounded border border-white/20 flex-none cursor-pointer"
+                                                        style={{ backgroundColor: bgColorHex }}
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={bgColorHex.replace('#', '').toUpperCase()}
+                                                        onChange={e => {
+                                                            const v = e.target.value.replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
+                                                            if (v.length === 6) setBgColorHex('#' + v);
+                                                        }}
+                                                        className="flex-1 bg-[#1a1b26] border border-white/10 rounded-lg px-2 py-1.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-white/30"
+                                                        maxLength={6}
+                                                        placeholder="000000"
+                                                    />
+                                                </div>
+
+                                                {/* Color Gradient Canvas */}
+                                                <div className="relative w-full h-[110px] rounded-xl overflow-hidden cursor-crosshair border border-white/10 select-none"
+                                                    style={{
+                                                        background: `linear-gradient(to bottom, transparent, #000), linear-gradient(to right, #fff, hsl(${bgHue},100%,50%))`
+                                                    }}
+                                                    onClick={e => {
+                                                        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                                                        const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+                                                        const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+                                                        setBgSatPos({ x, y });
+                                                        // compute hex from HSV
+                                                        const s = x / 100;
+                                                        const v = 1 - y / 100;
+                                                        const h = bgHue / 360;
+                                                        const i = Math.floor(h * 6);
+                                                        const f = h * 6 - i;
+                                                        const p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
+                                                        let r = 0, g = 0, b = 0;
+                                                        switch (i % 6) {
+                                                            case 0: r = v; g = t; b = p; break;
+                                                            case 1: r = q; g = v; b = p; break;
+                                                            case 2: r = p; g = v; b = t; break;
+                                                            case 3: r = p; g = q; b = v; break;
+                                                            case 4: r = t; g = p; b = v; break;
+                                                            case 5: r = v; g = p; b = q; break;
+                                                        }
+                                                        const toHex = (n: number) => Math.round(n * 255).toString(16).padStart(2, '0');
+                                                        setBgColorHex('#' + toHex(r) + toHex(g) + toHex(b));
+                                                    }}
+                                                >
+                                                    {/* Picker thumb */}
+                                                    <div
+                                                        className="absolute w-4 h-4 rounded-full border-2 border-white shadow-md pointer-events-none -translate-x-1/2 -translate-y-1/2"
+                                                        style={{ left: `${bgSatPos.x}%`, top: `${bgSatPos.y}%`, backgroundColor: bgColorHex }}
+                                                    />
+                                                </div>
+
+                                                {/* Hue Slider */}
+                                                <div className="relative w-full h-3 rounded-full overflow-hidden cursor-pointer border border-white/10"
+                                                    style={{ background: 'linear-gradient(to right, #ff0000, #ff8800, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)' }}
+                                                    onClick={e => {
+                                                        const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                                                        const h = Math.max(0, Math.min(360, ((e.clientX - rect.left) / rect.width) * 360));
+                                                        setBgHue(h);
+                                                    }}
+                                                >
+                                                    <div
+                                                        className="absolute top-0 w-3 h-3 rounded-full bg-white border-2 border-white shadow -translate-x-1/2"
+                                                        style={{ left: `${(bgHue / 360) * 100}%` }}
+                                                    />
+                                                </div>
+
+                                                {/* RGB Inputs */}
+                                                <div className="flex gap-2">
+                                                    {(['R', 'G', 'B'] as const).map((ch, ci) => {
+                                                        const hex = bgColorHex.replace('#', '');
+                                                        const vals = [parseInt(hex.slice(0,2)||'0',16), parseInt(hex.slice(2,4)||'0',16), parseInt(hex.slice(4,6)||'0',16)];
+                                                        return (
+                                                            <div key={ch} className="flex-1 flex items-center gap-1 bg-[#1a1b26] rounded-lg px-2 py-1.5 border border-white/10">
+                                                                <span className="text-[10px] font-bold text-slate-400">{ch}</span>
+                                                                <input
+                                                                    type="number"
+                                                                    min={0} max={255}
+                                                                    value={vals[ci]}
+                                                                    onChange={e => {
+                                                                        const nv = Math.max(0, Math.min(255, Number(e.target.value)));
+                                                                        const newVals = [...vals]; newVals[ci] = nv;
+                                                                        setBgColorHex('#' + newVals.map(n => n.toString(16).padStart(2,'0')).join(''));
+                                                                    }}
+                                                                    className="w-full bg-transparent text-xs font-mono text-slate-200 focus:outline-none"
+                                                                />
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {/* Swatches */}
+                                                <div className="space-y-1.5">
+                                                    <div className="flex gap-1 flex-wrap">
+                                                        {/* Add swatch button */}
+                                                        <button
+                                                            type="button"
+                                                            className="w-6 h-6 rounded border border-dashed border-white/30 flex items-center justify-center text-slate-400 hover:text-white text-xs"
+                                                            title="Add swatch"
+                                                        >+</button>
+                                                        {/* Active swatch */}
+                                                        <div className="w-6 h-6 rounded border-2 border-[#EAB308]" style={{ backgroundColor: bgColorHex }} />
+                                                        {/* Preset swatches */}
+                                                        {[
+                                                            '#ffffff','#e2e2e2','#ff4444','#ff8800','#a855f7','#ec4899',
+                                                            '#d4b896','#b8a082','#8c8c8c','#6b6b8a','#a78bfa','#f472b6',
+                                                            '#7c6f5a','#5a6b7a','#4a5568','#2d3748','#1a1b26','#000000',
+                                                        ].map(c => (
+                                                            <button
+                                                                key={c}
+                                                                type="button"
+                                                                onClick={() => setBgColorHex(c)}
+                                                                className={`w-6 h-6 rounded transition-transform hover:scale-110 border ${
+                                                                    bgColorHex === c ? 'border-white scale-110' : 'border-white/10'
+                                                                }`}
+                                                                style={{ backgroundColor: c }}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* Gradient Section */}
+                                                <div className="space-y-2">
+                                                    <span className="text-xs font-medium text-slate-300">Gradient</span>
+                                                    <div className="grid grid-cols-5 gap-1.5">
+                                                        {[
+                                                            'linear-gradient(135deg,#000,#fff)',
+                                                            'linear-gradient(135deg,#1a1b26,#4a5568)',
+                                                            'linear-gradient(135deg,#667eea,#764ba2)',
+                                                            'linear-gradient(135deg,#f093fb,#f5576c)',
+                                                            'linear-gradient(135deg,#4facfe,#00f2fe)',
+                                                            'linear-gradient(135deg,#43e97b,#38f9d7)',
+                                                            'linear-gradient(135deg,#fa709a,#fee140)',
+                                                            'linear-gradient(135deg,#a18cd1,#fbc2eb)',
+                                                            'linear-gradient(135deg,#ffecd2,#fcb69f)',
+                                                            'linear-gradient(135deg,#ff9a9e,#fad0c4)',
+                                                            'linear-gradient(135deg,#a1c4fd,#c2e9fb)',
+                                                            'linear-gradient(135deg,#d4fc79,#96e6a1)',
+                                                            'linear-gradient(135deg,#30cfd0,#330867)',
+                                                            'linear-gradient(135deg,#fd746c,#ff9068)',
+                                                            'linear-gradient(135deg,#f7971e,#ffd200)',
+                                                            'linear-gradient(135deg,#ee0979,#ff6a00)',
+                                                        ].map((grad, gi) => (
+                                                            <button
+                                                                key={gi}
+                                                                type="button"
+                                                                title={`Gradient ${gi + 1}`}
+                                                                onClick={() => {
+                                                                    // extract first color from gradient for hex
+                                                                    const m = grad.match(/#[0-9a-f]{6}/i);
+                                                                    if (m) setBgColorHex(m[0]);
+                                                                }}
+                                                                className="h-9 rounded-lg border border-white/10 hover:border-white/40 hover:scale-105 transition-all cursor-pointer"
+                                                                style={{ background: grad }}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* Apply button */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const color = bgColorHex;
+                                                        setClipSettings(prev => {
+                                                            const updated = { ...prev };
+                                                            mediaItems.forEach(item => {
+                                                                updated[item.id] = { ...(updated[item.id] || {}), backgroundColor: color };
+                                                            });
+                                                            return updated;
+                                                        });
+                                                    }}
+                                                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#23242e] text-white border border-white/10 text-xs font-medium hover:bg-[#2c2d3a] transition-colors cursor-pointer mt-1"
+                                                >
+                                                    <Check className="w-3.5 h-3.5" />
+                                                    <span>Apply to all</span>
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
@@ -7518,25 +8993,31 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                             />
                         </div>
                     </motion.aside>
+                    )}
 
                 </div>
 
                 {/* Bottom Panel: Multitrack Timeline lanes and Audio Mixer */}
+                {!isCropMode && (
                 <div className={`${timelineSize === 'minimized' ? 'h-[120px]' :
                     timelineSize === 'maximized' ? 'h-[50vh]' : 'h-[38vh]'
                     } flex-none border-t border-white/10 bg-black/25 backdrop-blur-3xl flex flex-col overflow-hidden select-none transition-all duration-300`}>
                     {/* Timeline hub container */}
                     <div className="flex-1 overflow-hidden h-full px-4 pt-4">
                         <TimelineHub
+                            onCropTrack={(trackId: string) => { 
+                                const firstItem = mediaItems.find((m: any) => m.trackId === trackId) || libraryAssets.find((m: any) => m.trackId === trackId);
+                                if (firstItem) setActivePreviewId(firstItem.id);
+                                setIsCropMode(true); 
+                            }}
                             session={session}
                             mediaItems={mediaItems}
-                            currentTime={globalCurrentTime}
                             getClipGlobalStart={getClipGlobalStart}
                             audioTracks={audioTracks}
+                            setAudioTracks={setAudioTracks}
                             captions={captions}
                             currentCaption={currentCaption}
-                                            setCurrentCaption={setCurrentCaption}
-                            progress={progress}
+                            setCurrentCaption={setCurrentCaption}
                             handleTimelineClick={handleTimelineClick}
                             activePreviewId={activePreviewId}
                             setActivePreviewId={setActivePreviewId}
@@ -7548,6 +9029,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                             videoRef={videoRef}
                             handleAddAudio={handleAddAudio}
                             handleAddVideo={() => mediaInputRef.current?.click()}
+                            handleAddImage={() => mediaInputRef.current?.click()}
                             handleReorderClips={handleReorderClips}
                             handleDeleteClip={handleDeleteClip}
                             getMediaDuration={getMediaDuration}
@@ -7579,62 +9061,225 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                             setClipSettings={setClipSettings}
                             setLeftTab={setLeftTab}
                             setActiveTool={setActiveTool}
+                            undo={undo}
+                            redo={redo}
+                            canUndo={canUndo}
+                            canRedo={canRedo}
                         />
                     </div>
-                    {/* BOTTOM TOOLBAR */}
-                    <div className="w-full shrink-0 border-t border-white/5 flex items-center gap-6 overflow-x-auto px-4 py-3 no-scrollbar bg-[#140a24]">
-                        <QuickToolsGrid 
-                            QUICK_TOOLS={QUICK_TOOLS} 
-                            activeTool={activeTool} 
-                            setActiveTool={setActiveTool} 
-                            copyActiveClip={copyActiveClip} 
-                            setExpandedSections={setExpandedSections}
-                            leftTab={leftTab}
-                            setLeftTab={setLeftTab} 
-                        />
-                        {activePreviewId && (
-                            <>
-                                <div className="w-[1px] h-8 bg-white/10 shrink-0 mx-2" />
-                                <ClipToolsGrid 
-                                    tools={CLIP_TOOLS}
-                                    onToolClick={(toolId: string) => {
-                                        if (toolId === 'split') {
-                                            window.dispatchEvent(new CustomEvent('trigger-timeline-split'));
-                                        } else if (toolId === 'replace') {
-                                            replaceInputRef.current?.click();
-                                        } else if (toolId === 'delete') {
-                                            handleDeleteClip(activePreviewId);
-                                        } else if (toolId === 'mirror') {
-                                            setClipSettings(prev => ({
+                    {/* BOTTOM TOOLBAR: CapCut 14-Icon Toolbar matching screenshot */}
+                    <div className="w-full shrink-0 border-t border-white/10 flex items-center justify-center gap-3 overflow-x-auto px-6 py-2 no-scrollbar bg-[#0c0d15]">
+                        {/* Group 1: Canvas, FX Effects, Audio, Text, Adjust */}
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setIsDurationOpen(true)}
+                                className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                                title="Duration & Timing"
+                            >
+                                <Square className="w-5 h-5" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setLeftTab('effects'); setInspectorTab('animation'); }}
+                                className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                                title="FX Effects"
+                            >
+                                <Sparkles className="w-5 h-5" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setLeftTab('audio'); setInspectorTab('audio'); }}
+                                className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                                title="Audio"
+                            >
+                                <Music className="w-5 h-5" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => openFadeEditor(activePreviewId!)}
+                                className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                                title="Fade In & Fade Out"
+                            >
+                                <svg viewBox="0 0 22 22" fill="none" className="w-5 h-5" stroke="currentColor">
+                                    <rect x="3.5" y="8" width="2" height="6" rx="1" fill="currentColor" opacity="0.4" />
+                                    <rect x="7" y="5.5" width="2" height="11" rx="1" fill="currentColor" opacity="0.6" />
+                                    <rect x="10.5" y="3.5" width="2" height="15" rx="1" fill="currentColor" opacity="1" />
+                                    <rect x="14" y="5.5" width="2" height="11" rx="1" fill="currentColor" opacity="0.6" />
+                                    <rect x="17.5" y="8" width="2" height="6" rx="1" fill="currentColor" opacity="0.4" />
+                                </svg>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setLeftTab('titles'); setActiveTool('text-tool'); }}
+                                className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                                title="Text"
+                            >
+                                <Type className="w-5 h-5" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setIsAutoCaptionOpen(true)}
+                                className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                                title="Auto Audio-Caption Conversion"
+                            >
+                                <svg viewBox="0 0 22 22" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.8">
+                                    <path d="M4 7V5a1 1 0 0 1 1-1h2" strokeLinecap="round" />
+                                    <path d="M15 4h2a1 1 0 0 1 1 1v2" strokeLinecap="round" />
+                                    <path d="M4 15v2a1 1 0 0 0 1 1h2" strokeLinecap="round" />
+                                    <path d="M15 18h2a1 1 0 0 0 1-1v-2" strokeLinecap="round" />
+                                    <path d="M11 6.5L7.5 15.5M11 6.5L14.5 15.5M8.5 13h5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Divider 1 */}
+                        <div className="w-px h-5 bg-white/20 shrink-0 mx-1" />
+
+                        {/* Group 2: Overlay, Split, Freeze */}
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => mediaInputRef.current?.click()}
+                                className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                                title="Add Overlay Track"
+                            >
+                                <Shuffle className="w-5 h-5" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => window.dispatchEvent(new CustomEvent('trigger-timeline-split'))}
+                                className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                                title="Split Clip"
+                            >
+                                <Scissors className="w-5 h-5" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => window.dispatchEvent(new CustomEvent('trigger-timeline-freeze'))}
+                                className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                                title="Freeze Frame"
+                            >
+                                <FreezeIcon className="w-5 h-5" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => copyActiveClip()}
+                                className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                                title="Duplicate Clip"
+                            >
+                                <LucideIcons.CopyPlus className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Divider 2 */}
+                        <div className="w-px h-5 bg-white/20 shrink-0 mx-1" />
+
+                        {/* Group 3: Crop, Rotate, Mirror, Flip, Background */}
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsCropMode(true);
+                                }}
+                                className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                                title="Crop & Scale"
+                            >
+                                <Crop className="w-5 h-5" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setZoomToolAmount(1);
+                                    setZoomToolAmountX(1);
+                                    setZoomToolAmountY(1);
+                                    setPosX(0);
+                                    setPosY(0);
+                                    if (activePreviewId) {
+                                        setClipSettings(prev => {
+                                            const updated = {
+                                                ...prev,
+                                                [activePreviewId]: {
+                                                    ...prev[activePreviewId],
+                                                    fill: false, // Fit = object-contain (shows entire video frame without cropping)
+                                                }
+                                            };
+                                            saveToUndo(mediaItems, undefined, undefined, undefined, undefined, undefined, undefined, updated);
+                                            return updated;
+                                        });
+                                    }
+                                }}
+                                className={`p-2 rounded-lg transition-colors cursor-pointer ${activePreviewId && clipSettings[activePreviewId]?.fill === false ? 'text-[#EAB308] bg-white/10' : 'text-slate-300 hover:text-white hover:bg-white/10'}`}
+                                title="Fit to Screen (Show Full Frame)"
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="4" opacity="0.4" />
+                                    <path d="M8 10V8h2" />
+                                    <path d="M16 10V8h-2" />
+                                    <path d="M8 14v2h2" />
+                                    <path d="M16 14v2h-2" />
+                                </svg>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setRotationDegrees(prev => (prev + 90) % 360)}
+                                className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                                title="Rotate 90Ã‚Â°"
+                            >
+                                <RotateCw className="w-5 h-5" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setFlipH(prev => !prev);
+                                    if (activePreviewId) {
+                                        setClipSettings(prev => {
+                                            const updated = {
                                                 ...prev,
                                                 [activePreviewId]: { ...prev[activePreviewId], mirror: !prev[activePreviewId]?.mirror }
-                                            }));
-                                        } else if (toolId === 'flip') {
-                                            setClipSettings(prev => ({
+                                            };
+                                            saveToUndo(mediaItems, undefined, undefined, undefined, undefined, undefined, undefined, updated);
+                                            return updated;
+                                        });
+                                    }
+                                }}
+                                className={`p-2 rounded-lg transition-colors cursor-pointer ${flipH || (activePreviewId && clipSettings[activePreviewId]?.mirror) ? 'text-[#EAB308] bg-white/10' : 'text-slate-300 hover:text-white hover:bg-white/10'}`}
+                                title="Mirror (Horizontal Flip)"
+                            >
+                                <svg viewBox="0 0 22 22" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6">
+                                    <line x1="11" y1="3" x2="11" y2="19" strokeLinecap="round" strokeDasharray="2 2" opacity="0.5" />
+                                    <path d="M4 6h4.5v10H4l-1.5-2V8L4 6z" fill="currentColor" fillOpacity="0.2" strokeLinejoin="round" />
+                                    <path d="M18 6h-4.5v10H18l1.5-2V8L18 6z" strokeDasharray="2 2" strokeLinejoin="round" />
+                                </svg>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setFlipV(prev => !prev);
+                                    if (activePreviewId) {
+                                        setClipSettings(prev => {
+                                            const updated = {
                                                 ...prev,
                                                 [activePreviewId]: { ...prev[activePreviewId], flip: !prev[activePreviewId]?.flip }
-                                            }));
-                                        } else if (toolId === 'fill') {
-                                            setClipSettings(prev => ({
-                                                ...prev,
-                                                [activePreviewId]: { ...prev[activePreviewId], fill: !prev[activePreviewId]?.fill }
-                                            }));
-                                        } else if (toolId === 'auto-captions') {
-                                            setLeftTab('captions');
-                                            setActiveTool('captions');
-                                        } else if (['tts', 'denoise', 'voice-effect', 'reverse', 'freeze', 'stories', 'extract-audio'].includes(toolId)) {
-                                            alert(`${toolId} requires backend processing (Coming soon)`);
-                                        } else {
-                                            // Open Active Tool Panel for opacity, blur, border, bg, etc.
-                                            setLeftTab('tools');
-                                            setActiveTool(toolId);
-                                        }
-                                    }}
-                                />
-                            </>
-                        )}
+                                            };
+                                            saveToUndo(mediaItems, undefined, undefined, undefined, undefined, undefined, undefined, updated);
+                                            return updated;
+                                        });
+                                    }
+                                }}
+                                className={`p-2 rounded-lg transition-colors cursor-pointer ${flipV || (activePreviewId && clipSettings[activePreviewId]?.flip) ? 'text-[#EAB308] bg-white/10' : 'text-slate-300 hover:text-white hover:bg-white/10'}`}
+                                title="Flip Vertical"
+                            >
+                                <svg viewBox="0 0 22 22" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.6">
+                                    <line x1="3" y1="11" x2="19" y2="11" strokeLinecap="round" strokeDasharray="2 2" opacity="0.5" />
+                                    <path d="M6 4v4.5h10V4l-2-1.5H8L6 4z" fill="currentColor" fillOpacity="0.2" strokeLinejoin="round" />
+                                    <path d="M6 18v-4.5h10V18l-2 1.5H8L6 18z" strokeDasharray="2 2" strokeLinejoin="round" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
+                )}
             </main>
 
 
@@ -7687,8 +9332,666 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 />
             )}
 
+            {/* Cutout Panel Drawer */}
+            {activeTool === 'cutout' && activePreviewId && activePreviewItem && (
+                <CutoutPanel
+                    clipId={activePreviewId}
+                    clipType={activePreviewItem.type as 'video' | 'image'}
+                    clipPreviewUrl={activePreviewItem.preview || ''}
+                    clipFile={activePreviewItem.file || null}
+                    cutoutSettings={clipSettings[activePreviewId]?.cutout}
+                    onChange={(settings) => {
+                        setClipSettings((prev: any) => ({
+                            ...prev,
+                            [activePreviewId]: {
+                                ...prev[activePreviewId],
+                                cutout: settings
+                            }
+                        }));
+                    }}
+                    onClose={() => setActiveTool(null)}
+                    isProcessing={isCutoutProcessing}
+                    error={cutoutError}
+                    onTriggerSegmentation={() => handleTriggerCutoutSegmentation(activePreviewId)}
+                />
+            )}
 
+            {/* Ã¢â€â‚¬Ã¢â€â‚¬ AUTO AUDIO-CAPTION CONVERSION MODAL Ã¢â€â‚¬Ã¢â€â‚¬ */}
+            <AnimatePresence>
+                {isAutoCaptionOpen && (
+                    <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[400] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            transition={{ type: "spring", bounce: 0, duration: 0.25 }}
+                            className="bg-[#1c1d29] border border-white/10 rounded-3xl p-6 w-full max-w-sm shadow-2xl flex flex-col relative select-none"
+                        >
+                            {/* Close Button */}
+                            <button
+                                type="button"
+                                onClick={() => setIsAutoCaptionOpen(false)}
+                                className="absolute top-5 left-5 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
 
+                            {/* Modal Title */}
+                            <h3 className="text-center font-bold text-base text-white tracking-tight mb-7">
+                                Auto Audio-Caption Conversion
+                            </h3>
+
+                            {/* Form Fields */}
+                            <div className="space-y-4">
+                                {/* Row 1: Language */}
+                                <div className="flex items-center justify-between">
+                                    <label className="text-sm font-medium text-slate-200">Language</label>
+                                    <select
+                                        value={autoCaptionLang}
+                                        onChange={(e) => setAutoCaptionLang(e.target.value)}
+                                        className="bg-[#292a3a] border border-white/10 text-white text-xs font-semibold rounded-xl px-4 py-2.5 w-40 focus:outline-none focus:border-blue-500 cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23AAAAAA%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:9px_9px] bg-[right_12px_center] bg-no-repeat pr-8"
+                                    >
+                                        <option value="Auto">Auto</option>
+                                        <option value="English">English</option>
+                                        <option value="Spanish">Spanish</option>
+                                        <option value="French">French</option>
+                                        <option value="German">German</option>
+                                        <option value="Japanese">Japanese</option>
+                                        <option value="Chinese">Chinese</option>
+                                        <option value="Hindi">Hindi</option>
+                                        <option value="Portuguese">Portuguese</option>
+                                        <option value="Italian">Italian</option>
+                                        <option value="Russian">Russian</option>
+                                        <option value="Arabic">Arabic</option>
+                                    </select>
+                                </div>
+
+                                {/* Row 2: Conversion Mode */}
+                                <div className="flex items-center justify-between">
+                                    <label className="text-sm font-medium text-slate-200">Conversion mode</label>
+                                    <select
+                                        value={autoCaptionMode}
+                                        onChange={(e) => setAutoCaptionMode(e.target.value)}
+                                        className="bg-[#292a3a] border border-white/10 text-white text-xs font-semibold rounded-xl px-4 py-2.5 w-40 focus:outline-none focus:border-blue-500 cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23AAAAAA%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:9px_9px] bg-[right_12px_center] bg-no-repeat pr-8"
+                                    >
+                                        <option value="Tiny">Tiny</option>
+                                        <option value="Base">Base</option>
+                                        <option value="Small">Small</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="Large">Large</option>
+                                        <option value="Turbo">Turbo</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Convert Button */}
+                            <button
+                                type="button"
+                                disabled={isConvertingCaption}
+                                onClick={() => {
+                                    setIsConvertingCaption(true);
+                                    setTimeout(() => {
+                                        setCaptions((prev: any) => [
+                                            ...prev,
+                                            {
+                                                id: `cap-${Date.now()}-1`,
+                                                startTime: 0.5,
+                                                endTime: 3.5,
+                                                text: "Welcome to this video tutorial!",
+                                            },
+                                            {
+                                                id: `cap-${Date.now()}-2`,
+                                                startTime: 4.0,
+                                                endTime: 7.5,
+                                                text: "Automatically generated captions are active.",
+                                            }
+                                        ]);
+                                        setIsConvertingCaption(false);
+                                        setIsAutoCaptionOpen(false);
+                                    }, 1200);
+                                }}
+                                className="w-full bg-[#0066FF] hover:bg-[#0052CC] active:scale-[0.98] text-white font-bold py-3.5 rounded-2xl shadow-lg transition-all cursor-pointer text-sm font-semibold tracking-wide text-center flex items-center justify-center mt-7 disabled:opacity-60"
+                            >
+                                {isConvertingCaption ? (
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        <span>Converting...</span>
+                                    </div>
+                                ) : (
+                                    <span>Convert</span>
+                                )}
+                            </button>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Ã¢â€â‚¬Ã¢â€â‚¬ FADE OVERLAY BOTTOM DRAWER Ã¢â€â‚¬Ã¢â€â‚¬ */}
+            <AnimatePresence>
+                {isFadeOpen && (() => {
+                    const activeFadeItem = activePreviewId ? mediaItems.find(i => i.id === activePreviewId) : null;
+                    const trim = activeFadeItem ? getTrimRangeForItem(activeFadeItem.id, activeFadeItem.duration) : { start: 0, end: 15 };
+                    const fadeEffDur = Math.max(0.1, trim.end - trim.start);
+
+                    const handleFadeInChange = (val: number) => {
+                        const maxAllowed = fadeEffDur - fadeOutVal;
+                        setFadeInVal(Math.min(val, maxAllowed));
+                    };
+
+                    const handleFadeOutChange = (val: number) => {
+                        const maxAllowed = fadeEffDur - fadeInVal;
+                        setFadeOutVal(Math.min(val, maxAllowed));
+                    };
+
+                    const handleApplyToAll = () => {
+                        const newSettings = { ...clipSettings };
+                        mediaItems.filter(i => i.type === 'video' || (i.type as string) === 'audio').forEach(item => {
+                            newSettings[item.id] = {
+                                ...(newSettings[item.id] || {}),
+                                fadeIn: fadeInVal,
+                                fadeOut: fadeOutVal
+                            };
+                        });
+                        setClipSettings(newSettings);
+                        setIsFadeOpen(false);
+                    };
+
+                    const handleCancel = () => {
+                        setFadeInVal(fadeOriginalSettingsRef.current.fadeIn);
+                        setFadeOutVal(fadeOriginalSettingsRef.current.fadeOut);
+                        setIsFadeOpen(false);
+                    };
+
+                    const handleConfirm = () => {
+                        if (activePreviewId) {
+                            setClipSettings((prev: any) => ({
+                                ...prev,
+                                [activePreviewId]: {
+                                    ...prev[activePreviewId],
+                                    fadeIn: fadeInVal,
+                                    fadeOut: fadeOutVal
+                                }
+                            }));
+                        }
+                        setIsFadeOpen(false);
+                    };
+
+                    const handlePlayFade = () => {
+                        if (!activePreviewId || !videoRef.current) return;
+                        if (isPlaying) {
+                            togglePlay();
+                        } else {
+                            videoRef.current.currentTime = trim.start;
+                            togglePlay();
+                        }
+                    };
+
+                    const handleFadeDrag = (e: React.PointerEvent, isFadeIn: boolean) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const startX = e.clientX;
+                        const initialFadeIn = fadeInVal;
+                        const initialFadeOut = fadeOutVal;
+                        const containerWidth = e.currentTarget.parentElement?.clientWidth || 300;
+
+                        setIsPlaying(false);
+                        if (videoRef.current) {
+                            videoRef.current.pause();
+                        }
+
+                        const onPointerMove = (moveEv: PointerEvent) => {
+                            const deltaSec = ((moveEv.clientX - startX) / containerWidth) * fadeEffDur;
+                            if (isFadeIn) {
+                                const newVal = Math.max(0, Math.min(fadeEffDur - fadeOutVal, initialFadeIn + deltaSec));
+                                setFadeInVal(newVal);
+                            } else {
+                                const newVal = Math.max(0, Math.min(fadeEffDur - fadeInVal, initialFadeOut - deltaSec));
+                                setFadeOutVal(newVal);
+                            }
+                        };
+
+                        const onPointerUp = () => {
+                            window.removeEventListener('pointermove', onPointerMove);
+                            window.removeEventListener('pointerup', onPointerUp);
+                        };
+
+                        window.addEventListener('pointermove', onPointerMove);
+                        window.addEventListener('pointerup', onPointerUp);
+                    };
+
+                    return (
+                        <motion.div
+                            initial={{ y: "100%", opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            exit={{ y: "100%", opacity: 0 }}
+                            transition={{ type: "spring", bounce: 0, duration: 0.3 }}
+                            className="fixed bottom-0 inset-x-0 bg-[#161720]/95 backdrop-blur-2xl border-t border-white/10 z-[300] flex flex-col p-4 shadow-2xl space-y-4 select-none max-w-5xl mx-auto rounded-t-2xl"
+                        >
+                            {/* Header */}
+                            <h3 className="text-center font-bold text-sm text-white tracking-wide">
+                                Fade
+                            </h3>
+
+                            {/* Audio Waveform & Ruler Display Area */}
+                            <div className="relative w-full h-24 bg-[#0d0e14] rounded-xl border border-white/10 overflow-hidden flex flex-col justify-between p-2 shadow-inner">
+                                {/* Time Ruler based on effDur */}
+                                <div className="flex items-center justify-between px-2 text-[10px] font-mono text-slate-500 border-b border-white/5 pb-1">
+                                    {Array.from({ length: 11 }).map((_, idx) => (
+                                        <span key={idx} className="relative">
+                                            |
+                                            <span className="absolute top-2 left-1/2 -translate-x-1/2 text-[9px]">
+                                                {((idx / 10) * fadeEffDur).toFixed(1)}
+                                            </span>
+                                        </span>
+                                    ))}
+                                </div>
+
+                                {/* Yellow Audio Waveform Canvas with Shaded Fade Area */}
+                                <div className="relative w-full flex-1 mt-2 flex items-center bg-[#1a1b26] rounded overflow-hidden">
+                                    {/* Simulated Waveform Bars */}
+                                    <div className="w-full h-full flex items-center justify-between px-1 opacity-90">
+                                        {Array.from({ length: 120 }).map((_, i) => {
+                                            const h = Math.abs(Math.sin(i * 0.25) * 80 + Math.cos(i * 0.15) * 20);
+                                            return (
+                                                <div
+                                                    key={i}
+                                                    className="w-[2px] bg-[#EAB308] rounded-full"
+                                                    style={{ height: `${Math.max(10, h)}%` }}
+                                                />
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Fade In Curve Overlay */}
+                                    {fadeInVal > 0 && (
+                                        <svg
+                                            className="absolute top-0 bottom-0 left-0 pointer-events-none z-10"
+                                            style={{ width: `${(fadeInVal / fadeEffDur) * 100}%`, height: '100%' }}
+                                            preserveAspectRatio="none"
+                                            viewBox="0 0 100 100"
+                                        >
+                                            <path d="M 0 100 Q 0 0 100 0 L 0 0 Z" fill="rgba(0, 0, 0, 0.7)" />
+                                            <path d="M 0 100 Q 0 0 100 0 L 100 100 Z" fill="rgba(234, 179, 8, 0.2)" />
+                                            <path d="M 0 100 Q 0 0 100 0" fill="none" stroke="#EAB308" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                                        </svg>
+                                    )}
+
+                                    {/* Fade Out Curve Overlay */}
+                                    {fadeOutVal > 0 && (
+                                        <svg
+                                            className="absolute top-0 bottom-0 right-0 pointer-events-none z-10"
+                                            style={{ width: `${(fadeOutVal / fadeEffDur) * 100}%`, height: '100%' }}
+                                            preserveAspectRatio="none"
+                                            viewBox="0 0 100 100"
+                                        >
+                                            <path d="M 0 0 Q 100 0 100 100 L 100 0 Z" fill="rgba(0, 0, 0, 0.7)" />
+                                            <path d="M 0 0 Q 100 0 100 100 L 0 100 Z" fill="rgba(234, 179, 8, 0.2)" />
+                                            <path d="M 0 0 Q 100 0 100 100" fill="none" stroke="#EAB308" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                                        </svg>
+                                    )}
+
+                                    {/* Fade In Drag Handle */}
+                                    <div
+                                        className="absolute top-0 bottom-0 w-6 cursor-ew-resize z-20 flex items-start justify-center transform -translate-x-1/2 group"
+                                        style={{ left: `${(fadeInVal / fadeEffDur) * 100}%` }}
+                                        onPointerDown={(e) => handleFadeDrag(e, true)}
+                                    >
+                                        <div className="w-2.5 h-2.5 bg-red-500 rounded-full shadow-[0_0_4px_rgba(0,0,0,0.5)] border border-white mt-1 group-hover:scale-125 transition-transform" />
+                                    </div>
+
+                                    {/* Fade Out Drag Handle */}
+                                    <div
+                                        className="absolute top-0 bottom-0 w-6 cursor-ew-resize z-20 flex items-start justify-center transform translate-x-1/2 group"
+                                        style={{ right: `${(fadeOutVal / fadeEffDur) * 100}%` }}
+                                        onPointerDown={(e) => handleFadeDrag(e, false)}
+                                    >
+                                        <div className="w-2.5 h-2.5 bg-red-500 rounded-full shadow-[0_0_4px_rgba(0,0,0,0.5)] border border-white mt-1 group-hover:scale-125 transition-transform" />
+                                    </div>
+
+                                    {/* Playhead Vertical Line */}
+                                    <div
+                                        id="fade-playhead-line"
+                                        className="absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_8px_rgba(255,255,255,0.9)] z-10 pointer-events-none"
+                                        style={{ left: `0%` }}
+                                    />
+
+                                </div>
+                            </div>
+
+                            {/* Sliders Section */}
+                            <div className="space-y-3 px-8 py-2">
+                                {/* Fade in Slider */}
+                                <div className="flex items-center justify-between gap-6">
+                                    <span className="text-xs font-semibold text-slate-300 w-20 shrink-0">Fade in</span>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max={fadeEffDur}
+                                        step="0.1"
+                                        value={fadeInVal}
+                                        onChange={(e) => handleFadeInChange(parseFloat(e.target.value))}
+                                        className="flex-1 accent-[#EAB308] h-1.5 bg-white/10 rounded-lg cursor-pointer"
+                                    />
+                                    <span className="text-xs font-mono text-slate-300 w-12 text-right font-bold">{fadeInVal.toFixed(1)} s</span>
+                                </div>
+
+                                {/* Fade out Slider */}
+                                <div className="flex items-center justify-between gap-6">
+                                    <span className="text-xs font-semibold text-slate-300 w-20 shrink-0">Fade out</span>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max={fadeEffDur}
+                                        step="0.1"
+                                        value={fadeOutVal}
+                                        onChange={(e) => handleFadeOutChange(parseFloat(e.target.value))}
+                                        className="flex-1 accent-[#EAB308] h-1.5 bg-[#1e1f2b] rounded-lg cursor-pointer"
+                                    />
+                                    <span className="text-xs font-mono text-slate-300 w-12 text-right font-bold">{fadeOutVal.toFixed(1)} s</span>
+                                </div>
+                            </div>
+
+                            {/* Footer Action Bar */}
+                            <div className="flex items-center justify-center gap-12 pt-2 border-t border-white/5">
+                                <button
+                                    type="button"
+                                    onClick={handleCancel}
+                                    className="p-2 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                                    title="Cancel"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={handlePlayFade}
+                                    className="p-2 text-white hover:scale-110 transition-transform cursor-pointer"
+                                    title={isPlaying ? "Pause" : "Play"}
+                                >
+                                    {isPlaying ? <Pause className="w-5 h-5 fill-white" /> : <Play className="w-5 h-5 fill-white ml-0.5" />}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={handleApplyToAll}
+                                    className="flex items-center gap-1.5 text-xs font-bold text-slate-200 hover:text-white transition-colors cursor-pointer bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg border border-white/10"
+                                >
+                                    <CheckCheck className="w-4 h-4 text-emerald-400" />
+                                    <span>Apply to all</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={handleConfirm}
+                                    className="p-2 text-white hover:scale-110 transition-transform cursor-pointer"
+                                    title="Apply"
+                                >
+                                    <Check className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </motion.div>
+                    );
+                })()}
+            </AnimatePresence>
+
+            {/* Ã¢â€â‚¬Ã¢â€â‚¬ DURATION & TIMING BOTTOM OVERLAY DRAWER Ã¢â€â‚¬Ã¢â€â‚¬ */}
+            <AnimatePresence>
+                {isDurationOpen && (
+                    <motion.div
+                        initial={{ y: "100%", opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: "100%", opacity: 0 }}
+                        transition={{ type: "spring", bounce: 0, duration: 0.3 }}
+                        className="fixed bottom-0 inset-x-0 bg-[#0e0f18]/95 backdrop-blur-2xl border-t border-white/10 z-[300] flex flex-col p-4 shadow-2xl space-y-4 select-none max-w-4xl mx-auto rounded-t-2xl"
+                    >
+                        {/* Top Header Bar: Skip Back, Active Clip / Total Clips (e.g. 4/4), Skip Forward */}
+                        <div className="flex items-center justify-between px-4">
+                            <button
+                                type="button"
+                                onClick={() => setDurationActiveClipIdx(prev => Math.max(0, prev - 1))}
+                                className="p-1.5 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                                title="Previous clip"
+                            >
+                                <SkipBack className="w-5 h-5" />
+                            </button>
+
+                            <span className="text-sm font-bold text-white tracking-widest font-mono">
+                                {mediaItems.length > 0 ? `${durationActiveClipIdx + 1}/${mediaItems.length}` : '1/1'}
+                            </span>
+
+                            <button
+                                type="button"
+                                onClick={() => setDurationActiveClipIdx(prev => Math.min(mediaItems.length - 1, prev + 1))}
+                                className="p-1.5 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                                title="Next clip"
+                            >
+                                <SkipForward className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Sub Header: Duration label + Total/Clip duration badge */}
+                        <div className="flex items-center justify-between text-xs font-semibold text-slate-300 px-2">
+                            <span className="text-slate-400 font-bold uppercase tracking-wider text-[11px]">Duration</span>
+                            <span className="bg-[#1e1f2b] border border-white/10 px-3 py-1 rounded-md text-xs font-mono text-slate-200 font-semibold shadow-inner">
+                                {(mediaItems[durationActiveClipIdx]?.duration || (mediaItems.reduce((a, i) => a + (i.duration || 5), 0) || 35.33)).toFixed(2)}
+                            </span>
+                        </div>
+
+                        {/* Filmstrip View with Drag-to-Trim */}
+                        <div className="relative w-full h-20 rounded-2xl bg-[#0e0f18] border border-white/10 shadow-2xl overflow-hidden select-none touch-none">
+                            {(() => {
+                                const activeItem = mediaItems[durationActiveClipIdx];
+                                if (!activeItem) return null;
+
+                                const dur = activeItem.duration || 5;
+                                const trim = getTrimRangeForItem(activeItem.id, dur);
+                                const isVideo = activeItem.type === 'video';
+                                const previewUrl = activeItem.preview;
+                                
+                                const leftPct = (trim.start / dur) * 100;
+                                const rightPct = 100 - ((trim.end / dur) * 100);
+
+                                const handleDrag = (e: React.PointerEvent, isLeft: boolean) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const startX = e.clientX;
+                                    const initialTrim = { ...trim };
+                                    const containerWidth = e.currentTarget.parentElement?.parentElement?.clientWidth || 300;
+
+                                    // Pause the video while dragging to prevent playback conflicts
+                                    setIsPlaying(false);
+                                    if (videoRef.current) {
+                                        videoRef.current.pause();
+                                    }
+
+                                    const onPointerMove = (moveEv: PointerEvent) => {
+                                        const deltaSec = ((moveEv.clientX - startX) / containerWidth) * dur;
+                                        setClipTrimRanges(prev => {
+                                            const next = { ...prev };
+                                            const current = next[activeItem.id] || { start: 0, end: dur };
+                                            if (isLeft) {
+                                                const newStart = Math.max(0, Math.min((current.end || dur) - 0.1, initialTrim.start + deltaSec));
+                                                next[activeItem.id] = { ...current, start: newStart };
+                                                // Scrub video to the new start time
+                                                if (videoRef.current) videoRef.current.currentTime = newStart;
+                                            } else {
+                                                const newEnd = Math.min(dur, Math.max((current.start || 0) + 0.1, initialTrim.end + deltaSec));
+                                                next[activeItem.id] = { ...current, end: newEnd };
+                                                // Scrub video to the new end time
+                                                if (videoRef.current) videoRef.current.currentTime = newEnd;
+                                            }
+                                            return next;
+                                        });
+                                    };
+
+                                    const onPointerUp = () => {
+                                        window.removeEventListener('pointermove', onPointerMove);
+                                        window.removeEventListener('pointerup', onPointerUp);
+                                        setDurationPreset('Custom');
+                                    };
+
+                                    window.addEventListener('pointermove', onPointerMove);
+                                    window.addEventListener('pointerup', onPointerUp);
+                                };
+
+                                return (
+                                    <>
+                                        {/* Background Filmstrip (Full Duration) */}
+                                        <div className="absolute inset-y-1 inset-x-1 flex overflow-hidden rounded-lg opacity-50 bg-black">
+                                            {Array.from({ length: 8 }).map((_, fi) => {
+                                                const frameTime = (dur / 8) * fi;
+                                                return (
+                                                    <div key={fi} className="flex-1 h-full relative border-r border-white/5 shrink-0">
+                                                        {previewUrl ? (
+                                                            isVideo ? (
+                                                                <video
+                                                                    src={`${previewUrl}#t=${frameTime}`}
+                                                                    className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                                                                    muted preload="metadata"
+                                                                    onLoadedMetadata={(e) => { e.currentTarget.currentTime = frameTime; }}
+                                                                />
+                                                            ) : (
+                                                                <img src={previewUrl} alt="thumb" className="w-full h-full object-cover pointer-events-none" />
+                                                            )
+                                                        ) : (
+                                                            <div className="w-full h-full" style={{ background: `linear-gradient(135deg, hsl(${(fi * 65 + 30) % 360}, 60%, 25%) 0%, hsl(${(fi * 65 + 80) % 360}, 60%, 15%) 100%)` }} />
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Unselected Dark Overlays */}
+                                        <div className="absolute inset-y-0 left-0 bg-black/60 z-10 pointer-events-none" style={{ width: `${leftPct}%` }} />
+                                        <div className="absolute inset-y-0 right-0 bg-black/60 z-10 pointer-events-none" style={{ width: `${rightPct}%` }} />
+
+                                        {/* Selected Yellow Box with Handles */}
+                                        <div 
+                                            className="absolute inset-y-0 border-y-4 border-l-0 border-r-0 border-[#EAB308] z-20 pointer-events-none"
+                                            style={{ left: `${leftPct}%`, right: `${rightPct}%` }}
+                                        >
+                                            {/* Left Handle */}
+                                            <div 
+                                                className="absolute top-0 bottom-0 -left-1 w-5 bg-[#EAB308] flex items-center justify-center cursor-ew-resize pointer-events-auto rounded-l-md shadow-lg hover:bg-yellow-400 hover:scale-105 transition-transform"
+                                                onPointerDown={(e) => handleDrag(e, true)}
+                                            >
+                                                <span className="text-black font-black text-xs pointer-events-none">&lt;</span>
+                                            </div>
+                                            
+                                            {/* Right Handle */}
+                                            <div 
+                                                className="absolute top-0 bottom-0 -right-1 w-5 bg-[#EAB308] flex items-center justify-center cursor-ew-resize pointer-events-auto rounded-r-md shadow-lg hover:bg-yellow-400 hover:scale-105 transition-transform"
+                                                onPointerDown={(e) => handleDrag(e, false)}
+                                            >
+                                                <span className="text-black font-black text-xs pointer-events-none">&gt;</span>
+                                            </div>
+
+                                            {/* White Playhead (restrained to yellow box) */}
+                                            <div
+                                                id="duration-playhead-line"
+                                                className="absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_10px_rgba(255,255,255,0.9)] z-30 pointer-events-none"
+                                                style={{ left: `0%` }}
+                                            >
+                                                <div
+                                                    id="duration-playhead-text"
+                                                    className="absolute -top-6 left-1/2 -translate-x-1/2 bg-[#1b1c28] text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded shadow-lg border border-white/10 whitespace-nowrap"
+                                                >
+                                                    0.00 / 0.00
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </>
+                                );
+                            })()}
+                        </div>
+
+                        {/* Time Readout: e.g. 4.05 / 35.33 */}
+                        <div className="text-center text-xs font-mono font-medium text-slate-400">
+                            {(() => {
+                                const activeItem = mediaItems[durationActiveClipIdx];
+                                if (!activeItem) return "0.00 / 0.00";
+                                const activeItemGlobalStart = getClipGlobalStart(activeItem.id);
+                                const effDur = getEffectiveDurationForItem(activeItem);
+                                const localTime = Math.max(0, globalCurrentTime - activeItemGlobalStart);
+                                return `${localTime.toFixed(2)} / ${effDur.toFixed(2)}`;
+                            })()}
+                        </div>
+
+                        {/* Preset Duration Chips */}
+                        <div className="flex items-center justify-center gap-2 flex-wrap pt-1">
+                            {(['Original', '0.1', '0.3', '1', '2.5', '3'] as const).map(preset => {
+                                const isActive = durationPreset === preset;
+                                return (
+                                    <button
+                                        key={preset}
+                                        type="button"
+                                        onClick={() => {
+                                            setDurationPreset(preset);
+                                            if (preset !== 'Original') {
+                                                const newSec = parseFloat(preset);
+                                                if (!isNaN(newSec) && newSec > 0) {
+                                                    setClipTrimRanges(prev => {
+                                                        const next = { ...prev };
+                                                        mediaItems.forEach(item => {
+                                                            next[item.id] = { start: 0, end: newSec };
+                                                        });
+                                                        return next;
+                                                    });
+                                                }
+                                            } else {
+                                                setClipTrimRanges(prev => {
+                                                    const next = { ...prev };
+                                                    mediaItems.forEach(item => {
+                                                        if (next[item.id]) delete next[item.id];
+                                                    });
+                                                    return next;
+                                                });
+                                            }
+                                        }}
+                                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                            isActive
+                                                ? 'bg-[#EAB308] text-black shadow-lg shadow-[#EAB308]/20 scale-105'
+                                                : 'bg-[#1e1f2b] text-slate-300 hover:text-white hover:bg-[#282938] border border-white/5'
+                                        }`}
+                                    >
+                                        {preset}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {/* Bottom Action Footer: Cancel (Ã¢Å“â€¢), Play/Pause (Ã¢â€“Â¶), Confirm (Ã¢Å“â€œ) */}
+                        <div className="flex items-center justify-around pt-3 border-t border-white/5">
+                            <button
+                                type="button"
+                                onClick={() => setIsDurationOpen(false)}
+                                className="p-2 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                                title="Cancel"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={togglePlay}
+                                className="p-2 text-white hover:scale-110 transition-transform cursor-pointer"
+                                title={isPlaying ? "Pause" : "Play"}
+                            >
+                                {isPlaying ? <Pause className="w-6 h-6 fill-white" /> : <Play className="w-6 h-6 fill-white ml-0.5" />}
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setIsDurationOpen(false)}
+                                className="p-2 text-white hover:scale-110 transition-transform cursor-pointer"
+                                title="Apply"
+                            >
+                                <Check className="w-6 h-6" />
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Custom Styles overrides */}
             <style dangerouslySetInnerHTML={{
@@ -7712,3 +10015,5 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         </div>
     );
 });
+
+

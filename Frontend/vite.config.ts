@@ -15,6 +15,7 @@ export default defineConfig({
   plugins: [
     react({
       babel: {
+        compact: false,
         presets: [
           ["@babel/preset-react", { runtime: "automatic" }],
           "@babel/preset-typescript",
@@ -33,7 +34,7 @@ export default defineConfig({
         icons: [],
       },
       workbox: {
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        maximumFileSizeToCacheInBytes: 30 * 1024 * 1024,
       },
     }),
   ],

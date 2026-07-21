@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { VideoTimelineEditor } from "./video-timeline-editor";
-import { Timeline } from "../../../components/VideoEditor/Timeline";
+import { Timeline, PreviewPlayer } from "../../../components/VideoEditor/Timeline";
 import { ToolboxPanel } from "./toolbox-panel";
 import { MediaPool } from "./media-pool";
 

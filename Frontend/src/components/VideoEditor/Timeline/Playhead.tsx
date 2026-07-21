@@ -7,7 +7,7 @@ export const Playhead: React.FC = () => {
   const playheadRef = useRef<HTMLDivElement>(null);
   
   const lastTimeRef = useRef<number>(0);
-  const reqRef = useRef<number>();
+  const reqRef = useRef<number | undefined>(undefined);
 
   // Subscribe to playhead changes manually to avoid React re-renders
   useEffect(() => {
