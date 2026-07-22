@@ -482,6 +482,18 @@ const QuickToolsGrid = memo(({ QUICK_TOOLS, activeTool, setActiveTool, copyActiv
                             window.dispatchEvent(new CustomEvent('trigger-timeline-freeze'));
                             return;
                         }
+                        if (tool.id === 'canvas' || tool.id === 'bg') {
+                            setInspectorTab('bg');
+                            setLeftTab('frames');
+                            setIsMediaPoolVisible(true);
+                            return;
+                        }
+                        if (tool.id === 'effects' || tool.id === 'animation') {
+                            setLeftTab('effects');
+                            setInspectorTab('animation');
+                            setIsMediaPoolVisible(true);
+                            return;
+                        }
                         setLeftTab(tool.id);
                         if (tool.id === 'titles') {
                             setActiveTool('text-tool');
@@ -1261,7 +1273,7 @@ const ToolInspector = memo(({
                     {activePreviewItem?.type === 'video' ? (
                         <div className="space-y-3">
                             <div className="text-[8px] font-bold uppercase tracking-widest text-slate-400">
-                                Duration: {activePreviewItem.duration.toFixed(2)}s
+                                Duration: {(activePreviewItem.duration || 0).toFixed(2)}s
                             </div>
                             <div>
                                 <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-widest text-slate-300 mb-0.5">
@@ -1271,31 +1283,27 @@ const ToolInspector = memo(({
                                 <input
                                     type="range"
                                     min={0}
-                                    max={Math.max(0, activePreviewItem.duration - 0.01)}
+                                    max={Math.max(0, (activePreviewItem.duration || 0) - 0.01)}
                                     step={0.01}
                                     value={getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0).start}
                                     onChange={(e) => {
-                                        const nextStart = Number(e.target.value);
+                                        const val = Number(e.target.value);
                                         const current = getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0);
-                                        const safeEnd = Math.max(nextStart + 0.01, current.end);
+                                        const safeEnd = Math.max(val + 0.01, current.end);
                                         setClipTrimRanges((prev: any) => ({
                                             ...prev,
                                             [activePreviewItem.id]: {
-                                                start: nextStart,
-                                                end: Math.min(activePreviewItem.duration, safeEnd),
-                                            },
+                                                start: val,
+                                                end: Math.min((activePreviewItem.duration || 0), safeEnd),
+                                            }
                                         }));
                                         if (videoRef.current) {
-                                            videoRef.current.currentTime = nextStart;
+                                            videoRef.current.currentTime = val;
                                         }
                                     }}
-                                    onMouseUp={() => {
-                                        saveToUndo(mediaItems, undefined, clipTrimRanges);
-                                    }}
-                                    className="w-full accent-purple-400"
+                                    className="w-full accent-purple-500 h-1 bg-white/10 rounded-full appearance-none"
                                 />
                             </div>
-
                             <div>
                                 <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-widest text-slate-300 mb-0.5">
                                     <span>End</span>
@@ -1303,36 +1311,35 @@ const ToolInspector = memo(({
                                 </div>
                                 <input
                                     type="range"
-                                    min={0.01}
-                                    max={activePreviewItem.duration}
+                                    min={0}
+                                    max={(activePreviewItem.duration || 0)}
                                     step={0.01}
                                     value={getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0).end}
                                     onChange={(e) => {
-                                        const nextEnd = Number(e.target.value);
+                                        const val = Number(e.target.value);
                                         const current = getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0);
+                                        const safeStart = Math.min(val - 0.01, current.start);
                                         setClipTrimRanges((prev: any) => ({
                                             ...prev,
                                             [activePreviewItem.id]: {
-                                                start: current.start,
-                                                end: Math.max(current.start + 0.01, nextEnd),
-                                            },
+                                                start: safeStart,
+                                                end: val,
+                                            }
                                         }));
+                                        if (videoRef.current) {
+                                            videoRef.current.currentTime = val;
+                                        }
                                     }}
-                                    onMouseUp={() => {
-                                        saveToUndo(mediaItems, undefined, clipTrimRanges);
-                                    }}
-                                    className="w-full accent-purple-400"
+                                    className="w-full accent-purple-500 h-1 bg-white/10 rounded-full appearance-none"
                                 />
                             </div>
                             <button
                                 onClick={() => {
                                     if (activePreviewItem) {
-                                        const updatedTrim = {
-                                            ...clipTrimRanges,
-                                            [activePreviewItem.id]: { start: 0, end: activePreviewItem.duration }
-                                        };
-                                        setClipTrimRanges(updatedTrim);
-                                        saveToUndo(mediaItems, undefined, updatedTrim);
+                                        setClipTrimRanges((prev: any) => ({
+                                            ...prev,
+                                            [activePreviewItem.id]: { start: 0, end: (activePreviewItem.duration || 0) }
+                                        }));
                                     }
                                 }}
                                 className="w-full py-1.5 rounded bg-white/5 border border-white/10 text-slate-300 text-[8px] font-black uppercase hover:bg-white/10"
@@ -1676,10 +1683,10 @@ const ToolInspector = memo(({
                                 { id: 'animation', icon: <LucideIcons.Play className="w-4 h-4" strokeWidth={1.5} /> }
                             ].map((tab) => (
                                 <button
-                                    key={tab.id}
-                                    onClick={() => setTextSubTab(tab.id as any)}
+                                    key={tab?.id}
+                                    onClick={() => setTextSubTab(tab?.id as any)}
                                     className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${
-                                        textSubTab === tab.id
+                                        textSubTab === tab?.id
                                             ? 'bg-white/10 text-white'
                                             : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
                                     }`}
@@ -2243,9 +2250,9 @@ const ToolInspector = memo(({
                                         .filter((cap: any) => !cap.clipId || cap.clipId === activePreviewId)
                                         .map((cap: any) => (
                                             <div
-                                                key={cap.id}
+                                                key={cap?.id}
                                                 onClick={() => setCurrentCaption(cap)}
-                                                className={`flex items-start gap-1.5 px-2 py-1.5 rounded-lg border cursor-pointer transition-all group ${currentCaption?.id === cap.id
+                                                className={`flex items-start gap-1.5 px-2 py-1.5 rounded-lg border cursor-pointer transition-all group ${currentCaption?.id === cap?.id
                                                     ? 'bg-fuchsia-500/20 border-fuchsia-400 shadow-[inset_0_0_8px_rgba(168,85,247,0.1)]'
                                                     : 'bg-white/5 border-white/5 hover:border-white/10'
                                                     }`}
@@ -2257,8 +2264,8 @@ const ToolInspector = memo(({
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        setCaptions((prev: any) => prev.filter((c: any) => c.id !== cap.id));
-                                                        if (currentCaption?.id === cap.id) {
+                                                        setCaptions((prev: any) => prev.filter((c: any) => c?.id !== cap?.id));
+                                                        if (currentCaption?.id === cap?.id) {
                                                             setCurrentCaption(null);
                                                         }
                                                     }}
@@ -2904,9 +2911,9 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     // -- AI Cutout Hooks & Callbacks --
     const { generateMask, isProcessing: isCutoutProcessing, error: cutoutError } = useCutoutMask();
     const handleTriggerCutoutSegmentation = async (clipId: string) => {
-        const item = mediaItems.find((i: any) => i.id === clipId);
+        const item = mediaItems.find((i: any) => i?.id === clipId);
         if (!item) return;
-        const maskUrl = await generateMask(clipId, item.type as any, item.preview || '', item.file || null);
+        const maskUrl = await generateMask(clipId, (item?.type || 'video') as any, (item?.preview) || '', (item?.file) || null);
         if (maskUrl) {
             setClipSettings(prev => ({
                 ...prev,
@@ -3209,10 +3216,19 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         const clipMirror = activeClipSettings.mirror ? -1 : 1;
         const clipFlip = activeClipSettings.flip ? -1 : 1;
         
+        let keyframeScale = 1;
+        if (keyframeMode === 'zoom-in') {
+            keyframeScale = 1 + (keyframeAmount - 1) * keyframeProgress;
+        } else if (keyframeMode === 'zoom-out') {
+            keyframeScale = keyframeAmount - (keyframeAmount - 1) * keyframeProgress;
+        } else if (keyframeMode === 'pulse') {
+            keyframeScale = 1 + (keyframeAmount - 1) * Math.sin(keyframeProgress * Math.PI);
+        }
+        
         let base = '';
-        if (isTransformEnabled || clipMirror === -1 || clipFlip === -1) {
-            const scaleX = (isTransformEnabled ? zoomToolAmountX : 1) * clipMirror;
-            const scaleY = (isTransformEnabled ? zoomToolAmountY : 1) * clipFlip;
+        if (isTransformEnabled || clipMirror === -1 || clipFlip === -1 || keyframeScale !== 1) {
+            const scaleX = (isTransformEnabled ? zoomToolAmountX : 1) * clipMirror * keyframeScale;
+            const scaleY = (isTransformEnabled ? zoomToolAmountY : 1) * clipFlip * keyframeScale;
             base = `translate(${posX}px, ${posY}px) scale(${scaleX}, ${scaleY}) rotate(${rotationDegrees}deg) `;
         }
         
@@ -3626,7 +3642,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         setClipSettings(prev => {
             const updated = { ...prev };
             mediaItems.forEach(item => {
-                updated[item.id] = { ...(updated[item.id] || {}), volumeLevel, isMuted, isDenoiseEnabled };
+                updated[item?.id] = { ...(updated[item?.id] || {}), volumeLevel, isMuted, isDenoiseEnabled };
             });
             saveToUndo(mediaItems, undefined, undefined, undefined, undefined, undefined, undefined, updated);
             return updated;
@@ -3659,8 +3675,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     // --- Auto-caption handler (Gemini via backend) ---
     const handleAutoCaption = useCallback(async () => {
         // Find the active video clip or the first video clip
-        const activeClip = mediaItems.find((item: any) => item.id === activePreviewId && item.type === 'video')
-            || mediaItems.find((item: any) => item.type === 'video');
+        const activeClip = mediaItems.find((item: any) => item?.id === activePreviewId && (item?.type || 'video') === 'video')
+            || mediaItems.find((item: any) => (item?.type || 'video') === 'video');
 
         if (!activeClip || !activeClip.file) {
             setAutoCaptionStatus('Ã¢ÂÅ’ No video clip loaded to transcribe. Add a video clip first.');
@@ -3731,10 +3747,10 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         const preview = URL.createObjectURL(file);
         getMediaDurationFromPreview(preview, type).then((duration) => {
             setMediaItems((prev: any[]) => prev.map((item: any) => {
-                if (item.id !== activePreviewId) return item;
+                if (item?.id !== activePreviewId) return item;
                 // Revoke old blob URL to free memory
-                if (item.preview && item.preview.startsWith('blob:')) {
-                    URL.revokeObjectURL(item.preview);
+                if ((item?.preview) && (item?.preview).startsWith('blob:')) {
+                    URL.revokeObjectURL((item?.preview));
                 }
                 return { ...item, file, preview, type, duration };
             }));
@@ -3751,7 +3767,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const thumbnailVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
     const lastLoadedIdRef = useRef<string | null>(null);
 
-    const activePreviewItem = mediaItems.find((i) => i.id === activePreviewId) || libraryAssets.find((i) => i.id === activePreviewId) || null;
+    const activePreviewItem = mediaItems.find((i) => i?.id === activePreviewId) || libraryAssets.find((i) => i?.id === activePreviewId) || null;
 
     const getTrimRangeForItem = useCallback((itemId: string, duration: number) => {
         const range = clipTrimRanges[itemId];
@@ -3765,15 +3781,15 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     }, [clipTrimRanges]);
 
     const getEffectiveDurationForItem = useCallback((item: any) => {
-        if (item.type !== 'video') return item.duration;
-        const { start, end } = getTrimRangeForItem(item.id, item.duration);
+        if ((item?.type || 'video') !== 'video') return (item?.duration || 0);
+        const { start, end } = getTrimRangeForItem(item?.id, (item?.duration || 0));
         return Math.max(0.01, end - start);
     }, [getTrimRangeForItem]);
 
     const getTotalEffectiveDuration = useCallback(() => {
         let maxEnd = 0;
         mediaItems.forEach(item => {
-            const start = clipStartOverrides[item.id] !== undefined ? clipStartOverrides[item.id] : (item.startTime || 0);
+            const start = clipStartOverrides[item?.id] !== undefined ? clipStartOverrides[item?.id] : (item.startTime || 0);
             maxEnd = Math.max(maxEnd, start + getEffectiveDurationForItem(item));
         });
         return maxEnd;
@@ -3789,7 +3805,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     }, [globalCurrentTime, progress]);
 
     const getClipGlobalStart = useCallback((clipId: string) => {
-        const item = mediaItems.find((p: any) => p.id === clipId);
+        const item = mediaItems.find((p: any) => p?.id === clipId);
         if (item) {
             return clipStartOverrides[clipId] !== undefined ? clipStartOverrides[clipId] : (item.startTime || 0);
         }
@@ -3797,8 +3813,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     }, [mediaItems, clipStartOverrides]);
 
     const getTargetStartTime = useCallback((item: any) => {
-        const trim = getTrimRangeForItem(item.id, item.duration);
-        if (pendingTransitionSeekRef.current && pendingTransitionSeekRef.current.clipId === item.id) {
+        const trim = getTrimRangeForItem(item?.id, (item?.duration || 0));
+        if (pendingTransitionSeekRef.current && pendingTransitionSeekRef.current.clipId === item?.id) {
             return Math.min(trim.end, trim.start + pendingTransitionSeekRef.current.seekTime);
         }
         return trim.start;
@@ -3855,7 +3871,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         setBorderColorHex(settings.borderColorHex || '#ffffff');
 
         // Clear pending seek offset if active clip is an image and we are paused
-        const activeItem = mediaItems.find(i => i.id === activePreviewId);
+        const activeItem = mediaItems.find(i => i?.id === activePreviewId);
         if (!isPlaying && activeItem?.type === 'image') {
             if (pendingTransitionSeekRef.current && pendingTransitionSeekRef.current.clipId === activePreviewId) {
                 pendingTransitionSeekRef.current = null;
@@ -4018,10 +4034,10 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
         videoElement.play().catch(err => {
             if (err.name === 'AbortError') {
-                console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Play request aborted (media unmounted/reloaded).");
+                console.log("ðŸ“¹ [PLAYBACK] Play request aborted (media unmounted/reloaded).");
                 return;
             }
-            console.warn("Ã°Å¸â€œÂ¹ [PLAYBACK] Play failed, trying muted fallback:", err);
+            console.warn("ðŸ“¹ [PLAYBACK] Play failed, trying muted fallback:", err);
             setIsMuted(true);
             videoElement.muted = true;
             if (videoElement.isConnected && isPlayingRef.current && videoElement.paused) {
@@ -4033,17 +4049,17 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     // Sync video seek time immediately when switching activePreviewId if the video source is identical
     useEffect(() => {
         if (videoRef.current && activePreviewId) {
-            const activeItem = mediaItems.find(i => i.id === activePreviewId);
-            if (activePreviewItem?.type === 'video') {
+            const activeItem = activePreviewItem;
+            if (activeItem && activeItem.type === 'video') {
                 const videoElement = videoRef.current;
-                const targetStart = getTargetStartTime(activeItem!);
+                const targetStart = getTargetStartTime(activeItem);
                 
                 const currentSrc = videoElement.src || videoElement.getAttribute('src') || '';
-                const itemPreviewResolved = new URL(activeItem!.preview || '', window.location.href).href;
+                const itemPreviewResolved = new URL(activeItem.preview || '', window.location.href).href;
                 const videoSrcResolved = new URL(currentSrc, window.location.href).href;
                 
                 if (itemPreviewResolved === videoSrcResolved) {
-                    console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Same video source - seeking instantly to:", targetStart);
+                    console.log("ðŸ“¹ [PLAYBACK] Same video source - seeking instantly to:", targetStart);
                     videoElement.currentTime = targetStart;
                     
                     if (pendingTransitionSeekRef.current && pendingTransitionSeekRef.current.clipId === activePreviewId) {
@@ -4112,11 +4128,11 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
         console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] playNextMedia called for item:", currentId);
         const sorted = [...mediaItems].sort((a, b) => {
-            const startA = clipStartOverrides[a.id] !== undefined ? clipStartOverrides[a.id] : 0;
-            const startB = clipStartOverrides[b.id] !== undefined ? clipStartOverrides[b.id] : 0;
+            const startA = clipStartOverrides[a?.id] !== undefined ? clipStartOverrides[a?.id] : 0;
+            const startB = clipStartOverrides[b?.id] !== undefined ? clipStartOverrides[b?.id] : 0;
             return startA - startB;
         });
-        const currentIndex = sorted.findIndex(i => i.id === currentId);
+        const currentIndex = sorted.findIndex(i => i?.id === currentId);
         if (currentIndex !== -1 && currentIndex < sorted.length - 1) {
             const nextId = sorted[currentIndex + 1].id;
             console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Transitioning to next clip:", nextId);
@@ -4141,7 +4157,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
     const togglePlay = () => {
         console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] togglePlay called, current isPlaying:", isPlaying);
-        let activeItem = mediaItems.find(i => i.id === activePreviewId);
+        let activeItem = mediaItems.find(i => i?.id === activePreviewId);
 
         console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Active item:", { id: activeItem?.id, type: activeItem?.type, hasVideoRef: !!videoRef.current });
 
@@ -4154,8 +4170,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         // If no active item is selected, select the first chronological clip and play
         if (!activeItem) {
             const sorted = [...mediaItems].sort((a, b) => {
-                const startA = clipStartOverrides[a.id] !== undefined ? clipStartOverrides[a.id] : 0;
-                const startB = clipStartOverrides[b.id] !== undefined ? clipStartOverrides[b.id] : 0;
+                const startA = clipStartOverrides[a?.id] !== undefined ? clipStartOverrides[a?.id] : 0;
+                const startB = clipStartOverrides[b?.id] !== undefined ? clipStartOverrides[b?.id] : 0;
                 return startA - startB;
             });
             activeItem = sorted[0];
@@ -4195,8 +4211,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     const handleTimeUpdate = () => {
         if (videoRef.current && mediaItems.length > 0) {
             const sorted = [...mediaItems].sort((a, b) => {
-                const startA = clipStartOverrides[a.id] !== undefined ? clipStartOverrides[a.id] : 0;
-                const startB = clipStartOverrides[b.id] !== undefined ? clipStartOverrides[b.id] : 0;
+                const startA = clipStartOverrides[a?.id] !== undefined ? clipStartOverrides[a?.id] : 0;
+                const startB = clipStartOverrides[b?.id] !== undefined ? clipStartOverrides[b?.id] : 0;
                 return startA - startB;
             });
             
@@ -4207,7 +4223,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             }
 
             const totalDuration = getTotalEffectiveDuration();
-            const activeIndex = sorted.findIndex(i => i.id === activePreviewId);
+            const activeIndex = sorted.findIndex(i => i?.id === activePreviewId);
             
             let timeBefore = 0;
             let currentLocalTime = videoRef.current.currentTime;
@@ -4295,7 +4311,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     useEffect(() => {
         let rafId: number;
         const tick = () => {
-            if (isPlaying && videoRef.current && mediaItems.find(i => i.id === activePreviewId)?.type === 'video') {
+            if (isPlaying && videoRef.current && mediaItems.find(i => i?.id === activePreviewId)?.type === 'video') {
                 handleTimeUpdate();
             }
             rafId = requestAnimationFrame(tick);
@@ -4316,8 +4332,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         // Find which video/image item this global time corresponds to
         let foundItem = null;
         for (const item of mediaItems) {
-            if (item.type !== 'video' && item.type !== 'image') continue;
-            const start = clipStartOverrides[item.id] !== undefined ? clipStartOverrides[item.id] : (item.startTime || 0);
+            if ((item?.type || 'video') !== 'video' && (item?.type || 'video') !== 'image') continue;
+            const start = clipStartOverrides[item?.id] !== undefined ? clipStartOverrides[item?.id] : (item.startTime || 0);
             const effDur = getEffectiveDurationForItem(item);
             if (clampedSeekTime >= start && clampedSeekTime < start + effDur) {
                 foundItem = item;
@@ -4342,12 +4358,12 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         } else {
             // If we clicked on an empty gap, find the NEXT chronological clip to seek to (or just update progress)
             const sorted = [...mediaItems].filter(i => i.type === 'video' || i.type === 'image').sort((a, b) => {
-                const startA = clipStartOverrides[a.id] !== undefined ? clipStartOverrides[a.id] : (a.startTime || 0);
-                const startB = clipStartOverrides[b.id] !== undefined ? clipStartOverrides[b.id] : (b.startTime || 0);
+                const startA = clipStartOverrides[a?.id] !== undefined ? clipStartOverrides[a?.id] : (a.startTime || 0);
+                const startB = clipStartOverrides[b?.id] !== undefined ? clipStartOverrides[b?.id] : (b.startTime || 0);
                 return startA - startB;
             });
             const nextItem = sorted.find(item => {
-                const start = clipStartOverrides[item.id] !== undefined ? clipStartOverrides[item.id] : (item.startTime || 0);
+                const start = clipStartOverrides[item?.id] !== undefined ? clipStartOverrides[item?.id] : (item.startTime || 0);
                 return start > clampedSeekTime;
             });
             
@@ -4385,7 +4401,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
     // Handle play/pause state
     useEffect(() => {
-        const activeItem = mediaItems.find(i => i.id === activePreviewId);
+        const activeItem = mediaItems.find(i => i?.id === activePreviewId);
         console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] useEffect triggered:", {
             isPlaying,
             activeId: activePreviewId,
@@ -4443,7 +4459,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
             if (videoRef.current && activePreviewId) {
                 const settings = clipSettings[activePreviewId] || {};
-                const activeItem = mediaItems.find(i => i.id === activePreviewId);
+                const activeItem = mediaItems.find(i => i?.id === activePreviewId);
                 
                 if (activeItem && activeItem.type === 'video') {
                     const fadeIn = (isFadeOpen && activePreviewId === activeItem.id) ? fadeInVal : (settings.fadeIn || 0);
@@ -4540,7 +4556,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         const updateFadePlayhead = () => {
             if (!isFadeOpen || !videoRef.current || !activePreviewId) return;
             
-            const activeItem = mediaItems.find(i => i.id === activePreviewId);
+            const activeItem = mediaItems.find(i => i?.id === activePreviewId);
             if (activeItem && activeItem.type === 'video') {
                 const trim = getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0);
                 const effDur = Math.max(0.1, trim.end - trim.start);
@@ -4595,7 +4611,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     }, [selectedEffect, slowMotionSpeed, velocitySpeed, speedValue, activePreviewId]);
 
     useEffect(() => {
-        const activeItem = mediaItems.find((i) => i.id === activePreviewId);
+        const activeItem = mediaItems.find((i) => i?.id === activePreviewId);
         if (!activeItem || activeItem.type !== 'video' || !videoRef.current) return;
         if (videoRef.current.readyState < 1) return; // Wait for metadata before clamping/seeking
         const targetStart = getTargetStartTime(activeItem);
@@ -4953,11 +4969,11 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     // Keep timeline thumbnail videos in sync with the main preview transport state.
     useEffect(() => {
         mediaItems.forEach((item) => {
-            if (item.type !== 'video') return;
-            const thumbVideo = thumbnailVideoRefs.current[item.id];
+            if ((item?.type || 'video') !== 'video') return;
+            const thumbVideo = thumbnailVideoRefs.current[item?.id];
             if (!thumbVideo) return;
 
-            if (isPlaying && activePreviewId === item.id) {
+            if (isPlaying && activePreviewId === item?.id) {
                 thumbVideo.play().catch(() => { });
             } else {
                 thumbVideo.pause();
@@ -4975,7 +4991,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             setTransitionProgress(p);
 
             // Smoothly advance timeline progress (redline) during transition
-            const fromItem = mediaItems.find((item: any) => item.id === transitionOverlay.fromId);
+            const fromItem = mediaItems.find((item: any) => item?.id === transitionOverlay.fromId);
             if (fromItem) {
                 const timeBefore = getClipGlobalStart(transitionOverlay.fromId);
                 const durationA = getEffectiveDurationForItem(fromItem);
@@ -5000,7 +5016,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 setTransitionProgress(0);
 
                 if (wasPlaying) {
-                    console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] Normal playback: switching to next clip after transition");
+                    console.log("🎞️ [PLAYBACK] Normal playback: switching to next clip after transition");
                     pendingTransitionSeekRef.current = {
                         clipId: transitionOverlay.toId,
                         seekTime: transitionOverlay.durationMs / 1000,
@@ -5044,7 +5060,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     useEffect(() => {
         let timer: ReturnType<typeof setTimeout>;
         let rafId: number;
-        const activeItem = mediaItems.find(i => i.id === activePreviewId);
+        const activeItem = mediaItems.find(i => i?.id === activePreviewId);
 
         if (isPlaying && activeItem?.type === 'image') {
             let seekOffsetMs = 0;
@@ -5058,9 +5074,9 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
             const updateProgress = () => {
                 const elapsed = Date.now() - startTime;
-                const activeIndex = mediaItems.findIndex(i => i.id === activePreviewId);
-                const timeBefore = mediaItems.slice(0, activeIndex).reduce((acc, item) => acc + item.duration, 0);
-                const totalDuration = mediaItems.reduce((acc, item) => acc + item.duration, 0);
+                const activeIndex = mediaItems.findIndex(i => i?.id === activePreviewId);
+                const timeBefore = mediaItems.slice(0, activeIndex).reduce((acc, item) => acc + (item?.duration || 0), 0);
+                const totalDuration = mediaItems.reduce((acc, item) => acc + (item?.duration || 0), 0);
 
                 const globalTime = timeBefore + Math.min(elapsed / 1000, activeItem.duration);
                 const p = (globalTime / (totalDuration || 1)) * 100;
@@ -5089,9 +5105,14 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             const { initialMedia, initialAudio } = state;
 
             if (initialMedia && (initialMedia.file || initialMedia.preview)) {
-                const preview = initialMedia.file
-                    ? URL.createObjectURL(initialMedia.file)
-                    : initialMedia.preview;
+                let preview = initialMedia.preview;
+                if (!preview && initialMedia.file) {
+                    try {
+                        preview = URL.createObjectURL(initialMedia.file);
+                    } catch (e) {
+                        console.error('Failed to create object URL for file:', e);
+                    }
+                }
 
                 if (initialMedia.file && preview) {
                     createdPreviewUrlsRef.current.push(preview || '');
@@ -5107,6 +5128,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                         duration: resolvedDuration,
                     };
                     setMediaItems([newItem]);
+                    setLibraryAssets([newItem]);
+                    setActivePreviewId(newItem.id);
                     const initialStateObj = {
                         mediaItems: [newItem],
                         clipTransitions: {},
@@ -5294,7 +5317,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
         if (!activePreviewId) return;
 
         setMediaItems((prev) => {
-            const index = prev.findIndex((item) => item.id === activePreviewId);
+            const index = prev.findIndex((item) => item?.id === activePreviewId);
             if (index === -1) return prev;
 
             const source = prev[index];
@@ -5421,14 +5444,14 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
         if (session?.user?.id) {
             newItems.forEach(async item => {
-                const thumbnail_url = await generateThumbnail(item.file);
+                const thumbnail_url = await generateThumbnail((item?.file));
                 supabase.from('app_uploads').insert({
                     user_id: session.user.id,
-                    original_filename: item.file.name,
-                    upload_type: item.type === 'video' ? 'Video' : 'Image',
-                    size: `${(item.file.size / (1024 * 1024)).toFixed(2)} MB`,
+                    original_filename: (item?.file).name,
+                    upload_type: (item?.type || 'video') === 'video' ? 'Video' : 'Image',
+                    size: `${((item?.file).size / (1024 * 1024)).toFixed(2)} MB`,
                     resolution: "Unknown",
-                    duration: `${item.duration.toFixed(1)}s`,
+                    duration: `${(item?.duration || 0).toFixed(1)}s`,
                     tool_used: "Manual Edit",
                     used_in_project: "Draft",
                     thumbnail_url
@@ -5448,16 +5471,16 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 const updated = [...prev];
                 const timelineItems = newItems.map(item => ({
                     id: Math.random().toString(36).substr(2, 9),
-                    file: item.file,
-                    preview: item.preview,
-                    type: item.type,
-                    duration: item.duration,
+                    file: (item?.file),
+                    preview: (item?.preview),
+                    type: (item?.type || 'video'),
+                    duration: (item?.duration || 0),
                 }));
                 
                 if (pendingInsertTargetId === '__START__') {
                     updated.unshift(...timelineItems);
                 } else {
-                    const targetIndex = prev.findIndex(item => item.id === pendingInsertTargetId);
+                    const targetIndex = prev.findIndex(item => item?.id === pendingInsertTargetId);
                     if (targetIndex !== -1) {
                         // Insert directly after the target
                         updated.splice(targetIndex + 1, 0, ...timelineItems);
@@ -5482,9 +5505,9 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
     const removeLibraryAsset = (id: string) => {
         setLibraryAssets(prev => {
-            const item = prev.find(i => i.id === id);
-            if (item) URL.revokeObjectURL(item.preview || '');
-            const nextAssets = prev.filter(i => i.id !== id);
+            const item = prev.find(i => i?.id === id);
+            if (item) URL.revokeObjectURL((item?.preview) || '');
+            const nextAssets = prev.filter(i => i?.id !== id);
             if (activePreviewId === id) {
                 selectPreviewWithTransition(nextAssets[0]?.id || null);
             }
@@ -5494,9 +5517,9 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
     const removeMediaItem = (id: string) => {
         setMediaItems(prev => {
-            const item = prev.find(i => i.id === id);
-            if (item) URL.revokeObjectURL(item.preview || '');
-            const nextItems = prev.filter(i => i.id !== id);
+            const item = prev.find(i => i?.id === id);
+            if (item) URL.revokeObjectURL((item?.preview) || '');
+            const nextItems = prev.filter(i => i?.id !== id);
             if (activePreviewId === id) {
                 selectPreviewWithTransition(nextItems[0]?.id || null);
             }
@@ -5506,16 +5529,16 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
     };
 
     const handleAddAssetToTimeline = useCallback((assetId: string, newClipId: string) => {
-        const asset = libraryAssets.find(a => a.id === assetId);
+        const asset = libraryAssets.find(a => a?.id === assetId);
         if (!asset) return;
 
-        if (asset.type === 'video' || asset.type === 'image') {
+        if ((asset?.type || 'video') === 'video' || (asset?.type || 'video') === 'image') {
             const newClip = {
                 id: newClipId,
-                file: asset.file,
-                preview: asset.preview,
-                type: asset.type,
-                duration: asset.duration,
+                file: (asset?.file),
+                preview: (asset?.preview),
+                type: (asset?.type || 'video'),
+                duration: (asset?.duration || 0),
             };
             setMediaItems(prev => {
                 const updated = [...prev, newClip];
@@ -5523,15 +5546,15 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 return updated;
             });
             selectPreviewWithTransition(newClipId);
-        } else if (asset.type === 'audio') {
+        } else if ((asset?.type || 'video') === 'audio') {
             setAudioTracks(prev => {
                 const newAudio = {
                     id: newClipId,
-                    name: asset.file?.name || "Audio Track",
-                    duration: asset.duration || 10,
+                    name: (asset?.file)?.name || "Audio Track",
+                    duration: (asset?.duration || 0) || 10,
                     type: 'direct' as const,
-                    file: asset.file || undefined,
-                    preview: asset.preview,
+                    file: (asset?.file) || undefined,
+                    preview: (asset?.preview),
                 };
                 return [...prev, newAudio];
             });
@@ -5546,7 +5569,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             if (typeof fromIndexOrId === 'number') {
                 fromIdx = fromIndexOrId;
             } else {
-                fromIdx = prev.findIndex((item) => item.id === fromIndexOrId);
+                fromIdx = prev.findIndex((item) => item?.id === fromIndexOrId);
             }
 
             if (fromIdx === -1 || fromIdx === toIndex) return prev;
@@ -5561,7 +5584,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
     const handleDeleteClip = useCallback((clipId: string) => {
         setMediaItems((prev) => {
-            const updated = prev.filter((item) => item.id !== clipId);
+            const updated = prev.filter((item) => item?.id !== clipId);
 
             // Clean up related states for deleted clip
             const nextTransitions = { ...clipTransitions };
@@ -5680,7 +5703,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                             [id]: capabilityId as any
                         }));
                         if (id === activePreviewId) {
-                            const currentIndex = mediaItems.findIndex((item: any) => item.id === id);
+                            const currentIndex = mediaItems.findIndex((item: any) => item?.id === id);
                             if (currentIndex !== -1 && currentIndex < mediaItems.length - 1) {
                                 const nextId = mediaItems[currentIndex + 1].id;
                                 setTransitionOverlay({
@@ -5875,7 +5898,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 return updated;
             });
 
-            const currentIndex = mediaItems.findIndex((item) => item.id === activePreviewId);
+            const currentIndex = mediaItems.findIndex((item) => item?.id === activePreviewId);
             if (currentIndex !== -1) {
                 const activeItem = mediaItems[currentIndex];
                 const trim = getTrimRangeForItem(activePreviewItem?.id || '', activePreviewItem?.duration || 0);
@@ -5925,19 +5948,19 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
         const mediaForProcessing = [...mediaItems]
             .sort((a, b) => {
-                const startA = clipStartOverrides[a.id] !== undefined ? clipStartOverrides[a.id] : 0;
-                const startB = clipStartOverrides[b.id] !== undefined ? clipStartOverrides[b.id] : 0;
+                const startA = clipStartOverrides[a?.id] !== undefined ? clipStartOverrides[a?.id] : 0;
+                const startB = clipStartOverrides[b?.id] !== undefined ? clipStartOverrides[b?.id] : 0;
                 return startA - startB;
             })
-            .filter((item) => item.file)
+            .filter((item) => (item?.file))
             .map((item) => {
-                const settings = clipSettings[item.id] || {};
-                const isCurrent = item.id === activePreviewId;
+                const settings = clipSettings[item?.id] || {};
+                const isCurrent = item?.id === activePreviewId;
                 return {
-                    id: item.id,
-                    file: item.file,
-                    type: item.type,
-                    duration: item.duration,
+                    id: item?.id,
+                    file: (item?.file),
+                    type: (item?.type || 'video'),
+                    duration: (item?.duration || 0),
                     effect: isCurrent ? (selectedEffect || 'none') : (settings.selectedEffect || 'none'),
                     filter: isCurrent ? (selectedFilter || 'none') : (settings.selectedFilter || 'none'),
                     effectSettings: {
@@ -5976,7 +5999,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
         const transitionPlan = mediaForProcessing.map((item, index) => ({
             index,
-            transition: clipTransitions[item.id] || 'none',
+            transition: clipTransitions[item?.id] || 'none',
         }));
 
         console.log("Ã°Å¸Å½Â¬ [GENERATE] Transition plan created:", {
@@ -6085,9 +6108,9 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             prompt,
             media: {
                 items: mediaForProcessing.map((item) => ({
-                    id: item.id,
-                    type: item.type,
-                    duration: item.duration,
+                    id: item?.id,
+                    type: (item?.type || 'video'),
+                    duration: (item?.duration || 0),
                     effect: item.effect,
                     filter: item.filter,
                     effectSettings: item.effectSettings,
@@ -6154,7 +6177,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             }).then();
 
             // Add to downloads table
-            const activeFile = mediaItems.find((item: any) => item.id === activePreviewId)?.file || mediaItems[0]?.file;
+            const activeFile = mediaItems.find((item: any) => item?.id === activePreviewId)?.file || mediaItems[0]?.file;
             const thumbPromise = activeFile ? generateThumbnail(activeFile) : Promise.resolve("https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800");
 
             thumbPromise.then(thumbnail_url => {
@@ -6191,7 +6214,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                 mediaItems: mediaForProcessing,
                 audioTracks: audioForProcessing,
                 selectedMusic: selectedMusic ? {
-                    id: selectedMusic.id,
+                    id: selectedMusic?.id,
                     name: selectedMusic.name,
                     artist: selectedMusic.artist,
                     url: selectedMusic.url,
@@ -6812,36 +6835,36 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                                 <div className="grid grid-cols-2 gap-2">
                                                                     {libraryAssets.map((item) => (
                                                                         <div
-                                                                            key={item.id}
-                                                                            onClick={() => selectPreviewWithTransition(item.id)}
+                                                                            key={item?.id}
+                                                                            onClick={() => selectPreviewWithTransition(item?.id)}
                                                                             draggable="true"
-                                                                            onDragStart={(e: any) => { e.dataTransfer.setData('clipId', item.id); }}
+                                                                            onDragStart={(e: any) => { e.dataTransfer.setData('clipId', item?.id); }}
                                                                             className={`group relative aspect-square rounded-lg border transition-all cursor-pointer overflow-hidden bg-slate-900
-                                                                                ${activePreviewId === item.id ? 'border-[#EAB308] shadow-sm' : 'border-white/10 hover:border-white/20'}`}
+                                                                                ${activePreviewId === item?.id ? 'border-[#EAB308] shadow-sm' : 'border-white/10 hover:border-white/20'}`}
                                                                         >
-                                                                            {item.type === 'video' ? (
+                                                                            {(item?.type || 'video') === 'video' ? (
                                                                                 <video
-                                                                                    ref={(el) => { thumbnailVideoRefs.current[item.id] = el; }}
-                                                                                    src={item.preview}
+                                                                                    ref={(el) => { thumbnailVideoRefs.current[item?.id] = el; }}
+                                                                                    src={(item?.preview)}
                                                                                     className="w-full h-full object-cover"
                                                                                     muted playsInline preload="metadata"
                                                                                 />
                                                                             ) : (
-                                                                                <img src={item.preview} alt="" className="w-full h-full object-cover" loading="lazy" />
+                                                                                <img src={(item?.preview)} alt="" className="w-full h-full object-cover" loading="lazy" />
                                                                             )}
                                                                             <div className="absolute top-1 left-1">
                                                                                 <Star className="w-3.5 h-3.5 text-[#EAB308] fill-[#EAB308]" />
                                                                             </div>
                                                                             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                                                 <button
-                                                                                    onClick={(e) => { e.stopPropagation(); removeLibraryAsset(item.id); }}
+                                                                                    onClick={(e) => { e.stopPropagation(); removeLibraryAsset(item?.id); }}
                                                                                     className="p-1 rounded bg-rose-500/80 text-white hover:bg-rose-500 transition-colors"
                                                                                 >
                                                                                     <Trash2 className="w-3 h-3" />
                                                                                 </button>
                                                                             </div>
                                                                             <div className="absolute bottom-1 left-1 px-1 py-0.5 rounded bg-black/60 text-[9px] text-white font-mono">
-                                                                                {item.duration ? `${Math.floor(item.duration / 60)}:${Math.floor(item.duration % 60).toString().padStart(2, '0')}` : '0:35'}
+                                                                                {(item?.duration || 0) ? `${Math.floor((item?.duration || 0) / 60)}:${Math.floor((item?.duration || 0) % 60).toString().padStart(2, '0')}` : '0:35'}
                                                                             </div>
                                                                         </div>
                                                                     ))}
@@ -7318,7 +7341,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                                 console.log("Ã°Å¸â€œÂ¹ [PLAYBACK] onLoadedData, videoRef.current exists:", !!videoRef.current);
                                                                 // Reset current time to trim start when new video is loaded
                                                                 if (videoRef.current) {
-                                                                    const activeItem = mediaItems.find(i => i.id === activePreviewId);
+                                                                    const activeItem = mediaItems.find(i => i?.id === activePreviewId);
                                                                     if (activePreviewItem?.type === 'video') {
                                                                         const targetStart = getTargetStartTime(activeItem);
                                                                         const videoElement = videoRef.current;
@@ -7534,14 +7557,14 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
                                 {mediaItems.filter((clip: any) => clip.type === 'text' || clip.type === 'overlay').map((clip: any) => {
                                     // Use clipSettings if they exist, otherwise fallback to global state if it's the active clip (for backward compat during transition)
-                                    const isCurrent = clip.id === activePreviewId;
-                                    const settings = clipSettings[clip.id] || {};
+                                    const isCurrent = clip?.id === activePreviewId;
+                                    const settings = clipSettings[clip?.id] || {};
                                     const text = settings.overlayText !== undefined ? settings.overlayText : (isCurrent ? overlayText : '');
                                     if (!text || text.trim().length === 0) return null;
                                     
                                     // Check if active
-                                    const start = clipStartOverrides[clip.id] !== undefined ? clipStartOverrides[clip.id] : (clip.startTime || 0);
-                                    const trim = clipTrimRanges[clip.id] || (getTrimRangeForItem ? getTrimRangeForItem(clip.id, clip.duration || 5) : { start: 0, end: clip.duration || 5 });
+                                    const start = clipStartOverrides[clip?.id] !== undefined ? clipStartOverrides[clip?.id] : (clip.startTime || 0);
+                                    const trim = clipTrimRanges[clip?.id] || (getTrimRangeForItem ? getTrimRangeForItem(clip?.id, clip.duration || 5) : { start: 0, end: clip.duration || 5 });
                                     const effDur = (trim.end ?? (clip.duration || 5)) - trim.start;
                                     const isActive = globalCurrentTime >= start && globalCurrentTime <= start + effDur;
                                     if (!isActive) return null;
@@ -7623,7 +7646,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 
                                     return (
                                         <div
-                                            key={clip.id}
+                                            key={clip?.id}
                                             className="absolute z-40 pointer-events-none select-none text-center"
                                             style={{
                                                 left: `${posX}%`,
@@ -7945,7 +7968,13 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                     <button
                                         key={tab}
                                         type="button"
-                                        onClick={() => { setInspectorTab(tab); if (tab === 'color') setColorSubTab('filters'); setIsMediaPoolVisible(true); }}
+                                        onClick={() => { 
+                                            setInspectorTab(tab); 
+                                            if (tab === 'color') setColorSubTab('filters'); 
+                                            if (tab === 'animation') setLeftTab('effects');
+                                            if (tab === 'bg') setLeftTab('frames');
+                                            setIsMediaPoolVisible(true); 
+                                        }}
                                         title={title}
                                         className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 group relative ${
                                             inspectorTab === tab
@@ -8216,7 +8245,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                     setClipSettings(prev => {
                                                         const updated = { ...prev };
                                                         mediaItems.forEach(item => {
-                                                            updated[item.id] = { ...(updated[item.id] || {}), borderWidth: w, borderColorHex: c };
+                                                            updated[item?.id] = { ...(updated[item?.id] || {}), borderWidth: w, borderColorHex: c };
                                                         });
                                                         return updated;
                                                     });
@@ -8374,7 +8403,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                             setClipSettings(prev => {
                                                                 const updated = { ...prev };
                                                                 mediaItems.forEach(item => {
-                                                                    updated[item.id] = { ...(updated[item.id] || {}), filterIntensity: fi, filterPreset: fp };
+                                                                    updated[item?.id] = { ...(updated[item?.id] || {}), filterIntensity: fi, filterPreset: fp };
                                                                 });
                                                                 return updated;
                                                             });
@@ -8507,7 +8536,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                         const b = brightness, s = saturation;
                                                         setClipSettings(prev => {
                                                             const updated = { ...prev };
-                                                            mediaItems.forEach(item => { updated[item.id] = { ...(updated[item.id] || {}), brightness: b, saturation: s }; });
+                                                            mediaItems.forEach(item => { updated[item?.id] = { ...(updated[item?.id] || {}), brightness: b, saturation: s }; });
                                                             return updated;
                                                         });
                                                     }} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-[#23242e] text-white border border-white/10 text-xs font-medium hover:bg-[#2c2d3a] transition-colors cursor-pointer">
@@ -8557,7 +8586,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                     setClipSettings(prev => {
                                                         const updated = { ...prev };
                                                         mediaItems.forEach(item => {
-                                                            updated[item.id] = { ...(updated[item.id] || {}), speedValue: spd };
+                                                            updated[item?.id] = { ...(updated[item?.id] || {}), speedValue: spd };
                                                         });
                                                         return updated;
                                                     });
@@ -8605,7 +8634,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                     setClipSettings(prev => {
                                                         const updated = { ...prev };
                                                         mediaItems.forEach(item => {
-                                                            updated[item.id] = { ...(updated[item.id] || {}), volumeLevel: vol, isMuted: m };
+                                                            updated[item?.id] = { ...(updated[item?.id] || {}), volumeLevel: vol, isMuted: m };
                                                         });
                                                         return updated;
                                                     });
@@ -8661,7 +8690,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                     setClipSettings(prev => {
                                                         const updated = { ...prev };
                                                         mediaItems.forEach(item => {
-                                                            updated[item.id] = { ...(updated[item.id] || {}), keyframeMode: km, keyframeAmount: ka };
+                                                            updated[item?.id] = { ...(updated[item?.id] || {}), keyframeMode: km, keyframeAmount: ka };
                                                         });
                                                         return updated;
                                                     });
@@ -8965,7 +8994,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                         setClipSettings(prev => {
                                                             const updated = { ...prev };
                                                             mediaItems.forEach(item => {
-                                                                updated[item.id] = { ...(updated[item.id] || {}), backgroundColor: color };
+                                                                updated[item?.id] = { ...(updated[item?.id] || {}), backgroundColor: color };
                                                             });
                                                             return updated;
                                                         });
@@ -9023,6 +9052,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                             setActivePreviewId={setActivePreviewId}
                             isPlaying={isPlaying}
                             setIsPlaying={setIsPlaying}
+                            isMuted={isMuted}
+                            setIsMuted={setIsMuted}
                             clipTrimRanges={clipTrimRanges}
                             setClipTrimRanges={setClipTrimRanges}
                             getTrimRangeForItem={getTrimRangeForItem}
@@ -9081,7 +9112,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => { setLeftTab('effects'); setInspectorTab('animation'); }}
+                                onClick={() => setLeftTab('effects')}
                                 className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
                                 title="FX Effects"
                             >
@@ -9469,7 +9500,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
             {/* Ã¢â€â‚¬Ã¢â€â‚¬ FADE OVERLAY BOTTOM DRAWER Ã¢â€â‚¬Ã¢â€â‚¬ */}
             <AnimatePresence>
                 {isFadeOpen && (() => {
-                    const activeFadeItem = activePreviewId ? mediaItems.find(i => i.id === activePreviewId) : null;
+                    const activeFadeItem = activePreviewId ? mediaItems.find(i => i?.id === activePreviewId) : null;
                     const trim = activeFadeItem ? getTrimRangeForItem(activeFadeItem.id, activeFadeItem.duration) : { start: 0, end: 15 };
                     const fadeEffDur = Math.max(0.1, trim.end - trim.start);
 
@@ -9486,8 +9517,8 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                     const handleApplyToAll = () => {
                         const newSettings = { ...clipSettings };
                         mediaItems.filter(i => i.type === 'video' || (i.type as string) === 'audio').forEach(item => {
-                            newSettings[item.id] = {
-                                ...(newSettings[item.id] || {}),
+                            newSettings[item?.id] = {
+                                ...(newSettings[item?.id] || {}),
                                 fadeIn: fadeInVal,
                                 fadeOut: fadeOutVal
                             };
@@ -9933,7 +9964,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                     setClipTrimRanges(prev => {
                                                         const next = { ...prev };
                                                         mediaItems.forEach(item => {
-                                                            next[item.id] = { start: 0, end: newSec };
+                                                            next[item?.id] = { start: 0, end: newSec };
                                                         });
                                                         return next;
                                                     });
@@ -9942,7 +9973,7 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
                                                 setClipTrimRanges(prev => {
                                                     const next = { ...prev };
                                                     mediaItems.forEach(item => {
-                                                        if (next[item.id]) delete next[item.id];
+                                                        if (next[item?.id]) delete next[item?.id];
                                                     });
                                                     return next;
                                                 });
@@ -10017,3 +10048,4 @@ export const QuickEditStyleScreen = memo(function QuickEditStyleScreen() {
 });
 
 
+ 

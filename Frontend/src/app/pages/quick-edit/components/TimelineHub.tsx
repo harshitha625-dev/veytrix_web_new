@@ -574,12 +574,26 @@ const TimelineClipItem = memo(({
                 </>
               )}
               <div className="w-px h-6 mx-0.5 bg-[#140a24]/20" />
-              <button className="flex flex-col items-center gap-1 px-2 py-1 hover:bg-black/10 rounded-lg transition-colors">
+              <button 
+                className="flex flex-col items-center gap-1 px-2 py-1 hover:bg-black/10 rounded-lg transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (setActivePreviewId) setActivePreviewId(clip.id);
+                  if (setActiveTool) setActiveTool('keyframe');
+                }}
+              >
                 <Diamond className="w-4 h-4" strokeWidth={1.5} />
                 <span className="text-[10.5px] font-medium tracking-wide capitalize">Keyframe</span>
               </button>
               <div className="w-px h-6 mx-0.5 bg-[#140a24]/20" />
-              <button className="flex flex-col items-center gap-1 px-2 py-1 hover:bg-black/10 rounded-lg transition-colors">
+              <button 
+                className="flex flex-col items-center gap-1 px-2 py-1 hover:bg-black/10 rounded-lg transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (setActivePreviewId) setActivePreviewId(clip.id);
+                  if (setActiveTool) setActiveTool('speed');
+                }}
+              >
                 <TrendingUp className="w-4 h-4" strokeWidth={1.5} />
                 <span className="text-[10.5px] font-medium tracking-wide capitalize">Curve</span>
               </button>
@@ -737,6 +751,8 @@ export const TimelineHub = memo(({
   undo,
   redo,
   onCropTrack,
+  isMuted,
+  setIsMuted,
 }: any) => {
 
   /* ── State ─────────────────────────────────────────────────── */
@@ -959,13 +975,13 @@ export const TimelineHub = memo(({
     });
     
     captions.forEach((cap: any) => {
-      const finalStart = clipStartOverrides[cap.id] !== undefined ? clipStartOverrides[cap.id] : cap.startTime;
+      const finalStart = clipStartOverrides[cap.id] !== undefined ? clipStartOverrides[cap.id] : (cap.startTime || 0);
       const finalTrack = clipTrackOverrides[cap.id] || "text-1";
-      const finalName = clipNameOverrides[cap.id] || cap.text;
-      const capDur = (cap.endTime ?? cap.startTime + 2) - cap.startTime;
+      const finalName = clipNameOverrides[cap.id] || cap.text || "Caption";
+      const capDur = (cap.endTime ?? (cap.startTime || 0) + 2) - (cap.startTime || 0);
       
       list.push({
-        id: cap.id,
+        id: cap.id || `cap-${Math.random()}`,
         name: finalName,
         type: "text",
         startTime: finalStart,
@@ -2110,6 +2126,15 @@ export const TimelineHub = memo(({
               <Play className="w-4 h-4 fill-black ml-0.5" />
             )}
           </button>
+          {setIsMuted && (
+            <button
+              onClick={() => setIsMuted(!isMuted)}
+              className="p-2 rounded-full border border-white/20 text-white hover:bg-white/10 transition-transform active:scale-95 shadow-md flex items-center justify-center"
+              title={isMuted ? "Unmute" : "Mute"}
+            >
+              {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+          )}
           <button
             onClick={() => handleTimelineClick && handleTimelineClick(Math.min(totalDuration + 1))}
             className="p-1.5 rounded-md text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
@@ -2501,7 +2526,7 @@ export const TimelineHub = memo(({
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  if (type === 'junction' && clip && nextClip) {
+                                  if (hasTransition) {
                                     window.dispatchEvent(new CustomEvent('open-transition-editor', { detail: { targetId: clip.id, nextId: nextClip.id } }));
                                   } else {
                                     setInsertMenuTargetId(prev => prev === id ? null : id);
@@ -2530,14 +2555,14 @@ export const TimelineHub = memo(({
                                   <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] border-[6px] border-transparent border-t-[#111322] z-10" />
                                   <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] border-[7px] border-transparent border-t-white/10 z-0" />
 
-                                  {type === 'junction' && clip && nextClip ? (
-                                      <button onClick={() => { setInsertMenuTargetId(null); window.dispatchEvent(new CustomEvent('open-transition-editor', { detail: { targetId: clip.id, nextId: nextClip.id } })); }} className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/5 hover:text-white rounded-lg transition-colors">
-                                        <Shuffle className="w-3.5 h-3.5 text-teal-400" />
-                                        Add Transition
-                                      </button>
-                                  ) : (
-                                      <>
-                                          <button onClick={() => { setInsertMenuTargetId(null); window.dispatchEvent(new CustomEvent('insert-media-at', { detail: { targetId: targetId, type: 'video' } })); }} className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/5 hover:text-white rounded-lg transition-colors">
+                                  <>
+                                      {type === 'junction' && clip && nextClip && (
+                                          <button onClick={() => { setInsertMenuTargetId(null); window.dispatchEvent(new CustomEvent('open-transition-editor', { detail: { targetId: clip.id, nextId: nextClip.id } })); }} className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/5 hover:text-white rounded-lg transition-colors">
+                                            <Shuffle className="w-3.5 h-3.5 text-teal-400" />
+                                            Add Transition
+                                          </button>
+                                      )}
+                                      <button onClick={() => { setInsertMenuTargetId(null); window.dispatchEvent(new CustomEvent('insert-media-at', { detail: { targetId: targetId, type: 'video' } })); }} className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/5 hover:text-white rounded-lg transition-colors">
                                             <Film className="w-3.5 h-3.5 text-blue-400" />
                                             Add Video
                                           </button>
@@ -2554,7 +2579,6 @@ export const TimelineHub = memo(({
                                             Add Text
                                           </button>
                                       </>
-                                  )}
                                 </div>
                               )}
                             </div>
@@ -2903,3 +2927,4 @@ export const TimelineHub = memo(({
 });
 
 export default TimelineHub;
+ 

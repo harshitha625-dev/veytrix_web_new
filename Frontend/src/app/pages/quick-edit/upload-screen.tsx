@@ -35,6 +35,7 @@ export function QuickEditUploadScreen() {
   
   const [dragOver, setDragOver] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -70,6 +71,7 @@ export function QuickEditUploadScreen() {
     setFileError(null);
     if (selectedFile.type.startsWith('video/') || selectedFile.type.startsWith('image/')) {
       setFile(selectedFile);
+      setFileUrl(URL.createObjectURL(selectedFile));
     } else {
       setFileError("Unsupported file type. Please upload a video (e.g., mp4) or image file.");
       if (fileInputRef.current) {
@@ -109,7 +111,7 @@ export function QuickEditUploadScreen() {
             initialMedia: {
               name: file.name,
               type: file.type.startsWith('video/') ? 'video' : 'image',
-              preview: URL.createObjectURL(file),
+              preview: fileUrl || URL.createObjectURL(file),
               file: file
             },
             initialAudio: audioFile ? {
@@ -121,7 +123,7 @@ export function QuickEditUploadScreen() {
         });
       }, 1500);
     }
-  }, [file, audioFile, navigate]);
+  }, [file, fileUrl, audioFile, navigate]);
 
   // ----- STYLES -----
   const styles: Record<string, React.CSSProperties> = {
@@ -587,7 +589,7 @@ export function QuickEditUploadScreen() {
                   <FileVideo size={16} />
                   {file.name.length > 40 ? file.name.substring(0, 37) + '...' : file.name}
                   <button
-                    onClick={(e) => { e.stopPropagation(); setFile(null); setFileError(null); }}
+                    onClick={(e) => { e.stopPropagation(); setFile(null); setFileError(null); setFileUrl(null); }}
                     style={{background: 'none', border: 'none', color: CONFIG.textMuted, cursor: 'pointer', padding: '0', display: 'flex', alignItems: 'center'}}
                   >
                     <X size={16} />
